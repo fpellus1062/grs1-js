@@ -18,6 +18,16 @@ function toArgb(hexColor) {
   return h ? `FF${h.slice(1)}` : null;
 }
 
+function textArgbForBackground(hexColor) {
+  const h = normalizeHex(hexColor);
+  if (!h) return 'FF1F2937';
+  const r = parseInt(h.slice(1, 3), 16);
+  const g = parseInt(h.slice(3, 5), 16);
+  const b = parseInt(h.slice(5, 7), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.58 ? 'FF1F2937' : 'FFFFFFFF';
+}
+
 // Número de columna (1-based) a letra Excel
 function colLetter(n) {
   let s = '';
@@ -102,6 +112,12 @@ function consolidateHistorialByAgent(logs) {
         agente_apellido2: entry.agente_apellido2,
         agente_nombre: entry.agente_nombre,
         agente_tip: entry.agente_tip,
+        agente_escalafon: entry.agente_escalafon,
+        agente_nif: entry.agente_nif,
+        agente_titulacion: entry.agente_titulacion,
+        agente_telefono: entry.agente_telefono,
+        peloton_codigo: entry.peloton_codigo,
+        peloton_nombre: entry.peloton_nombre,
         empleo_nombre: entry.empleo_nombre,
         dayValues: {}
       };
@@ -140,13 +156,13 @@ function consolidateHistorialByAgent(logs) {
   return Object.values(consolidated);
 }
 
-// ── Extrae richText para las actividades de un día concreto ──────────────────
+// ── Extrae payload de celda por actividad en un día concreto ─────────────────
 // Devuelve:
 //   null  → ese día no existe en los datos (celda vacía)
-//   '—'   → día existe pero fue borrado (datos_anteriores con fechas[day] = null)
-//   richText[] → array con partes de ExcelJS richText
+//   '—'   → día existe pero fue borrado
+//   { richText, fillArgb } → celda con texto y color por actividad
 
-function getDayRichText(datos, dayKey, logFecha, actMap) {
+function getDayCellPayload(datos, dayKey, logFecha, actMap) {
   if (!datos || typeof datos !== 'object') return null;
 
   let dayData = null;
@@ -172,6 +188,12 @@ function getDayRichText(datos, dayKey, logFecha, actMap) {
 
   if (!actIds.length) return '—';
 
+  const firstAct = actMap.get(actIds[0]);
+  const bgHex = firstAct
+    ? normalizeHex(firstAct.actividad_color || firstAct.color)
+    : null;
+  const textArgb = textArgbForBackground(bgHex);
+
   const parts = [];
   actIds.forEach((id, idx) => {
     const act = actMap.get(id);
@@ -180,19 +202,14 @@ function getDayRichText(datos, dayKey, logFecha, actMap) {
         ? `${act.codigo} - ${act.nombre}`
         : act.codigo
       : `#${id}`;
-    const color = act
-      ? normalizeHex(act.actividad_color || act.color)
-      : null;
-
     if (idx > 0) parts.push({ text: ' / ' });
-    if (color) {
-      parts.push({ text: label, font: { size: 10, bold: true, color: { argb: toArgb(color) } } });
-    } else {
-      parts.push({ text: label, font: { size: 10} });
-    }
+    parts.push({ text: label, font: { size: 10, bold: true, color: { argb: textArgb } } });
   });
 
-  return parts;
+  return {
+    richText: parts,
+    fillArgb: bgHex ? toArgb(bgHex) : null,
+  };
 }
 
 // ── Aplica fondo de fila a las celdas 1..totalCols ───────────────────────────
@@ -227,10 +244,13 @@ async function buildHistorialExcel(
 
   // ── Definición de columnas ────────────────────────────────────────────────
   const fixedCols = [
-    { header: 'Estado',   key: 'estado',  width: 12 },
-    { header: 'TIP',      key: 'tip',     width: 10 },
-    { header: 'Agente',   key: 'agente',  width: 30 },
-    { header: 'Empleo',   key: 'empleo',  width: 22 },
+    { header: 'Pelotón',            key: 'peloton',    width: 16 },
+    { header: 'Empleo',             key: 'empleo',     width: 16 },
+    { header: 'Titulación',         key: 'titulacion', width: 18 },
+    { header: 'Apellidos y Nombre', key: 'agente',     width: 34 },
+    { header: 'TIP',                key: 'tip',        width: 12 },
+    { header: 'Grupo',              key: 'grupo',      width: 28 },
+    { header: 'Teléfono',           key: 'telefono',   width: 18 },
   ];
   const dayCols = (planningDays || []).map((d, i) => ({
     header: d.label,
@@ -258,11 +278,23 @@ async function buildHistorialExcel(
   // AutoFilter en toda la cabecera
   ws.autoFilter = `A1:${colLetter(totalCols)}1`;
 
-  // Freeze: primera fila + primeras 4 columnas (A-D)
-  ws.views = [{ state: 'frozen', xSplit: 4, ySplit: 1, activeCell: 'E2' }];
+  // Freeze: primera fila + columnas fijas
+  ws.views = [{ state: 'frozen', xSplit: fixedCols.length, ySplit: 1, activeCell: `${colLetter(fixedCols.length + 1)}2` }];
 
   // ── Consolidar historial por agente ────────────────────────────────────────
   const consolidated = consolidateHistorialByAgent(filtered).sort((a, b) => {
+    const pelA = String(a.peloton_nombre || a.peloton_codigo || '').trim();
+    const pelB = String(b.peloton_nombre || b.peloton_codigo || '').trim();
+    const cmpPel = pelA.localeCompare(pelB, 'es', { sensitivity: 'base' });
+    if (cmpPel !== 0) return cmpPel;
+
+    const escA = Number(a.agente_escalafon);
+    const escB = Number(b.agente_escalafon);
+    const aNum = Number.isFinite(escA);
+    const bNum = Number.isFinite(escB);
+    if (aNum && bNum && escA !== escB) return escA - escB;
+    if (aNum !== bNum) return aNum ? -1 : 1;
+
     const nameA = [a.agente_apellido1, a.agente_apellido2, a.agente_nombre]
       .filter(Boolean)
       .join(' ');
@@ -272,73 +304,103 @@ async function buildHistorialExcel(
     return nameA.localeCompare(nameB, 'es', { sensitivity: 'base' });
   });
 
-  // ── Filas de datos ────────────────────────────────────────────────────────
+  function summarizeLatestActividad(agentData) {
+    const orderedDays = (planningDays || []).length
+      ? (planningDays || []).map((d) => d.key)
+      : Object.keys(agentData.dayValues || {}).sort();
+
+    if (!orderedDays.length) {
+      return { grupo: '' };
+    }
+
+    for (let i = orderedDays.length - 1; i >= 0; i--) {
+      const dayKey = orderedDays[i];
+      const dayData = agentData.dayValues[dayKey];
+      const payload = dayData && dayData.after
+        ? (
+            dayData.after.fechas && typeof dayData.after.fechas === 'object'
+              ? dayData.after.fechas[dayKey]
+              : dayData.after
+          )
+        : undefined;
+      if (!payload || typeof payload !== 'object') continue;
+
+      const raw = payload.actividad_ids;
+      const ids = Array.isArray(raw)
+        ? raw.map(Number).filter(Boolean)
+        : raw
+        ? [Number(raw)].filter(Boolean)
+        : [];
+      if (!ids.length) continue;
+
+      const acts = ids
+        .map((id) => actMap.get(id))
+        .filter(Boolean);
+
+      const grupos = Array.from(
+        new Set(
+          acts
+            .map((a) =>
+              String(
+                a.grupo_nivel3_nombre ||
+                  a.grupo_nombre ||
+                  a.nivel_grupo_nombre ||
+                  a.grupo ||
+                  ''
+              ).trim()
+            )
+            .filter(Boolean)
+        )
+      );
+
+      return { grupo: grupos.join(' / ') };
+    }
+
+    return { grupo: '' };
+  }
+
+  // ── Filas de datos (solo último estado) ───────────────────────────────────
   consolidated.forEach((agent) => {
     const agentName =
       [agent.agente_apellido1, agent.agente_apellido2, agent.agente_nombre]
         .filter(Boolean)
         .join(' ') || 'Acción global';
+    const resumenActividad = summarizeLatestActividad(agent);
 
-    // — Fila Anterior —
-    const antRow = ws.addRow({
-      estado:  'Anterior',
-      tip:     agent.agente_tip || '',
-      agente:  agentName,
-      empleo:  agent.empleo_nombre || '',
-    });
-    fillRow(antRow, 'FFFFF5F5', totalCols);
-    antRow.getCell('A').font = { bold: true, color: { argb: 'FFC0392B' } };
-    antRow.alignment = { vertical: 'top', wrapText: false };
-
-    (planningDays || []).forEach((d, i) => {
-      const cell = antRow.getCell(5 + i);
-      const dayData = agent.dayValues[d.key];
-      const rich = dayData
-        ? getDayRichText(dayData.before, d.key, null, actMap)
-        : null;
-      if (rich === null) {
-        cell.value = '';
-      } else if (typeof rich === 'string') {
-        cell.value = rich;
-        cell.font = { size: 10};
-      } else {
-        const allPlain = rich.every((p) => !p.font);
-        cell.value = allPlain
-          ? rich.map((p) => p.text).join('')
-          : { richText: rich };
-        if (allPlain) cell.font = { size: 10};
-      }
-      cell.alignment = { wrapText: true, vertical: 'top' };
-    });
-
-    // — Fila Posterior —
     const postRow = ws.addRow({
-      estado:  'Posterior',
-      tip:     agent.agente_tip || '',
-      agente:  agentName,
-      empleo:  agent.empleo_nombre || '',
+      peloton: `${agent.peloton_codigo || ''}${agent.peloton_nombre ? ` - ${agent.peloton_nombre}` : ''}`.trim(),
+      empleo: agent.empleo_nombre || '',
+      titulacion: agent.agente_titulacion || '',
+      agente: agentName,
+      tip: agent.agente_tip || '',
+      grupo: resumenActividad.grupo,
+      telefono: agent.agente_telefono || '',
     });
-    fillRow(postRow, 'FFF0FAF0', totalCols);
-    postRow.getCell('A').font = { bold: true, color: { argb: 'FF1A7A3C' } };
+
+    fillRow(postRow, 'FFF8FAFD', fixedCols.length);
     postRow.alignment = { vertical: 'top', wrapText: false };
 
     (planningDays || []).forEach((d, i) => {
-      const cell = postRow.getCell(5 + i);
+      const cell = postRow.getCell(fixedCols.length + 1 + i);
       const dayData = agent.dayValues[d.key];
-      const rich = dayData
-        ? getDayRichText(dayData.after, d.key, null, actMap)
+      const payload = dayData
+        ? getDayCellPayload(dayData.after, d.key, null, actMap)
         : null;
-      if (rich === null) {
+
+      if (payload === null) {
         cell.value = '';
-      } else if (typeof rich === 'string') {
-        cell.value = rich;
-        cell.font = { size: 10};
+      } else if (typeof payload === 'string') {
+        cell.value = payload;
+        cell.font = { size: 10 };
       } else {
-        const allPlain = rich.every((p) => !p.font);
-        cell.value = allPlain
-          ? rich.map((p) => p.text).join('')
-          : { richText: rich };
-        if (allPlain) cell.font = { size: 10};
+        cell.value = { richText: payload.richText };
+        if (payload.fillArgb) {
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: payload.fillArgb },
+          };
+        }
       }
       cell.alignment = { wrapText: true, vertical: 'top' };
     });
@@ -348,7 +410,8 @@ async function buildHistorialExcel(
   const safeName = (nombreBorrador || `${anio}${String(mes).padStart(2, '0')}`)
     .replace(/[^a-zA-Z0-9_-]/g, '_')
     .slice(0, 60);
-  const filename = `historial_${safeName}_${anio}${String(mes).padStart(2, '0')}.xlsx`;
+  const stamp = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
+  const filename = `historial_v2_${safeName}_${anio}${String(mes).padStart(2, '0')}_${stamp}.xlsx`;
 
   res.setHeader(
     'Content-Type',

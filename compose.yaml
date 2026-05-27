@@ -16,6 +16,7 @@ services:
       retries: 10
     volumes:
       - grs1_pgdata:/var/lib/postgresql/data
+      - ${COMPOSE_BIND_ROOT:-.}/scripts/docker/initdb:/docker-entrypoint-initdb.d:ro
     ports:
       - "127.0.0.1:${DB_PUBLISHED_PORT:-5432}:5432"
 
@@ -51,6 +52,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      provenance: false
+      sbom: false
     container_name: grs1-app
     restart: unless-stopped
     depends_on:
@@ -91,7 +94,7 @@ services:
       app:
         condition: service_healthy
     ports:
-      - "${HTTP_PORT:-18080}:80"
+      - "${HTTP_PORT:-80}:80"
     volumes:
       - ${COMPOSE_BIND_ROOT:-.}/docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     networks:

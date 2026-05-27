@@ -2994,14 +2994,20 @@ exports.getHistorial = async (query, arsUnidadId) => {
             l.fecha::text        AS fecha,
             ag.tip               AS agente_tip,
             ag.telefono          AS agente_telefono,
+          ag.escalafon         AS agente_escalafon,
+          ag.nif               AS agente_nif,
+          ag.aptitudes         AS agente_titulacion,
             ag.nombre            AS agente_nombre,
             ag.apellido_1        AS agente_apellido1,
             ag.apellido_2        AS agente_apellido2,
             e.descripcion        AS empleo_nombre,
+          p.id_peloton         AS peloton_codigo,
+          p.descripcion        AS peloton_nombre,
             uc.nombre AS comunicado_nombre
      FROM asignaciones_log l
      LEFT JOIN agentes ag ON ag.id = l.agente_id
      LEFT JOIN agentes_empleo e ON e.id_empleo = ag.empleo_id
+      LEFT JOIN agentes_peloton p ON p.id_peloton::text = ag.peloton_id::text
      LEFT JOIN usuarios uc ON uc.id = l.comunicado_por
      ${where}
      ORDER BY l.id DESC

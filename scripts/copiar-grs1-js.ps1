@@ -1,5 +1,5 @@
-﻿$origen = "C:\Desarrollo\node\grs1"
-$destino = "E:\Desarrollo\grs1"
+$origen = "C:\Desarrollo\node\grs1-js"
+$destino = "E:\Desarrollo\Proyecto_ARS\grs1-js"
 
 New-Item -ItemType Directory -Path $destino -Force | Out-Null
 

@@ -16,6 +16,7 @@ services:
       retries: 10
     volumes:
       - grs1_pgdata:/var/lib/postgresql/data
+      - ${COMPOSE_BIND_ROOT:-.}/scripts/docker/initdb:/docker-entrypoint-initdb.d:ro
     ports:
       - "127.0.0.1:${DB_PUBLISHED_PORT:-5432}:5432"
 

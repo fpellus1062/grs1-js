@@ -9,6 +9,36 @@ param(
 $ErrorActionPreference = "Stop"
 $ScriptStartUtc = (Get-Date).ToUniversalTime().ToString("o")
 
+# Forzar builder clasico para evitar attestations/OCI artifacts en builds locales de compose.
+$env:DOCKER_BUILDKIT = "0"
+$env:COMPOSE_DOCKER_CLI_BUILD = "0"
+
+$ComposeFile = if (Test-Path "compose.yaml") {
+  "compose.yaml"
+} elseif (Test-Path "docker-compose.yml") {
+  "docker-compose.yml"
+} else {
+  $null
+}
+
+$ComposeArgs = @()
+if ($ComposeFile) {
+  $ComposeArgs = @("-f", $ComposeFile)
+}
+
+function ComposeOut {
+  param(
+    [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
+    [string[]]$CommandArgs
+  )
+
+  $output = & docker compose @ComposeArgs @CommandArgs
+  if ($LASTEXITCODE -ne 0) {
+    throw "docker compose $($CommandArgs -join ' ') fallo con exit code $LASTEXITCODE"
+  }
+  return $output
+}
+
 $Passed = 0
 $Failed = 0
 $Warnings = 0
@@ -37,28 +67,68 @@ function Run-Step([string]$name, [scriptblock]$block) {
   }
 }
 
+function Get-FirstFreeLoopbackPort([int[]]$Candidates) {
+  foreach ($port in $Candidates) {
+    $listener = $null
+    try {
+      $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $port)
+      $listener.Start()
+      $listener.Stop()
+      return $port
+    } catch {
+      if ($listener) {
+        try { $listener.Stop() } catch {}
+      }
+    }
+  }
+  return $null
+}
+
+function Test-CoreSchemaPresent {
+  $query = "select ((to_regclass('public.agentes') is not null) and (to_regclass('public.actividades') is not null) and (to_regclass('public.asignaciones_borradores') is not null))::int;"
+  $result = & docker compose @ComposeArgs exec -T postgres psql -U $DbUser -d $DbName -t -A -c $query
+  if ($LASTEXITCODE -ne 0) {
+    return $false
+  }
+
+  return (($result | Out-String).Trim() -eq "1")
+}
+
 if ($EnsureUp) {
+  if (-not $env:DB_PUBLISHED_PORT) {
+    $fallbackPort = Get-FirstFreeLoopbackPort @(5432, 15432, 25432, 35432)
+    if (-not $fallbackPort) {
+      throw "No se encontro un puerto libre para DB_PUBLISHED_PORT"
+    }
+    $env:DB_PUBLISHED_PORT = [string]$fallbackPort
+    Write-Host "Usando DB_PUBLISHED_PORT=$fallbackPort para esta ejecucion" -ForegroundColor Yellow
+  }
   Write-Host "\n== Pre-step: levantar servicios nginx/app/postgres ==" -ForegroundColor Cyan
-  docker compose up -d postgres app nginx | Out-Null
+  ComposeOut up -d postgres app nginx | Out-Null
+
+  if (Test-CoreSchemaPresent) {
+    Write-Host "\n== Pre-step: migraciones bootstrap omitidas (esquema base ya presente) ==" -ForegroundColor Cyan
+  } else {
+    Write-Host "\n== Pre-step: aplicar migraciones (perfil bootstrap) ==" -ForegroundColor Cyan
+    ComposeOut --profile bootstrap run --rm migrate | Out-Null
+  }
 }
 
 Run-Step "1) Servicios arriba" {
-  $raw = docker compose ps --format json
-  if (-not $raw) { throw "No hay servicios en docker compose" }
-  $ps = $raw | ConvertFrom-Json
-  if (-not $ps) { throw "No hay servicios en docker compose" }
+  $servicesRaw = ComposeOut config --services
+  $declaredServices = @($servicesRaw | ForEach-Object { ($_ | Out-String).Trim() } | Where-Object { $_ })
+  if (-not $declaredServices -or $declaredServices.Count -eq 0) { throw "No hay servicios en docker compose" }
 
-  $app = $ps | Where-Object { $_.Service -eq "app" }
-  $pg = $ps | Where-Object { $_.Service -eq "postgres" }
-  $nginx = $ps | Where-Object { $_.Service -eq "nginx" }
+  $runningRaw = ComposeOut ps --services --status running
+  $runningServices = @($runningRaw | ForEach-Object { ($_ | Out-String).Trim() } | Where-Object { $_ })
 
-  if (-not $app -or -not $app.State -or $app.State -ne "running") {
+  if (-not ($runningServices -contains "app")) {
     throw "Servicio app no esta running"
   }
-  if (-not $pg -or -not $pg.State -or $pg.State -ne "running") {
+  if (-not ($runningServices -contains "postgres")) {
     throw "Servicio postgres no esta running"
   }
-  if (-not $nginx -or -not $nginx.State -or $nginx.State -ne "running") {
+  if (-not ($runningServices -contains "nginx")) {
     throw "Servicio nginx no esta running"
   }
 
@@ -66,7 +136,7 @@ Run-Step "1) Servicios arriba" {
 }
 
 Run-Step "2) Variables criticas en compose" {
-  $cfg = docker compose config | Out-String
+  $cfg = ComposeOut config | Out-String
   if ($cfg -notmatch "POSTGRES_USER:") { throw "No aparece POSTGRES_USER en compose config" }
   if ($cfg -notmatch "POSTGRES_PASSWORD:") { throw "No aparece POSTGRES_PASSWORD en compose config" }
   if ($cfg -notmatch "POSTGRES_DB:") { throw "No aparece POSTGRES_DB en compose config" }
@@ -89,12 +159,23 @@ Run-Step "2) Variables criticas en compose" {
 }
 
 Run-Step "3) HTTP login.html" {
+  $effectiveAppUrl = $AppUrl
+  if ($AppUrl -eq "http://localhost/login.html") {
+    $nginxPs = (ComposeOut ps nginx | Out-String)
+    if ($nginxPs -match ":(\d+)->80/tcp") {
+      $publishedHttpPort = $Matches[1]
+      $effectiveAppUrl = "http://localhost:$publishedHttpPort/login.html"
+    } elseif ($env:HTTP_PORT) {
+      $effectiveAppUrl = "http://localhost:$($env:HTTP_PORT)/login.html"
+    }
+  }
+
   $maxAttempts = 30
   $statusCode = ""
   $lastError = ""
 
   for ($i = 1; $i -le $maxAttempts; $i++) {
-    $raw = curl.exe -sS -o NUL -w "%{http_code}" $AppUrl 2>&1
+    $raw = curl.exe -sS -o NUL -w "%{http_code}" $effectiveAppUrl 2>&1
     $out = ($raw | Out-String).Trim()
 
     if ($out -match "^\d{3}$") {
@@ -111,29 +192,41 @@ Run-Step "3) HTTP login.html" {
 
   if ($statusCode -ne "200") {
     if ($lastError) {
-      throw "Sin 200 tras $maxAttempts intentos. Ultimo error: $lastError"
+      throw "Sin 200 en $effectiveAppUrl tras $maxAttempts intentos. Ultimo error: $lastError"
     }
-    throw "Sin 200 tras $maxAttempts intentos. Ultimo status: $statusCode"
+    throw "Sin 200 en $effectiveAppUrl tras $maxAttempts intentos. Ultimo status: $statusCode"
   }
   Pass "Endpoint login responde 200"
 }
 
 Run-Step "4) Conexion a PostgreSQL" {
-  $out = docker compose exec -T postgres psql -U $DbUser -d $DbName -t -A -c "select 'ok';"
+  $out = & docker compose @ComposeArgs exec -T postgres psql -U $DbUser -d $DbName -t -A -c "select 'ok';"
+  if ($LASTEXITCODE -ne 0) {
+    throw "docker compose exec postgres psql fallo con exit code $LASTEXITCODE"
+  }
   if (($out | Out-String).Trim() -ne "ok") { throw "No se pudo validar conexion SQL" }
   Pass "Conexion SQL OK"
 }
 
 Run-Step "5) Esquema presente" {
-  $tables = docker compose exec -T postgres psql -U $DbUser -d $DbName -t -A -c "select count(*) from information_schema.tables where table_schema='public';"
+  $tables = & docker compose @ComposeArgs exec -T postgres psql -U $DbUser -d $DbName -t -A -c "select count(*) from information_schema.tables where table_schema='public';"
+  if ($LASTEXITCODE -ne 0) {
+    throw "docker compose exec postgres psql fallo con exit code $LASTEXITCODE"
+  }
   $count = [int](($tables | Out-String).Trim())
   if ($count -le 0) { throw "No hay tablas en schema public" }
   Pass "Tablas public: $count"
 }
 
 Run-Step "6) Datos minimos" {
-  $ag = docker compose exec -T postgres psql -U $DbUser -d $DbName -t -A -c "select count(*) from public.agentes;"
-  $ac = docker compose exec -T postgres psql -U $DbUser -d $DbName -t -A -c "select count(*) from public.actividades;"
+  $ag = & docker compose @ComposeArgs exec -T postgres psql -U $DbUser -d $DbName -t -A -c "select count(*) from public.agentes;"
+  if ($LASTEXITCODE -ne 0) {
+    throw "docker compose exec postgres psql fallo con exit code $LASTEXITCODE"
+  }
+  $ac = & docker compose @ComposeArgs exec -T postgres psql -U $DbUser -d $DbName -t -A -c "select count(*) from public.actividades;"
+  if ($LASTEXITCODE -ne 0) {
+    throw "docker compose exec postgres psql fallo con exit code $LASTEXITCODE"
+  }
   $agCount = [int](($ag | Out-String).Trim())
   $acCount = [int](($ac | Out-String).Trim())
 
@@ -145,7 +238,7 @@ Run-Step "6) Datos minimos" {
 
 Run-Step "7) Logs app sin error critico" {
   # Evaluar solo logs emitidos durante esta corrida para evitar ruido historico.
-  $logs = docker compose logs --since $ScriptStartUtc --tail 500 app
+  $logs = ComposeOut logs --since $ScriptStartUtc --tail 500 app
   if ($logs -match "UnhandledPromiseRejection|EADDRINUSE|ECONNREFUSED|FATAL|Error: listen") {
     if ($Strict) { throw "Detectados patrones de error potencial en logs app" }
     Warn "Detectados patrones de error potencial en logs app"
@@ -156,7 +249,7 @@ Run-Step "7) Logs app sin error critico" {
 
 Run-Step "8) Logs postgres sin error critico" {
   # Evaluar solo logs emitidos durante esta corrida para evitar ruido historico.
-  $logs = docker compose logs --since $ScriptStartUtc --tail 500 postgres
+  $logs = ComposeOut logs --since $ScriptStartUtc --tail 500 postgres
   if ($logs -match "PANIC|FATAL|database system is shut down") {
     if ($Strict) { throw "Detectados patrones de error potencial en logs postgres" }
     Warn "Detectados patrones de error potencial en logs postgres"

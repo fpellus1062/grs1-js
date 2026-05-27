@@ -10,11 +10,11 @@
     "start": "npm run build && node server.js",
     "db:reset-asignaciones": "node scripts/reset-asignaciones.js",
     "db:reset-asignaciones:yes": "node scripts/reset-asignaciones.js --yes",
-    "docker:build": "docker compose up -d --build app",
+    "docker:build": "powershell -NoProfile -Command \"$env:DOCKER_BUILDKIT='0'; $env:COMPOSE_DOCKER_CLI_BUILD='0'; docker compose up -d --build app; $code=$LASTEXITCODE; Remove-Item Env:DOCKER_BUILDKIT -ErrorAction SilentlyContinue; Remove-Item Env:COMPOSE_DOCKER_CLI_BUILD -ErrorAction SilentlyContinue; exit $code\"",
     "docker:migrate": "docker compose run --rm migrate",
     "docker:migrate:clean": "powershell -NoProfile -Command \"$env:RESET_SCHEMA_BEFORE_PLAIN_DUMP='true'; docker compose run --rm migrate; $code=$LASTEXITCODE; Remove-Item Env:RESET_SCHEMA_BEFORE_PLAIN_DUMP -ErrorAction SilentlyContinue; exit $code\"",
-    "docker:go-no-go": "powershell -ExecutionPolicy Bypass -File scripts/predeploy-go-no-go.ps1 -EnsureUp",
-    "docker:go-no-go:strict": "powershell -ExecutionPolicy Bypass -File scripts/predeploy-go-no-go.ps1 -EnsureUp -Strict",
+    "docker:go-no-go": "powershell -NoProfile -Command \"$env:DB_PUBLISHED_PORT='15432'; powershell -ExecutionPolicy Bypass -File scripts/predeploy-go-no-go.ps1 -EnsureUp -AppUrl 'http://localhost:18080/login.html'; $code=$LASTEXITCODE; Remove-Item Env:DB_PUBLISHED_PORT -ErrorAction SilentlyContinue; exit $code\"",
+    "docker:go-no-go:strict": "powershell -NoProfile -Command \"$env:DB_PUBLISHED_PORT='15432'; powershell -ExecutionPolicy Bypass -File scripts/predeploy-go-no-go.ps1 -EnsureUp -Strict -AppUrl 'http://localhost:18080/login.html'; $code=$LASTEXITCODE; Remove-Item Env:DB_PUBLISHED_PORT -ErrorAction SilentlyContinue; exit $code\"",
     "docker:pack-usb": "powershell -ExecutionPolicy Bypass -File scripts/docker/package-release-usb.ps1",
     "docker:pack-usb:offline-strict": "powershell -ExecutionPolicy Bypass -File scripts/docker/package-release-usb.ps1 -OfflineStrict"
   },
@@ -59,7 +59,7 @@
     "sanitize-html": "^2.17.3",
     "sharp": "^0.34.5",
     "tabulator-tables": "^6.4.0",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+    "xlsx": "file:vendor/npm/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "eslint": "^8.57.1",

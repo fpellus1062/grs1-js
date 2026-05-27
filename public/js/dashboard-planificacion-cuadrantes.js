@@ -263,7 +263,7 @@
 
       html +=
         '' +
-        '<div class="col-12 col-md-6 col-xl-4">' +
+        '<div class="col-12 col-md-4">' +
         '<div class="card shadow-sm h-100">' +
         '<div class="card-header py-2 px-2 d-flex justify-content-between align-items-center">' +
         '<strong style="font-size:.9rem;">' +
