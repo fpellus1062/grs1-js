@@ -1,0 +1,162 @@
+<!-- Notion-style compact toolbar -->
+<div class="card shadow-sm mb-2">
+  <div
+    class="d-flex align-items-center gap-2 px-3 py-2 border-bottom bg-white flex-wrap"
+  >
+    <i class="bi bi-journal-text text-secondary" style="font-size: 0.95rem"></i>
+    <span class="fw-semibold text-dark" style="font-size: 0.875rem"
+      >Ledger</span
+    >
+    <button class="btn btn-link p-0 lh-1" type="button" data-help-context="devengos-informe-help" data-bs-toggle="modal" data-bs-target="#helpModal"
+      title="Informes de Devengos Pendientes (Ledger)">
+      <i class="bi bi-question-circle text-secondary" style="font-size: 0.8rem"></i>
+    </button>
+    <span class="vr mx-1 opacity-25"></span>
+    <span class="text-muted" style="font-size: 0.75rem"
+      >Solo lectura · selecciona una fila para ver movimientos</span
+    >
+    <div class="ms-auto d-flex align-items-center gap-1">
+      <div class="btn-group btn-group-sm">
+        <button
+          class="btn btn-outline-secondary py-1 px-2"
+          id="ledgerYearPrev"
+          title="Año anterior"
+        >
+          <i class="bi bi-chevron-left"></i>
+        </button>
+        <input
+          id="ledgerAnioInput"
+          type="number"
+          min="2020"
+          max="2100"
+          class="form-control form-control-sm text-center"
+          style="width: 5rem; border-radius: 0"
+        />
+        <button
+          class="btn btn-outline-secondary py-1 px-2"
+          id="ledgerYearNext"
+          title="Año siguiente"
+        >
+          <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+      <button
+        class="btn btn-outline-secondary btn-sm py-1 px-2"
+        id="ledgerRefresh"
+        type="button"
+        title="Recargar"
+      >
+        <i class="bi bi-arrow-clockwise"></i>
+      </button>
+      <button
+        class="btn btn-outline-warning btn-sm py-1 px-2"
+        id="ledgerConsolidarPendientes"
+        type="button"
+        data-permiso="asignaciones:crear"
+        data-permiso-accion="disable"
+        title="Consolidar todos los borradores con devengos pendientes"
+      >
+        <i class="bi bi-lightning-charge"></i>
+        <span class="ms-1"></span>
+        <span
+          id="ledgerPendientesPill"
+          class="badge bg-secondary ms-1 d-none"
+          style="font-size: 0.68rem"
+          >0</span
+        >
+
+      </button>
+      <button
+        class="btn btn-outline-secondary btn-sm py-1 px-2"
+        data-section-trigger="dashboard"
+        title="Inicio"
+      >
+        <i class="bi bi-house"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="ledgerAlert" class="mb-2"></div>
+
+<!-- workspace 2 paneles -->
+<div class="ledger-workspace">
+  <!-- Panel 1: Acumulados -->
+  <section class="ledger-main">
+    <div class="card shadow ledger-panel">
+      <div class="ledger-panel-header">
+        <i
+          class="bi bi-calendar3-week text-secondary"
+          style="font-size: 0.88rem"
+        ></i>
+        <span class="fw-semibold text-dark" style="font-size: 0.82rem"
+          >Acumulados</span
+        >
+        <span class="vr mx-1 opacity-25"></span>
+        <small
+          id="ledgerSaldosHint"
+          class="text-muted text-truncate"
+          style="font-size: 0.7rem; max-width: 200px"
+          >Cargando…</small
+        >
+        <button
+          class="btn btn-outline-success btn-sm py-1 px-2 ms-auto"
+          id="ledgerExportSaldosExcel"
+          type="button"
+          title="Exportar acumulados a Excel"
+        >
+          <i class="bi bi-file-earmark-excel"></i>
+        </button>
+      </div>
+      <div
+        id="ledgerSaldosEmptyMsg"
+        class="ledger-empty-state"
+        style="display: none"
+      >
+        <i class="bi bi-inbox ledger-empty-icon"></i>
+        <span>Sin saldos para este año</span>
+      </div>
+      <div class="ledger-tabulator-wrap" id="ledgerSaldosPanel">
+        <div id="ledgerSaldosTabulatorHost" style="height: 100%"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Panel 2: Movimientos -->
+  <section class="ledger-side">
+    <div class="card shadow ledger-panel">
+      <div class="ledger-panel-header">
+        <i class="bi bi-list-ul text-secondary" style="font-size: 0.88rem"></i>
+        <span class="fw-semibold text-dark" style="font-size: 0.82rem"
+          >Movimientos</span
+        >
+        <span class="vr mx-1 opacity-25"></span>
+        <small
+          id="ledgerMovimientosHint"
+          class="text-muted text-truncate"
+          style="font-size: 0.7rem; max-width: 230px"
+          >Selecciona una fila</small
+        >
+        <button
+          class="btn btn-outline-success btn-sm py-1 px-2 ms-auto"
+          id="ledgerExportMovimientosExcel"
+          type="button"
+          title="Exportar movimientos a Excel"
+        >
+          <i class="bi bi-file-earmark-excel"></i>
+        </button>
+      </div>
+      <div id="ledgerMovimientosEmptyMsg" class="ledger-empty-state">
+        <i class="bi bi-arrow-left-circle ledger-empty-icon"></i>
+        <span>Selecciona un período en el panel izquierdo</span>
+      </div>
+      <div
+        class="ledger-tabulator-wrap"
+        id="ledgerMovimientosPanel"
+        style="display: none"
+      >
+        <div id="ledgerMovimientosTabulatorHost" style="height: 100%"></div>
+      </div>
+    </div>
+  </section>
+</div>

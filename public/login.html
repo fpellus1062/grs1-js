@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="data:," />
+
+    <!-- Bootstrap -->
+    <link href="/vendor/bootstrap/bootstrap.min.css" rel="stylesheet" />
+    <!-- Estilos personalizados   -->
+    <link href="styles.css" rel="stylesheet" />
+  </head>
+
+  <body class="bg-light">
+    <div class="login-container">
+      <div class="login-card">
+        <div class="login-header">
+          <div class="text-center mb-3">
+            <h1 class="login-title">ARS</h1>
+            <img src="logoars_sin_fondo.png" alt="Emblema ARS" class="login-logo" />      
+          <h1 class="login-title">Iniciar Sesión</h1>
+        </div>
+          <p class="login-subtitle">
+            Ingresa tus credenciales para acceder al sistema
+          </p>
+        </div>
+        <form id="loginForm" class="login-form">
+          <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" id="email" class="form-control" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Password</label>
+            <input
+              type="password"
+              id="password"
+              class="form-control"
+              required
+            />
+          </div>
+
+          <button type="submit" class="btn btn-primary">Iniciar sesión</button>
+        </form>
+
+        <div id="error" class="text-danger mt-3 text-center"></div>
+      </div>
+    </div>
+
+    <script>
+      document
+        .getElementById('loginForm')
+        .addEventListener('submit', async (e) => {
+          e.preventDefault();
+
+          const email = document.getElementById('email').value;
+          const password = document.getElementById('password').value;
+          const errorDiv = document.getElementById('error');
+
+          errorDiv.textContent = '';
+
+          try {
+            const response = await fetch(
+              '/api/auth/login',
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, password }),
+              }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+              throw new Error(data.message || 'Error en login');
+            }
+
+            // Guardar token, rol, nombre y permisos RBAC por sesión de navegador
+            const sessionKeys = [
+              'token',
+              'role',
+              'roleId',
+              'userRole',
+              'userRoleId',
+              'userName',
+              'userNombre',
+              'userTip',
+              'userPermisos',
+              'arsIds',
+              'activeArsId',
+              'arsCatalog',
+            ];
+            sessionKeys.forEach((k) => {
+              localStorage.removeItem(k);
+            });
+
+            sessionStorage.setItem('token', data.token);
+            sessionStorage.setItem('role', data.role || 'user');
+            sessionStorage.setItem('roleId', data.role_id || '');
+            sessionStorage.setItem('userRole', data.role || 'user');
+            sessionStorage.setItem('userName', data.nombre || 'Usuario');
+            sessionStorage.setItem('userRoleId', data.role_id || '');
+            sessionStorage.setItem('userTip', data.tip || '');
+            sessionStorage.setItem(
+              'userPermisos',
+              JSON.stringify(data.permisos || [])
+            );
+
+            // Guardar agrupaciones ARS del usuario / QUirar GRS1 hardcodeado
+            const arsIds = Array.isArray(data.ars_ids) ? data.ars_ids : [];
+            sessionStorage.setItem('arsIds', JSON.stringify(arsIds));
+            // Fallback vacío: el catálogo real llega siempre del servidor
+            const arsCatalog = Array.isArray(data.ars_catalog)
+              ? data.ars_catalog
+              : [];
+            sessionStorage.setItem('arsCatalog', JSON.stringify(arsCatalog));
+            // Seleccionar la primera ARS como activa (o mantener la ya guardada si sigue siendo válida)
+            const prevArs = sessionStorage.getItem('activeArsId');
+            if (!prevArs || !arsIds.includes(prevArs)) {
+              sessionStorage.setItem('activeArsId', arsIds[0] || '');
+            }
+
+            // Redirigir al dashboard
+            window.location.href = 'dashboard.html';
+          } catch (error) {
+            errorDiv.textContent = error.message;
+          }
+        });
+    </script>
+
+    <!-- Bootstrap JavaScript -->
+    <script src="/vendor/bootstrap/bootstrap.min.js"></script>
+  </body>
+</html>

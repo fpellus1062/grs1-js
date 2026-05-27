@@ -1,0 +1,95 @@
+<div class="modal fade" id="usuarioModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content modal-notion">
+      <div class="modal-header">
+        <h5 class="modal-title" id="usuarioModalTitle">Agregar Nuevo Usuario</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="usuarioForm" novalidate>
+
+          <!-- ── Datos ─────────────────────────────────── -->
+          <div class="notion-section-title">Datos</div>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="usuarioNombre" class="form-label">Nombre *</label>
+                <input type="text" class="form-control" id="usuarioNombre" required minlength="2" maxlength="100" placeholder="Nombre completo">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="usuarioEmail" class="form-label">Email *</label>
+                <input type="email" class="form-control" id="usuarioEmail" required maxlength="255" placeholder="correo@ejemplo.com">
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label for="usuarioTip" class="form-label">TIP</label>
+                <input type="text" class="form-control" id="usuarioTip" maxlength="50" placeholder="Ej: J99999J">
+                <div class="form-text text-muted">Se usa para cargar el avatar</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label for="usuarioRole" class="form-label">Rol *</label>
+                <select class="form-control" id="usuarioRole" required>
+                  <option value="">Cargando roles...</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label for="usuarioArs" class="form-label">Agrupaciones ARS *</label>
+                <select class="form-select form-select-sm py-1" id="usuarioArs" multiple size="5" required>
+                  <option value="">Cargando agrupaciones...</option>
+                </select>
+                <div class="invalid-feedback">Selecciona al menos una agrupación</div>
+                <div class="form-text text-muted">Mantén Ctrl/Cmd para selección múltiple</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Seguridad ─────────────────────────────── -->
+          <div class="notion-section-title">Seguridad</div>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="usuarioPassword" class="form-label" id="usuarioPasswordLabel">Contraseña *</label>
+                <div class="input-group">
+                  <input type="password" class="form-control" id="usuarioPassword" required minlength="12" maxlength="72"
+                         pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{12,72}$"
+                         placeholder="Mín. 12 caracteres">
+                  <button class="btn btn-outline-secondary" type="button" id="btnTogglePassword" title="Mostrar/ocultar contraseña">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                </div>
+                <div class="invalid-feedback">Mínimo 12 caracteres con mayúscula, minúscula, número y carácter especial</div>
+                <div id="passwordStrength" class="mt-1 d-none usuario-password-strength">
+                  <div class="progress usuario-password-strength-progress">
+                    <div id="passwordStrengthBar" class="progress-bar" role="progressbar" aria-label="Fortaleza de contraseña" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
+                  </div>
+                  <small id="passwordStrengthText" class="text-muted"></small>
+                </div>
+                <div class="form-text text-muted usuario-password-help">Mayúscula, minúscula, número y carácter especial</div>
+              </div>
+            </div>
+            <div class="col-md-6 d-flex align-items-center d-none" id="usuarioInfoSeguridad">
+              <div class="w-100">
+                <div id="usuarioUltimoLogin" class="text-muted small mb-1"></div>
+                <div id="usuarioEstadoCuenta"></div>
+              </div>
+            </div>
+          </div>
+
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnSaveUsuario">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>

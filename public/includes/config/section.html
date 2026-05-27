@@ -1,0 +1,987 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+
+  <h2 id="configSectionTitle" class="m-0 d-flex align-items-center">
+    Sistema
+    <span class="text-muted fs-6">
+      <button class="btn btn-link p-0 ms-2" type="button" data-help-context="admin-sistemas-help" data-bs-toggle="modal" data-bs-target="#helpModal" title="Sistema - Ayuda">
+        data-bs-toggle="modal" data-bs-target="#helpModal" title="Administración - Ayuda">
+        <i class="bi bi-question-circle"></i>
+      </button>
+    </span>
+  </h2>
+
+  <button class="btn btn-outline-secondary" data-section-trigger="dashboard" type="button">
+    <i class="bi bi-house"></i> Volver al Dashboard
+  </button>
+
+</div>
+
+
+
+<ul class="nav nav-tabs mb-3" id="configTabs" role="tablist">
+  <li class="nav-item" role="presentation" data-config-group="sistema">
+    <button
+      class="nav-link active"
+      id="tab-ars"
+      data-bs-toggle="tab"
+      data-bs-target="#pane-ars"
+      type="button"
+      role="tab"
+    >
+      <i class="bi bi-building"></i> ARS
+    </button>
+  </li>
+  <li class="nav-item" role="presentation" data-config-group="configuracion">
+    <button
+      class="nav-link"
+      id="tab-calendarios"
+      data-bs-toggle="tab"
+      data-bs-target="#pane-calendarios"
+      type="button"
+      role="tab"
+    >
+      <i class="bi bi-calendar3"></i> Calendarios
+    </button>
+  </li>
+  <li class="nav-item" role="presentation" data-config-group="sistema">
+    <button
+      class="nav-link"
+      id="tab-usuarios"
+      data-bs-toggle="tab"
+      data-bs-target="#pane-usuarios"
+      type="button"
+      role="tab"
+    >
+      <i class="bi bi-people-fill"></i> Usuarios
+    </button>
+  </li>
+  <li class="nav-item" role="presentation" data-config-group="sistema">
+    <button
+      class="nav-link"
+      id="tab-auditoria"
+      data-bs-toggle="tab"
+      data-bs-target="#pane-auditoria"
+      type="button"
+      role="tab"
+    >
+      <i class="bi bi-shield-check"></i> Auditoría
+    </button>
+  </li>
+  <li class="nav-item" role="presentation" data-config-group="configuracion">
+    <button
+      class="nav-link"
+      id="tab-empleos"
+      data-bs-toggle="tab"
+      data-bs-target="#pane-empleos"
+      type="button"
+      role="tab"
+    >
+      <i class="bi bi-person-badge"></i> Empleos
+    </button>
+  </li>
+  <li class="nav-item" role="presentation" data-config-group="configuracion">
+    <button
+      class="nav-link"
+      id="tab-pelotones"
+      data-bs-toggle="tab"
+      data-bs-target="#pane-pelotones"
+      type="button"
+      role="tab"
+    >
+      <i class="bi bi-people"></i> Pelotones
+    </button>
+  </li>
+  <li class="nav-item" role="presentation" data-config-group="configuracion">
+    <button
+      class="nav-link"
+      id="tab-situaciones"
+      data-bs-toggle="tab"
+      data-bs-target="#pane-situaciones"
+      type="button"
+      role="tab"
+    >
+      <i class="bi bi-tags"></i> Situaciones
+    </button>
+  </li>
+  <li class="nav-item" role="presentation" data-config-group="sistema">
+    <button
+      class="nav-link"
+      id="tab-roles"
+      data-bs-toggle="tab"
+      data-bs-target="#pane-roles"
+      type="button"
+      role="tab"
+    >
+      <i class="bi bi-shield-lock"></i> Roles
+    </button>
+  </li>
+  <li class="nav-item" role="presentation" data-config-group="sistema">
+    <button
+      class="nav-link"
+      id="tab-permisos"
+      data-bs-toggle="tab"
+      data-bs-target="#pane-permisos"
+      type="button"
+      role="tab"
+    >
+      <i class="bi bi-key"></i> Permisos
+    </button>
+  </li>
+  <li class="nav-item" role="presentation" data-config-group="sistema">
+    <button
+      class="nav-link"
+      id="tab-matriz"
+      data-bs-toggle="tab"
+      data-bs-target="#pane-matriz"
+      type="button"
+      role="tab"
+    >
+      <i class="bi bi-grid-3x3"></i> Matriz
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content" id="configTabContent">
+  <!-- ARS -->
+  <div class="tab-pane fade show active" id="pane-ars" role="tabpanel">
+    <div class="card shadow">
+      <div
+        class="card-header d-flex justify-content-between align-items-center"
+      >
+        <h5 class="mb-0 text-dark-emphasis">ARS (Unidades)</h5>
+        <div class="d-flex gap-2 align-items-center">
+          <div class="dropdown">
+            <button
+              class="btn btn-outline-secondary btn-sm dropdown-toggle"
+              type="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              <i class="bi bi-download"></i> Exportar
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li>
+                <button
+                  class="dropdown-item"
+                  id="btnExportExcelArs"
+                  type="button"
+                >
+                  <i class="bi bi-file-earmark-excel"></i> Excel
+                </button>
+              </li>
+              <li>
+                <button
+                  class="dropdown-item"
+                  id="btnExportPdfArs"
+                  type="button"
+                >
+                  <i class="bi bi-file-earmark-pdf"></i> PDF
+                </button>
+              </li>
+            </ul>
+          </div>
+          <button class="btn btn-primary btn-sm" id="btnNuevoArs" type="button">
+            <i class="bi bi-plus-circle"></i> Nuevo
+          </button>
+        </div>
+      </div>
+      <div
+        class="save-changes-section pending-changes-idle"
+        id="saveChangesArs"
+      >
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <i class="bi bi-pencil-square me-1"></i
+            ><strong>Cambios pendientes:</strong>
+            <span id="pendingCountArs">0</span> fila(s)
+          </div>
+          <div>
+            <button
+              class="btn btn-success btn-sm me-2"
+              id="btnSaveArs"
+              type="button"
+              disabled
+            >
+              <i class="bi bi-check-circle"></i> Guardar
+            </button>
+            <button
+              class="btn btn-outline-secondary btn-sm"
+              id="btnDiscardArs"
+              type="button"
+              disabled
+            >
+              <i class="bi bi-x-circle"></i> Descartar
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="alertContainerArs" class="px-3 pt-2"></div>
+      <div class="card-body p-0"><div id="tabulatorArs"></div></div>
+    </div>
+  </div>
+
+  <!-- EMPLEOS -->
+  <div class="tab-pane fade" id="pane-empleos" role="tabpanel">
+    <div class="card shadow">
+      <div
+        class="card-header d-flex justify-content-between align-items-center"
+      >
+        <h5 class="mb-0 text-dark-emphasis">Empleos <span class="text-muted fs-6"><button class="btn btn-link p-0 ms-1" type="button"
+            data-help-context="configuracion-empleos-help" data-bs-toggle="modal" data-bs-target="#helpModal"
+            title="Empleos - Ayuda">
+            <i class="bi bi-question-circle"></i>
+          </button></span></h5>
+        <div class="d-flex gap-2 align-items-center">
+          <div class="dropdown">
+            <button
+              class="btn btn-outline-secondary btn-sm dropdown-toggle"
+              type="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              <i class="bi bi-download"></i> Exportar
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li>
+                <button
+                  class="dropdown-item"
+                  id="btnExportExcelEmpleo"
+                  type="button"
+                >
+                  <i class="bi bi-file-earmark-excel"></i> Excel
+                </button>
+              </li>
+              <li>
+                <button
+                  class="dropdown-item"
+                  id="btnExportPdfEmpleo"
+                  type="button"
+                >
+                  <i class="bi bi-file-earmark-pdf"></i> PDF
+                </button>
+              </li>
+            </ul>
+          </div>
+          <button
+            class="btn btn-primary btn-sm"
+            id="btnNuevoEmpleo"
+            type="button"
+          >
+            <i class="bi bi-plus-circle"></i> Nuevo
+          </button>
+        </div>
+      </div>
+      <div
+        class="save-changes-section pending-changes-idle"
+        id="saveChangesEmpleo"
+      >
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <i class="bi bi-pencil-square me-1"></i
+            ><strong>Cambios pendientes:</strong>
+            <span id="pendingCountEmpleo">0</span> fila(s)
+          </div>
+          <div>
+            <button
+              class="btn btn-success btn-sm me-2"
+              id="btnSaveEmpleo"
+              type="button"
+              disabled
+            >
+              <i class="bi bi-check-circle"></i> Guardar
+            </button>
+            <button
+              class="btn btn-outline-secondary btn-sm"
+              id="btnDiscardEmpleo"
+              type="button"
+              disabled
+            >
+              <i class="bi bi-x-circle"></i> Descartar
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="alertContainerEmpleo" class="px-3 pt-2"></div>
+      <div class="card-body p-0"><div id="tabulatorEmpleos"></div></div>
+    </div>
+  </div>
+
+  <!-- PELOTONES -->
+  <div class="tab-pane fade" id="pane-pelotones" role="tabpanel">
+    <div class="card shadow">
+      <div
+        class="card-header d-flex justify-content-between align-items-center"
+      >
+        <h5 class="mb-0 text-dark-emphasis">Pelotones <span class="text-muted fs-6"><button class="btn btn-link p-0 ms-1" type="button"
+            data-help-context="configuracion-pelotones-help" data-bs-toggle="modal" data-bs-target="#helpModal"
+            title="Pelotones - Ayuda">
+            <i class="bi bi-question-circle"></i>
+          </button></span></h5>
+        <div class="d-flex gap-2 align-items-center">
+          <div class="dropdown">
+            <button
+              class="btn btn-outline-secondary btn-sm dropdown-toggle"
+              type="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              <i class="bi bi-download"></i> Exportar
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li>
+                <button
+                  class="dropdown-item"
+                  id="btnExportExcelPeloton"
+                  type="button"
+                >
+                  <i class="bi bi-file-earmark-excel"></i> Excel
+                </button>
+              </li>
+              <li>
+                <button
+                  class="dropdown-item"
+                  id="btnExportPdfPeloton"
+                  type="button"
+                >
+                  <i class="bi bi-file-earmark-pdf"></i> PDF
+                </button>
+              </li>
+            </ul>
+          </div>
+          <button
+            class="btn btn-primary btn-sm"
+            id="btnNuevoPeloton"
+            type="button"
+          >
+            <i class="bi bi-plus-circle"></i> Nuevo
+          </button>
+        </div>
+      </div>
+      <div
+        class="save-changes-section pending-changes-idle"
+        id="saveChangesPeloton"
+      >
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <i class="bi bi-pencil-square me-1"></i
+            ><strong>Cambios pendientes:</strong>
+            <span id="pendingCountPeloton">0</span> fila(s)
+          </div>
+          <div>
+            <button
+              class="btn btn-success btn-sm me-2"
+              id="btnSavePeloton"
+              type="button"
+              disabled
+            >
+              <i class="bi bi-check-circle"></i> Guardar
+            </button>
+            <button
+              class="btn btn-outline-secondary btn-sm"
+              id="btnDiscardPeloton"
+              type="button"
+              disabled
+            >
+              <i class="bi bi-x-circle"></i> Descartar
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="alertContainerPeloton" class="px-3 pt-2"></div>
+      <div class="card-body p-0"><div id="tabulatorPelotones"></div></div>
+    </div>
+  </div>
+
+  <!-- SITUACIONES -->
+  <div class="tab-pane fade" id="pane-situaciones" role="tabpanel">
+    <div class="card shadow">
+      <div
+        class="card-header d-flex justify-content-between align-items-center"
+      >
+        <h5 class="mb-0 text-dark-emphasis">Situaciones <span class="text-muted fs-6"><button class="btn btn-link p-0 ms-1" type="button"
+            data-help-context="configuracion-situaciones-help" data-bs-toggle="modal" data-bs-target="#helpModal"
+            title="Situaciones - Ayuda">
+            <i class="bi bi-question-circle"></i>
+          </button></span></h5>
+        <div class="d-flex gap-2 align-items-center">
+          <div class="dropdown">
+            <button
+              class="btn btn-outline-secondary btn-sm dropdown-toggle"
+              type="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              <i class="bi bi-download"></i> Exportar
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li>
+                <button
+                  class="dropdown-item"
+                  id="btnExportExcelSituacion"
+                  type="button"
+                >
+                  <i class="bi bi-file-earmark-excel"></i> Excel
+                </button>
+              </li>
+              <li>
+                <button
+                  class="dropdown-item"
+                  id="btnExportPdfSituacion"
+                  type="button"
+                >
+                  <i class="bi bi-file-earmark-pdf"></i> PDF
+                </button>
+              </li>
+            </ul>
+          </div>
+          <button
+            class="btn btn-primary btn-sm"
+            id="btnNuevaSituacion"
+            type="button"
+          >
+            <i class="bi bi-plus-circle"></i> Nueva
+          </button>
+        </div>
+      </div>
+      <div
+        class="save-changes-section pending-changes-idle"
+        id="saveChangesSituacion"
+      >
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <i class="bi bi-pencil-square me-1"></i
+            ><strong>Cambios pendientes:</strong>
+            <span id="pendingCountSituacion">0</span> fila(s)
+          </div>
+          <div>
+            <button
+              class="btn btn-success btn-sm me-2"
+              id="btnSaveSituacion"
+              type="button"
+              disabled
+            >
+              <i class="bi bi-check-circle"></i> Guardar
+            </button>
+            <button
+              class="btn btn-outline-secondary btn-sm"
+              id="btnDiscardSituacion"
+              type="button"
+              disabled
+            >
+              <i class="bi bi-x-circle"></i> Descartar
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="alertContainerSituacion" class="px-3 pt-2"></div>
+      <div class="card-body p-0"><div id="tabulatorSituaciones"></div></div>
+    </div>
+  </div>
+
+  <!-- ROLES -->
+  <div class="tab-pane fade" id="pane-roles" role="tabpanel">
+    <div class="card shadow">
+      <div
+        class="card-header d-flex justify-content-between align-items-center"
+      >
+        <h5 class="mb-0 text-dark-emphasis">Roles</h5>
+        <div class="d-flex gap-2 align-items-center">
+          <div class="dropdown">
+            <button
+              class="btn btn-outline-secondary btn-sm dropdown-toggle"
+              type="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              <i class="bi bi-download"></i> Exportar
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li>
+                <button
+                  class="dropdown-item"
+                  id="btnExportExcelRol"
+                  type="button"
+                >
+                  <i class="bi bi-file-earmark-excel"></i> Excel
+                </button>
+              </li>
+              <li>
+                <button
+                  class="dropdown-item"
+                  id="btnExportPdfRol"
+                  type="button"
+                >
+                  <i class="bi bi-file-earmark-pdf"></i> PDF
+                </button>
+              </li>
+            </ul>
+          </div>
+          <button class="btn btn-primary btn-sm" id="btnNuevoRol" type="button">
+            <i class="bi bi-plus-circle"></i> Nuevo
+          </button>
+        </div>
+      </div>
+      <div
+        class="save-changes-section pending-changes-idle"
+        id="saveChangesRol"
+      >
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <i class="bi bi-pencil-square me-1"></i
+            ><strong>Cambios pendientes:</strong>
+            <span id="pendingCountRol">0</span> fila(s)
+          </div>
+          <div>
+            <button
+              class="btn btn-success btn-sm me-2"
+              id="btnSaveRol"
+              type="button"
+              disabled
+            >
+              <i class="bi bi-check-circle"></i> Guardar
+            </button>
+            <button
+              class="btn btn-outline-secondary btn-sm"
+              id="btnDiscardRol"
+              type="button"
+              disabled
+            >
+              <i class="bi bi-x-circle"></i> Descartar
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="alertContainerRol" class="px-3 pt-2"></div>
+      <div class="card-body p-0"><div id="tabulatorRoles"></div></div>
+    </div>
+  </div>
+
+  <!-- PERMISOS -->
+  <div class="tab-pane fade" id="pane-permisos" role="tabpanel">
+    <div class="card shadow">
+      <div
+        class="card-header d-flex justify-content-between align-items-center"
+      >
+        <h5 class="mb-0 text-dark-emphasis">Permisos</h5>
+        <div class="d-flex gap-2 align-items-center">
+          <div class="dropdown">
+            <button
+              class="btn btn-outline-secondary btn-sm dropdown-toggle"
+              type="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              <i class="bi bi-download"></i> Exportar
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li>
+                <button
+                  class="dropdown-item"
+                  id="btnExportExcelPermiso"
+                  type="button"
+                >
+                  <i class="bi bi-file-earmark-excel"></i> Excel
+                </button>
+              </li>
+              <li>
+                <button
+                  class="dropdown-item"
+                  id="btnExportPdfPermiso"
+                  type="button"
+                >
+                  <i class="bi bi-file-earmark-pdf"></i> PDF
+                </button>
+              </li>
+            </ul>
+          </div>
+          <button
+            class="btn btn-primary btn-sm"
+            id="btnNuevoPermiso"
+            type="button"
+          >
+            <i class="bi bi-plus-circle"></i> Nuevo
+          </button>
+        </div>
+      </div>
+      <div
+        class="save-changes-section pending-changes-idle"
+        id="saveChangesPermiso"
+      >
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <i class="bi bi-pencil-square me-1"></i
+            ><strong>Cambios pendientes:</strong>
+            <span id="pendingCountPermiso">0</span> fila(s)
+          </div>
+          <div>
+            <button
+              class="btn btn-success btn-sm me-2"
+              id="btnSavePermiso"
+              type="button"
+              disabled
+            >
+              <i class="bi bi-check-circle"></i> Guardar
+            </button>
+            <button
+              class="btn btn-outline-secondary btn-sm"
+              id="btnDiscardPermiso"
+              type="button"
+              disabled
+            >
+              <i class="bi bi-x-circle"></i> Descartar
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="alertContainerPermiso" class="px-3 pt-2"></div>
+      <div class="card-body p-0"><div id="tabulatorPermisos"></div></div>
+    </div>
+  </div>
+
+  <!-- MATRIZ ROLES ↔ PERMISOS -->
+  <div class="tab-pane fade" id="pane-matriz" role="tabpanel">
+    <div class="card shadow">
+      <div
+        class="card-header d-flex justify-content-between align-items-center"
+      >
+        <h5 class="mb-0 text-dark-emphasis">Matriz de Permisos</h5>
+        <div class="d-flex gap-2 align-items-center">
+          <div class="dropdown">
+            <button
+              class="btn btn-outline-secondary btn-sm dropdown-toggle"
+              type="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              <i class="bi bi-download"></i> Exportar
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li>
+                <button
+                  class="dropdown-item"
+                  id="btnExportExcelMatriz"
+                  type="button"
+                >
+                  <i class="bi bi-file-earmark-excel"></i> Excel
+                </button>
+              </li>
+              <li>
+                <button
+                  class="dropdown-item"
+                  id="btnExportPdfMatriz"
+                  type="button"
+                >
+                  <i class="bi bi-file-earmark-pdf"></i> PDF
+                </button>
+              </li>
+            </ul>
+          </div>
+          <button
+            class="btn btn-primary btn-sm"
+            id="btnRefreshMatriz"
+            type="button"
+          >
+            <i class="bi bi-arrow-clockwise"></i> Actualizar
+          </button>
+        </div>
+      </div>
+      <div id="alertContainerMatriz" class="px-3 pt-2"></div>
+      <div class="card-body p-0">
+        <div
+          id="matrizContainer"
+          class="table-responsive"
+          style="max-height: calc(100vh - 380px); overflow: auto"
+        ></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CALENDARIOS -->
+  <div class="tab-pane fade" id="pane-calendarios" role="tabpanel">
+    <div class="row g-3">
+      <!-- Panel izquierdo: lista calendarios -->
+      <div class="col-md-4">
+        <div class="card shadow">
+          <div
+            class="card-header d-flex justify-content-between align-items-center"
+          >
+            <h5 class="mb-0 text-dark-emphasis">Calendarios
+              <span class="text-muted fs-6"><button class="btn btn-link p-0 ms-1" type="button" data-help-context="configuracion-calendarios-help"
+                data-bs-toggle="modal" data-bs-target="#helpModal" title="Calendarios - Ayuda">
+                <i class="bi bi-question-circle"></i>
+                </button></span>
+            </h5>
+           
+            <button
+              class="btn btn-primary btn-sm"
+              id="btnNuevoCalendario"
+              type="button"
+            >
+              <i class="bi bi-plus-circle"></i> Nuevo
+            </button>
+          </div>
+          <div id="alertContainerCalendario" class="px-3 pt-2"></div>
+          <div class="card-body p-0">
+            <div
+              id="calendariosListContainer"
+              class="list-group list-group-flush"
+              style="max-height: calc(100vh - 340px); overflow-y: auto"
+            >
+              <div class="text-center text-muted py-4">Cargando...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Panel derecho: festivos del calendario seleccionado -->
+      <div class="col-md-8">
+        <div class="card shadow">
+          <div
+            class="card-header d-flex justify-content-between align-items-center"
+          >
+            <h5 class="mb-0 text-dark-emphasis">
+              Festivos
+              <small class="text-muted" id="calFestivosSubtitle"
+                >— seleccione un calendario</small
+              >
+            </h5>
+            <div class="d-flex gap-2 align-items-center">
+              <div class="dropdown">
+                <button
+                  class="btn btn-outline-secondary btn-sm dropdown-toggle"
+                  type="button"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false"
+                >
+                  <i class="bi bi-download"></i> Exportar
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li>
+                    <button
+                      class="dropdown-item"
+                      id="btnExportExcelFestivo"
+                      type="button"
+                    >
+                      <i class="bi bi-file-earmark-excel"></i> Excel
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      class="dropdown-item"
+                      id="btnExportPdfFestivo"
+                      type="button"
+                    >
+                      <i class="bi bi-file-earmark-pdf"></i> PDF
+                    </button>
+                  </li>
+                </ul>
+              </div>
+              <button
+                class="btn btn-primary btn-sm"
+                id="btnNuevoFestivo"
+                type="button"
+                disabled
+              >
+                <i class="bi bi-plus-circle"></i> Nuevo Festivo
+              </button>
+            </div>
+          </div>
+          <div
+            class="save-changes-section pending-changes-idle"
+            id="saveChangesFestivo"
+          >
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <i class="bi bi-pencil-square me-1"></i
+                ><strong>Cambios pendientes:</strong>
+                <span id="pendingCountFestivo">0</span> fila(s)
+              </div>
+              <div>
+                <button
+                  class="btn btn-success btn-sm me-2"
+                  id="btnSaveFestivo"
+                  type="button"
+                  disabled
+                >
+                  <i class="bi bi-check-circle"></i> Guardar
+                </button>
+                <button
+                  class="btn btn-outline-secondary btn-sm"
+                  id="btnDiscardFestivo"
+                  type="button"
+                  disabled
+                >
+                  <i class="bi bi-x-circle"></i> Descartar
+                </button>
+              </div>
+            </div>
+          </div>
+          <div id="alertContainerFestivo" class="px-3 pt-2"></div>
+          <div class="card-body p-0"><div id="tabulatorFestivos"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- USUARIOS -->
+  <div class="tab-pane fade" id="pane-usuarios" role="tabpanel">
+    <div class="card shadow">
+      <div
+        class="card-header d-flex justify-content-between align-items-center"
+      >
+        <div class="d-flex align-items-center gap-2">
+          <h5 class="mb-0 text-dark-emphasis">Usuarios</h5>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <small class="text-dark-emphasis opacity-75">
+            Total: <strong id="totalRecordsUsuario">0</strong> | Filtrados:
+            <strong id="filteredRecordsUsuario">0</strong> | Ocultos:
+            <strong id="shownRecordsUsuario">0</strong>
+          </small>
+          <div class="dropdown">
+            <button
+              class="btn btn-outline-secondary btn-sm dropdown-toggle"
+              type="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              <i class="bi bi-download"></i> Exportar
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li>
+                <button
+                  class="dropdown-item"
+                  id="btnExportExcelUsuario"
+                  type="button"
+                >
+                  <i class="bi bi-file-earmark-excel me-2"></i>Excel
+                </button>
+              </li>
+              <li>
+                <button
+                  class="dropdown-item"
+                  id="btnExportPdfUsuario"
+                  type="button"
+                >
+                  <i class="bi bi-file-earmark-pdf me-2"></i>PDF
+                </button>
+              </li>
+            </ul>
+          </div>
+          <button
+            class="btn btn-primary btn-sm"
+            id="btnAgregarNuevoUsuario"
+            data-permiso="usuarios:crear"
+            title="Nuevo Usuario"
+            type="button"
+          >
+            <i class="bi bi-plus-circle"></i> Nuevo
+          </button>
+        </div>
+      </div>
+
+      <div
+        class="save-changes-section pending-changes-idle"
+        id="saveChangesSectionUsuario"
+      >
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <i class="bi bi-pencil-square me-1"></i
+            ><strong>Cambios pendientes:</strong>
+            <span id="pendingChangesCountUsuario">0</span> fila(s)
+          </div>
+          <div>
+            <button
+              class="btn btn-success btn-sm me-2"
+              id="btnSaveAllChangesUsuario"
+              type="button"
+              disabled
+            >
+              <i class="bi bi-check-circle"></i> Guardar Cambios
+            </button>
+            <button
+              class="btn btn-outline-secondary btn-sm"
+              id="btnDiscardChangesUsuario"
+              type="button"
+              disabled
+            >
+              <i class="bi bi-x-circle"></i> Descartar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="alertContainerUsuario" class="px-3 pt-2"></div>
+      <div class="card-body p-0"><div id="tabulatorUsuarios"></div></div>
+    </div>
+  </div>
+
+  <!-- AUDITORÍA DE LOGIN -->
+  <div class="tab-pane fade" id="pane-auditoria" role="tabpanel">
+    <div class="card shadow">
+      <div
+        class="card-header d-flex justify-content-between align-items-center"
+      >
+        <h5 class="mb-0 text-dark-emphasis">Auditoría de Login</h5>
+        <div class="d-flex gap-2 align-items-center">
+          <div class="input-group input-group-sm" style="width: auto">
+            <span class="input-group-text"
+              ><i class="bi bi-calendar-range"></i
+            ></span>
+            <input
+              type="date"
+              class="form-control form-control-sm"
+              id="auditDesde"
+              title="Desde"
+            />
+            <input
+              type="date"
+              class="form-control form-control-sm"
+              id="auditHasta"
+              title="Hasta"
+            />
+            <button
+              class="btn btn-outline-secondary"
+              id="btnAuditFiltrar"
+              type="button"
+              title="Filtrar por fechas"
+            >
+              <i class="bi bi-funnel"></i>
+            </button>
+          </div>
+          <div class="dropdown">
+            <button
+              class="btn btn-outline-secondary btn-sm dropdown-toggle"
+              type="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              <i class="bi bi-download"></i> Exportar
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li>
+                <button
+                  class="dropdown-item"
+                  id="btnExportExcelAudit"
+                  type="button"
+                >
+                  <i class="bi bi-file-earmark-excel"></i> Excel
+                </button>
+              </li>
+              <li>
+                <button
+                  class="dropdown-item"
+                  id="btnExportPdfAudit"
+                  type="button"
+                >
+                  <i class="bi bi-file-earmark-pdf"></i> PDF
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div id="alertContainerAudit" class="px-3 pt-2"></div>
+      <div class="card-body p-0"><div id="tabulatorAudit"></div></div>
+    </div>
+  </div>
+</div>

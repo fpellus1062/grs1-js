@@ -1,0 +1,117 @@
+<div class="d-flex align-items-center gap-2 border-bottom border-3 border-warning pb-2 mb-4">
+    <h1 class="text-warning m-0">
+        <i class="bi bi-diagram-3"></i>
+        Grupos, Subgrupos y Servicios
+    </h1>
+</div>
+
+<div class="row g-4">
+
+    <!-- Grupos N1 -->
+    <div class="col-12 col-lg-4">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-primary bg-opacity-10 border-0 rounded-top-4 py-3">
+                <h5 class="mb-0 fw-bold text-primary">
+                    <i class="bi bi-collection me-2"></i>
+                    Grupos (Nivel N1)
+                </h5>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted">
+                    Los grupos representan los **niveles principales de disponibilidad** del personal.
+                    Son la raíz de la jerarquía.
+                </p>
+
+                <ul class="small">
+                    <li><strong>N1 – Disponibilidad Inmediata:</strong> Agentes operativos y listos para actuar.</li>
+                    <li><strong>N1 – Disponibilidad:</strong> Agentes disponibles pero no en alerta inmediata.</li>
+                    <li><strong>N1 – No Disponibles:</strong> Agentes en vacaciones, permisos, descansos o comisiones.
+                    </li>
+                </ul>
+
+                <p class="text-muted mb-0">
+                    Cada grupo muestra un indicador de <strong>estado activo</strong> y sirve como contenedor de
+                    subgrupos.
+                </p>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Subgrupos N2 (Padre → Hijo) -->
+    <div class="col-12 col-lg-4">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-success bg-opacity-10 border-0 rounded-top-4 py-3">
+                <h5 class="mb-0 fw-bold text-success">
+                    <i class="bi bi-diagram-2 me-2"></i>
+                    Subgrupos (Nivel N2)
+                </h5>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted">
+                    Cada grupo N1 contiene **subgrupos N2**, que representan categorías operativas más específicas.
+                </p>
+
+                <ul class="small">
+                    <li><strong>Relación Padre → Hijo:</strong>
+                        Los subgrupos dependen directamente del grupo N1 seleccionado.</li>
+
+                    <li>Ejemplos de subgrupos:
+                        <ul class="mt-1">
+                            <li>Alerta</li>
+                            <li>Guardia Combinada</li>
+                            <li>Orden Público</li>
+                            <li>Vacaciones</li>
+                            <li>Descansos</li>
+                            <li>Permisos</li>
+                            <li>Comisión</li>
+                        </ul>
+                    </li>
+
+                    <li>Cada subgrupo tiene un indicador de <strong>activo / inactivo</strong>.</li>
+                </ul>
+
+                <p class="text-muted mb-0">
+                    Al seleccionar un subgrupo, se muestran sus servicios asociados en la columna derecha.
+                </p>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Servicios / Actividades -->
+    <div class="col-12 col-lg-4">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-info bg-opacity-10 border-0 rounded-top-4 py-3">
+                <h5 class="mb-0 fw-bold text-info">
+                    <i class="bi bi-list-check me-2"></i>
+                    Servicios / Actividades
+                </h5>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted">
+                    Al seleccionar un subgrupo, se muestran sus **servicios operativos** asociados.
+                </p>
+
+                <ul class="small">
+                    <li><strong>Código:</strong> Identificador abreviado (AC-ES, GL, CT…)</li>
+                    <li><strong>Nombre:</strong> Descripción del servicio (Control Mañana, Armamento…)</li>
+                    <li><strong>Disponibilidad:</strong> Tipo de disponibilidad (generalmente “General”).</li>
+                    <li><strong>Horario:</strong> Intervalo horario asignado.</li>
+                    <li><strong>Inicio / Fin:</strong> Horas exactas del turno.</li>
+                    <li><strong>Estado:</strong> Activo / Inactivo.</li>
+                </ul>
+
+                <p class="text-muted mb-0">
+                    Desde esta tabla puedes <strong>editar</strong> o <strong>eliminar</strong> servicios,
+                    así como navegar por varias páginas si hay muchos.
+                </p>
+
+            </div>
+        </div>
+    </div>
+
+</div>

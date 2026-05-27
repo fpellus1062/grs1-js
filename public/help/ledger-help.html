@@ -1,0 +1,114 @@
+<div class="d-flex align-items-center gap-2 border-bottom border-3 border-warning pb-2 mb-4">
+    <h1 class="text-warning m-0">
+        <i class="bi bi-journal-bookmark-fill"></i>
+        Informe de Devengos
+    </h1>
+</div>
+
+<div class="row g-4">
+
+    <!-- Panel de Acumulados -->
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-warning bg-opacity-10 border-0 rounded-top-4 py-3">
+                <h5 class="mb-0 fw-bold text-warning">
+                    <i class="bi bi-clipboard-data me-2"></i>
+                    Panel de Acumulados
+                </h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    En esta sección se muestra un listado de agentes con su saldo de días acumulados.
+                    Cada fila incluye:
+                </p>
+
+                <ul class="small">
+                    <li><strong>TIP</strong>: Identificador del agente.</li>
+                    <li><strong>Agente</strong>: Nombre completo.</li>
+                    <li><strong>Empleo</strong>: Categoría profesional.</li>
+                    <li><strong>Inic.</strong>: Saldo inicial.</li>
+                    <li><strong>Dev.</strong>: Días devengados.</li>
+                    <li><strong>Dis.</strong>: Días disfrutados.</li>
+                    <li><strong>Final</strong>: Saldo final disponible.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel de Movimientos -->
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-primary bg-opacity-10 border-0 rounded-top-4 py-3">
+                <h5 class="mb-0 fw-bold text-primary">
+                    <i class="bi bi-arrow-left-right me-2"></i>
+                    Panel de Movimientos
+                </h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    Al seleccionar un agente en el panel izquierdo, se muestran sus movimientos registrados.
+                    Cada movimiento representa un disfrute o ajuste del saldo.
+                </p>
+
+                <h6 class="fw-bold text-primary mt-3">Columnas mostradas:</h6>
+
+                <ul class="small">
+                    <li><strong>Fecha</strong>: Día del movimiento.</li>
+                    <li><strong>Origen</strong>: Estado (por ejemplo, “borrador”).</li>
+                    <li><strong>Tipo</strong>: Tipo de movimiento (normalmente “disfrute”).</li>
+                    <li><strong>S. antes</strong>: Saldo previo.</li>
+                    <li><strong>Días</strong>: Días aplicados.</li>
+                    <li><strong>S. desp.</strong>: Saldo resultante.</li>
+                    <li><strong>Actividad</strong>: Motivo (p. ej., “DA - Descanso Acumulado”).</li>
+                </ul>
+
+                <p class="mb-0">
+                    Los movimientos se ordenan cronológicamente y permiten seguir la evolución del saldo del agente.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cómo funciona -->
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-success bg-opacity-10 border-0 rounded-top-4 py-3">
+                <h5 class="mb-0 fw-bold text-success">
+                    <i class="bi bi-question-circle me-2"></i>
+                    Cómo funciona
+                </h5>
+            </div>
+            <div class="card-body">
+                <ul class="small">
+                    <li>Selecciona un agente en <strong>Acumulados</strong> para ver sus movimientos.</li>
+                    <li>Comprueba el saldo final para verificar disponibilidad de días.</li>
+                    <li>Revisa los movimientos para confirmar fechas y tipos de disfrute.</li>
+                    <li>Utiliza los iconos de Excel para exportar los datos.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Consejos y advertencias -->
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-danger bg-opacity-10 border-0 rounded-top-4 py-3">
+                <h5 class="mb-0 fw-bold text-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Consejos y advertencias
+                </h5>
+            </div>
+            <div class="card-body">
+                <ul class="small mb-0">
+                    <li>
+                        Un agente con saldo final <strong>positivo</strong> tiene días disponibles para disfrutar.
+                    </li>   
+                    <li>
+                        Si un agente aparece con saldo final <strong class="text-danger">negativo</strong>, es que <strong>debe días festivos.</strong>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+</div>

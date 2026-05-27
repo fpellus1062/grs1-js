@@ -1,0 +1,403 @@
+<!-- Modal Nueva ARS -->
+<div class="modal fade" id="modalNuevoArs" tabindex="-1" role="dialog" aria-labelledby="modalNuevoArsLabel" aria-modal="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content modal-notion">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalNuevoArsLabel">Nueva Unidad ARS</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formNuevoArs" novalidate>
+          <div class="row mb-3">
+            <div class="col-8">
+              <label for="nuevoArsUnidadId" class="form-label">Código Unidad *</label>
+              <input type="text" class="form-control" id="nuevoArsUnidadId" required maxlength="12" placeholder="Ej: ARS-001">
+              <div class="form-text">Máx. 12 caracteres. No se puede modificar después.</div>
+            </div>
+            <div class="col-4">
+              <label for="nuevoArsColorHex" class="form-label">Color</label>
+              <div class="notion-color-picker">
+                <input type="color" class="form-control form-control-color" id="nuevoArsColor" value="#6c757d" title="Color ARS">
+                <input type="text" class="form-control notion-color-hex" id="nuevoArsColorHex" maxlength="7" placeholder="#RRGGBB" pattern="^#[0-9a-fA-F]{6}$" value="#6c757d">
+              </div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label for="nuevoArsDomicilio" class="form-label">Domicilio</label>
+            <input type="text" class="form-control" id="nuevoArsDomicilio" maxlength="120">
+          </div>
+          <div class="row mb-3">
+            <div class="col-8">
+              <label for="nuevoArsPoblacion" class="form-label">Población</label>
+              <input type="text" class="form-control" id="nuevoArsPoblacion" maxlength="120">
+            </div>
+            <div class="col-4">
+              <label for="nuevoArsCp" class="form-label">C.P.</label>
+              <input type="text" class="form-control" id="nuevoArsCp" maxlength="5" pattern="[0-9]{5}" placeholder="28001">
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-4">
+              <label for="nuevoArsProvincia" class="form-label">Provincia</label>
+              <select class="form-select" id="nuevoArsProvincia">
+                <option value="">—</option>
+              </select>
+            </div>
+            <div class="col-8">
+              <label for="nuevoArsTelefono" class="form-label">Teléfono</label>
+              <input type="text" class="form-control" id="nuevoArsTelefono" maxlength="12">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label for="nuevoArsEmail" class="form-label">Email</label>
+            <input type="email" class="form-control" id="nuevoArsEmail" maxlength="120">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Oficial al Mando</label>
+            <input type="hidden" id="nuevoArsOficialMando" value="">
+            <div class="dropdown" id="dropdownOficialMando">
+              <button class="form-select text-start dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="true" aria-expanded="false" id="btnDropdownOficialMando">
+                <span class="text-muted">— Sin asignar —</span>
+              </button>
+              <ul class="dropdown-menu w-100 overflow-auto" style="max-height:260px" id="menuOficialMando">
+                <li><a class="dropdown-item" href="#" data-value="">— Sin asignar —</a></li>
+              </ul>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnGuardarNuevoArs">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nuevo Empleo -->
+<div class="modal fade" id="modalNuevoEmpleo" tabindex="-1" role="dialog" aria-labelledby="modalNuevoEmpleoLabel" aria-modal="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content modal-notion">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalNuevoEmpleoLabel">Nuevo Empleo</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formNuevoEmpleo" novalidate>
+          <div class="mb-3">
+            <label for="nuevoEmpleoId" class="form-label">Código *</label>
+            <input type="text" class="form-control" id="nuevoEmpleoId" required maxlength="6" placeholder="Ej: GC">
+            <div class="form-text">Máx. 6 caracteres. No se puede modificar después.</div>
+          </div>
+          <div class="mb-3">
+            <label for="nuevoEmpleoDesc" class="form-label">Descripción *</label>
+            <input type="text" class="form-control" id="nuevoEmpleoDesc" required maxlength="60">
+          </div>
+          <div class="mb-3">
+            <label for="nuevoEmpleoEscala" class="form-label">Escala *</label>
+            <select class="form-select" id="nuevoEmpleoEscala" required>
+              <option value="" disabled selected>-- Seleccionar escala --</option>
+              <option value="Oficiales">Oficiales</option>
+              <option value="Suboficiales">Suboficiales</option>
+              <option value="Guardia Civiles">Guardia Civiles</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="nuevoEmpleoJerarquia" class="form-label">Jerarquía *</label>
+            <input type="text" class="form-control" id="nuevoEmpleoJerarquia" required maxlength="32" pattern="^(?:[0-9]{7}|\d+(?:\.\d+)*)$" placeholder="Ej: 1210000 o 0.1.1.2">
+            <div class="form-text">Admite 7 dígitos o formato por niveles con puntos.</div>
+          </div>
+          <div class="mb-3">
+            <label for="nuevoEmpleoColorHex" class="form-label">Color</label>
+            <div class="notion-color-picker">
+              <input type="color" class="form-control form-control-color" id="nuevoEmpleoColor" value="#6c757d" title="Color empleo">
+              <input type="text" class="form-control notion-color-hex" id="nuevoEmpleoColorHex" maxlength="7" placeholder="#RRGGBB" pattern="^#[0-9a-fA-F]{6}$" value="#6c757d">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnGuardarNuevoEmpleo">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nuevo Pelotón -->
+<div class="modal fade" id="modalNuevoPeloton" tabindex="-1" role="dialog" aria-labelledby="modalNuevoPelotonLabel" aria-modal="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content modal-notion">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalNuevoPelotonLabel">Nuevo Pelotón</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formNuevoPeloton" novalidate>
+          <div class="mb-3">
+            <label for="nuevoPelotonId" class="form-label">Código *</label>
+            <input type="text" class="form-control" id="nuevoPelotonId" required maxlength="6" placeholder="Ej: 121">
+            <div class="form-text">Máx. 6 caracteres. No se puede modificar después.</div>
+          </div>
+          <div class="mb-3">
+            <label for="nuevoPelotonDesc" class="form-label">Descripción *</label>
+            <input type="text" class="form-control" id="nuevoPelotonDesc" required maxlength="60">
+          </div>
+          <div class="mb-3">
+            <label for="nuevoPelotonColorHex" class="form-label">Color</label>
+            <div class="notion-color-picker">
+              <input type="color" class="form-control form-control-color" id="nuevoPelotonColor" value="#6c757d" title="Color pelotón">
+              <input type="text" class="form-control notion-color-hex" id="nuevoPelotonColorHex" maxlength="7" placeholder="#RRGGBB" pattern="^#[0-9a-fA-F]{6}$" value="#6c757d">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnGuardarNuevoPeloton">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nueva Situación -->
+<div class="modal fade" id="modalNuevaSituacion" tabindex="-1" role="dialog" aria-labelledby="modalNuevaSituacionLabel" aria-modal="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content modal-notion">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalNuevaSituacionLabel">Nueva Situación</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formNuevaSituacion" novalidate>
+          <div class="mb-3">
+            <label for="nuevaSituacionId" class="form-label">Código *</label>
+            <input type="text" class="form-control" id="nuevaSituacionId" required maxlength="10" placeholder="Ej: BAJA">
+            <div class="form-text">Máx. 10 caracteres. No se puede modificar después.</div>
+          </div>
+          <div class="mb-3">
+            <label for="nuevaSituacionDesc" class="form-label">Descripción *</label>
+            <input type="text" class="form-control" id="nuevaSituacionDesc" required maxlength="100">
+          </div>
+          <div class="mb-3">
+            <label for="nuevaSituacionColorHex" class="form-label">Color</label>
+            <div class="notion-color-picker">
+              <input type="color" class="form-control form-control-color" id="nuevaSituacionColor" value="#6c757d" title="Color situación">
+              <input type="text" class="form-control notion-color-hex" id="nuevaSituacionColorHex" maxlength="7" placeholder="#RRGGBB" pattern="^#[0-9a-fA-F]{6}$" value="#6c757d">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnGuardarNuevaSituacion">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nuevo Grupo -->
+<div class="modal fade" id="modalNuevoGrupo" tabindex="-1" role="dialog" aria-labelledby="modalNuevoGrupoLabel" aria-modal="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content modal-notion">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalNuevoGrupoLabel">Nuevo Grupo de Servicio</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formNuevoGrupo" novalidate>
+          <div class="mb-3">
+            <label for="nuevoGrupoNombre" class="form-label">Nombre *</label>
+            <input type="text" class="form-control" id="nuevoGrupoNombre" required maxlength="100">
+          </div>
+          <div class="mb-3">
+            <label for="nuevoGrupoColorHex" class="form-label">Color</label>
+            <div class="notion-color-picker">
+              <input type="color" class="form-control form-control-color" id="nuevoGrupoColor" value="#6c757d" title="Color grupo">
+              <input type="text" class="form-control notion-color-hex" id="nuevoGrupoColorHex" maxlength="7" placeholder="#RRGGBB" pattern="^#[0-9a-fA-F]{6}$" value="#6c757d">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnGuardarNuevoGrupo">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nuevo Rol -->
+<div class="modal fade" id="modalNuevoRol" tabindex="-1" role="dialog" aria-labelledby="modalNuevoRolLabel" aria-modal="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content modal-notion">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalNuevoRolLabel">Nuevo Rol</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formNuevoRol" novalidate>
+          <div class="mb-3">
+            <label for="nuevoRolNombre" class="form-label">Nombre *</label>
+            <input type="text" class="form-control" id="nuevoRolNombre" required maxlength="50" placeholder="Ej: editor">
+            <div class="form-text">Identificador único, sin espacios.</div>
+          </div>
+          <div class="mb-3">
+            <label for="nuevoRolDescripcion" class="form-label">Descripción</label>
+            <input type="text" class="form-control" id="nuevoRolDescripcion" maxlength="255">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnGuardarNuevoRol">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nuevo Permiso -->
+<div class="modal fade" id="modalNuevoPermiso" tabindex="-1" role="dialog" aria-labelledby="modalNuevoPermisoLabel" aria-modal="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content modal-notion">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalNuevoPermisoLabel">Nuevo Permiso</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formNuevoPermiso" novalidate>
+          <div class="mb-3">
+            <label for="nuevoPermisoRecurso" class="form-label">Recurso *</label>
+            <input type="text" class="form-control" id="nuevoPermisoRecurso" required maxlength="50" placeholder="Ej: informes">
+            <div class="form-text">Nombre del módulo o entidad.</div>
+          </div>
+          <div class="mb-3">
+            <label for="nuevoPermisoAccion" class="form-label">Acción *</label>
+            <input type="text" class="form-control" id="nuevoPermisoAccion" required maxlength="50" placeholder="Ej: leer">
+            <div class="form-text">Se generará la clave <strong>recurso:acción</strong> automáticamente.</div>
+          </div>
+          <div class="mb-3">
+            <label for="nuevoPermisoDescripcion" class="form-label">Descripción</label>
+            <input type="text" class="form-control" id="nuevoPermisoDescripcion" maxlength="255">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnGuardarNuevoPermiso">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Confirmar Eliminación (compartido por todos los CRUD de configuración) -->
+<div class="modal fade" id="modalConfirmDeleteConfig" tabindex="-1" role="dialog" aria-labelledby="modalConfirmDeleteConfigLabel" aria-modal="true">
+  <div class="modal-dialog modal-sm" role="document">
+    <div class="modal-content modal-notion">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="modalConfirmDeleteConfigLabel">Confirmar eliminación</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <p>¿Está seguro de que desea eliminar este registro?</p>
+        <p class="text-muted"><small>Esta acción no se puede deshacer.</small></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="btnConfirmDeleteConfig">Eliminar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nuevo/Editar Calendario -->
+<div class="modal fade" id="modalCalendario" tabindex="-1" aria-labelledby="modalCalendarioLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content modal-notion">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalCalendarioLabel">Nuevo Calendario</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formCalendario" novalidate>
+          <input type="hidden" id="calEditId">
+          <div class="mb-3">
+            <label for="calNombre" class="form-label">Nombre *</label>
+            <input type="text" class="form-control" id="calNombre" required maxlength="100" placeholder="Ej: Calendario Nacional 2026">
+          </div>
+          <div class="mb-3">
+            <label for="calAmbito" class="form-label">Ámbito *</label>
+            <select class="form-select" id="calAmbito" required>
+              <option value="" disabled selected>-- Seleccionar --</option>
+              <option value="NACIONAL">Nacional</option>
+              <option value="AUTONOMICO">Autonómico</option>
+              <option value="PROVINCIAL">Provincial</option>
+              <option value="LOCAL">Local</option>
+              <option value="PERSONALIZADO">Personalizado</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="calDescripcion" class="form-label">Descripción</label>
+            <textarea class="form-control" id="calDescripcion" rows="2" maxlength="500"></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Unidad ARS</label>
+            <input type="hidden" id="calArsUnidad" value="">
+            <div class="dropdown" id="dropdownCalArs">
+              <button class="form-select text-start dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="true" aria-expanded="false" id="btnDropdownCalArs">
+                <span class="text-muted">— Sin asignar —</span>
+              </button>
+              <ul class="dropdown-menu w-100 overflow-auto" style="max-height:260px" id="menuCalArs">
+                <li><a class="dropdown-item" href="#" data-value="">— Sin asignar —</a></li>
+              </ul>
+            </div>
+          </div>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="calActivo" checked>
+            <label class="form-check-label" for="calActivo">Activo</label>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnGuardarCalendario">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nuevo Festivo -->
+<div class="modal fade" id="modalFestivo" tabindex="-1" aria-labelledby="modalFestivoLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content modal-notion">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalFestivoLabel">Nuevo Festivo</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formFestivo" novalidate>
+          <div class="mb-3">
+            <label for="festFecha" class="form-label">Fecha *</label>
+            <input type="date" class="form-control" id="festFecha" required>
+          </div>
+          <div class="mb-3">
+            <label for="festNombre" class="form-label">Nombre *</label>
+            <input type="text" class="form-control" id="festNombre" required maxlength="150" placeholder="Ej: Día de la Constitución">
+          </div>
+          <div class="mb-3">
+            <label for="festDescripcion" class="form-label">Descripción</label>
+            <textarea class="form-control" id="festDescripcion" rows="2" maxlength="500"></textarea>
+          </div>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="festRecurrente">
+            <label class="form-check-label" for="festRecurrente">Es recurrente (se repite cada año)</label>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnGuardarFestivo">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard - GRS1</title>
+    <link rel="icon" href="data:," />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"
+    />
+    <link href="styles.css" rel="stylesheet" />
+    <link
+      href="https://unpkg.com/tabulator-tables@6.4.0/dist/css/tabulator.min.css"
+      rel="stylesheet"
+    />
+    <script
+      type="text/javascript"
+      src="https://unpkg.com/tabulator-tables@6.4.0/dist/js/tabulator.min.js"
+    ></script>
+
+    <link href="dashboard.css?v=20260504a" rel="stylesheet" />
+  </head>
+  <body>
+    <nav class="sidebar" id="sidebar" aria-label="Navegacion principal">
+      <div class="p-2 sidebar-shell">
+        <h5 aling="center" class="text-center mb-1">
+          <span id="sidebarTitle">Dashboard</span>
+          <img
+            id="sidebarArsLogo"
+            src="logogrs1_.png"
+            alt="GRS1"
+            style="
+              display: block;
+              max-width: 50%;
+              height: auto;
+              margin: 2px auto 0;
+            "
+          />
+        </h5>
+        <div class="user-info user-info-compact mt-1">
+          <p class="user-info-line mb-1">
+            <i class="bi bi-person-circle me-1"></i>
+            <span id="userName"></span>
+            <span id="userRoleBadge" class="badge bg-secondary ms-1" style="font-size:0.68rem"></span>
+          </p>
+          <p class="user-info-line mb-1">
+            <i class="bi bi-clock me-1"></i>
+            <span id="currentDateTime"></span>
+          </p>
+          <!-- Selector de ARS (agrupación activa) -->
+          <div id="arsSelectorContainer" class="mt-1" style="display: none">
+            <label
+              class="form-label text-white-50 mb-1 user-info-ars-label"
+              style="font-size: 0.72rem"
+            >
+              <i class="bi bi-building"></i> Agrupación
+            </label>
+            <select
+              id="arsSelectorGlobal"
+              class="form-select form-select-sm user-info-ars-select"
+            ></select>
+          </div>
+        </div>
+        <hr />
+        <ul class="nav flex-column gap-1">
+          <li class="nav-item">
+            <a class="nav-link active" href="#" data-section="dashboard">
+              <i class="bi bi-speedometer2"></i><span>Dashboard</span>
+            </a>
+          </li>
+          <li class="nav-item" data-permiso="agentes:leer">
+            <button
+              class="nav-link w-100 text-start accordion-button collapsed"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#agentesMenu"
+              aria-expanded="false"
+              aria-controls="agentesMenu"
+            >
+              <i class="bi bi-people"></i><span>Agentes</span>
+            </button>
+            <div id="agentesMenu" class="collapse" data-bs-parent=".nav">
+              <ul class="nav flex-column gap-1 mt-1">
+                <li class="nav-item" data-permiso="agentes:leer">
+                  <a class="nav-link" href="#" data-section="agentes">
+                    <i class="bi bi-card-list"></i><span>Lista de Agentes</span>
+                  </a>
+                </li>
+                <li class="nav-item" data-permiso="agentes:editar">
+                  <a class="nav-link" href="#" data-section="agentes-acciones">
+                    <i class="bi bi-lightning-charge"></i
+                    ><span>Acciones Masivas</span>
+                  </a>
+                </li>
+                <li class="nav-item" data-permiso="asignaciones-reglas:leer">
+                  <a class="nav-link" href="#" data-section="ledger">
+                    <i class="bi bi-journal-text"></i><span>Devengos</span>
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </li>
+          <li class="nav-item" data-permiso="cuadrantes:leer|planificacion:ver">
+            <button
+              class="nav-link w-100 text-start accordion-button collapsed"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#planificacionMenu"
+              aria-expanded="false"
+              aria-controls="planificacionMenu"
+            >
+              <i class="bi bi-calendar-event"></i><span>Planificación</span>
+            </button>
+            <div id="planificacionMenu" class="collapse" data-bs-parent=".nav">
+              <ul class="nav flex-column gap-1 mt-1">
+                <li class="nav-item" data-permiso="cuadrantes:leer">
+                  <a
+                    class="nav-link"
+                    href="#"
+                    data-section="cuadrantesPlanificacion"
+                  >
+                    <i class="bi bi-calendar3"></i><span>Cuadrantes</span>
+                  </a>
+                </li>
+                <li class="nav-item" data-permiso="planificacion:ver">
+                  <a class="nav-link" href="#" data-section="planificacion">
+                    <i class="bi bi-calendar4-week"></i
+                    ><span>Planificador</span>
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </li>
+          <li
+            class="nav-item"
+            data-permiso="actividades:leer|asignaciones:leer|jerarquiagrupos:leer"
+          >
+            <button
+              class="nav-link w-100 text-start accordion-button collapsed"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#serviciosMenu"
+              aria-expanded="false"
+              aria-controls="serviciosMenu"
+            >
+              <i class="bi bi-briefcase"></i><span>Servicios</span>
+            </button>
+            <div id="serviciosMenu" class="collapse" data-bs-parent=".nav">
+              <ul class="nav flex-column gap-1 mt-1">
+                <li class="nav-item" data-permiso="actividades:leer">
+                  <a class="nav-link" href="#" data-section="actividades">
+                    <i class="bi bi-clipboard-check"></i
+                    ><span>Lista de Servicios</span>
+                  </a>
+                </li>
+                <li class="nav-item" data-permiso="asignaciones:leer">
+                  <a class="nav-link" href="#" data-section="asignaciones">
+                    <i class="bi bi-calendar-week"></i><span>Asignación</span>
+                  </a>
+                </li>
+                <li class="nav-item" data-permiso="jerarquiagrupos:leer">
+                  <a class="nav-link" href="#" data-section="jerarquiagrupos">
+                    <i class="bi bi-diagram-3"></i
+                    ><span>Grupos y Servicios</span>
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </li>
+          <li class="nav-item" data-permiso="informes:leer|informes:exportar">
+            <button
+              class="nav-link w-100 text-start accordion-button collapsed"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#informesMenu"
+              aria-expanded="false"
+              aria-controls="informesMenu"
+            >
+              <i class="bi bi-file-earmark-bar-graph"></i><span>Informes</span>
+            </button>
+            <div id="informesMenu" class="collapse" data-bs-parent=".nav">
+              <ul class="nav flex-column gap-1 mt-1">
+                <li
+                  class="nav-item"
+                  data-permiso="informes:leer|informes:exportar"
+                >
+                  <a class="nav-link" href="#" data-section="informes">
+                    <i class="bi bi-clipboard-data"></i><span>Servicios</span>
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </li>
+          <li
+            class="nav-item"
+            data-permiso="config:leer|asignaciones-reglas:leer"
+          >
+            <button
+              class="nav-link w-100 text-start accordion-button collapsed"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#configuracionMenu"
+              aria-expanded="false"
+              aria-controls="configuracionMenu"
+            >
+              <i class="bi bi-sliders2"></i><span>Configuración</span>
+            </button>
+            <div id="configuracionMenu" class="collapse" data-bs-parent=".nav">
+              <ul class="nav flex-column gap-1 mt-1">
+                <li class="nav-item" data-permiso="config:leer">
+                  <a
+                    class="nav-link"
+                    href="#"
+                    data-section="configuracion"
+                    data-config-tab="tab-calendarios"
+                  >
+                    <i class="bi bi-sliders2"></i><span>Configuración</span>
+                  </a>
+                </li>
+                <li class="nav-item" data-permiso="asignaciones-reglas:leer">
+                  <a class="nav-link" href="#" data-section="devengos">
+                    <i class="bi bi-calculator"></i><span>Reglas Devengos</span>
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </li>
+          <li class="nav-item" data-permiso="config:leer">
+            <button
+              class="nav-link w-100 text-start accordion-button collapsed"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#adminMenu"
+              aria-expanded="false"
+              aria-controls="adminMenu"
+            >
+              <i class="bi bi-shield-lock"></i><span>Admin</span>
+            </button>
+            <div id="adminMenu" class="collapse" data-bs-parent=".nav">
+              <ul class="nav flex-column gap-1 mt-1">
+                <li class="nav-item" data-permiso="config:leer">
+                  <a class="nav-link" href="#" data-section="sistema">
+                    <i class="bi bi-gear-fill"></i><span>Sistema</span>
+                  </a>
+                </li>
+                <li class="nav-item" data-permiso="config:leer">
+                  <a class="nav-link" href="#" data-section="help-admin">
+                    <i class="bi bi-question-circle"></i><span>Ayuda</span>
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </li>
+        </ul>
+        <div class="sidebar-footer-brand" aria-hidden="true">
+          <img
+            src="L2M_logo.png"
+            alt="L2M Solutions"
+            class="sidebar-footer-brand-img"
+          />
+        </div>
+      </div>
+    </nav>
+    <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
+
+    <div class="main-content" id="mainContent">
+      <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+          <button
+            class="btn btn-outline-secondary"
+            id="sidebarToggle"
+            type="button"
+            aria-label="Menu"
+          >
+            <span class="navbar-toggler-icon"></span>
+          </button>
+
+          <!-- Badge ARS activa -->
+          <span
+            id="navArsBadge"
+            class="badge ms-3 d-none"
+            style="font-size: 0.99rem; vertical-align: middle"
+          >
+            <i class="bi bi-building me-1"></i><span id="navArsLabel"></span>
+          </span>
+
+          <!-- Perfil de usuario -->
+          <div class="dropdown ms-auto">
+            <button
+              class="btn btn-link text-decoration-none text-dark d-flex align-items-center gap-2 dropdown-toggle"
+              type="button"
+              id="navProfileBtn"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              <span
+                id="navProfileName"
+                class="d-none d-md-inline"
+                style="font-size: 0.85rem"
+              ></span>
+              <span
+                class="d-inline-flex align-items-center justify-content-center rounded-circle bg-secondary text-white fw-bold"
+                id="navProfileAvatar"
+                style="width: 32px; height: 32px; font-size: 0.8rem"
+              >
+              </span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+              <li>
+                <button class="dropdown-item" type="button" id="btnOpenProfile">
+                  <i class="bi bi-person me-2"></i>Mi Perfil
+                </button>
+              </li>
+              <li>
+                <button
+                  class="dropdown-item"
+                  type="button"
+                  id="btnOpenChangePassword"
+                >
+                  <i class="bi bi-key me-2"></i>Cambiar Contraseña
+                </button>
+              </li>
+              <li><hr class="dropdown-divider" /></li>
+              <li>
+                <button
+                  class="dropdown-item text-danger"
+                  type="button"
+                  data-action="logout"
+                >
+                  <i class="bi bi-box-arrow-left me-2"></i>Cerrar Sesión
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </nav>
+
+      <div class="container-fluid mt-4">
+        <div id="dashboardSection" class="section active">
+          <div class="include-loading">
+            <div
+              class="spinner-border spinner-border-sm me-2"
+              role="status"
+            ></div>
+            Cargando dashboard...
+          </div>
+        </div>
+
+        <div id="agentesSection" class="section">
+          <div class="include-loading">
+            <div
+              class="spinner-border spinner-border-sm me-2"
+              role="status"
+            ></div>
+            Cargando agentes...
+          </div>
+        </div>
+
+        <div id="agentesAccionesSection" class="section">
+          <div class="include-loading">
+            <div
+              class="spinner-border spinner-border-sm me-2"
+              role="status"
+            ></div>
+            Cargando acciones masivas de agentes...
+          </div>
+        </div>
+
+        <div id="actividadesSection" class="section">
+          <div class="include-loading">
+            <div
+              class="spinner-border spinner-border-sm me-2"
+              role="status"
+            ></div>
+            Cargando servicios...
+          </div>
+        </div>
+        <div id="gruposSection" class="section">
+          <div class="include-loading">
+            <div
+              class="spinner-border spinner-border-sm me-2"
+              role="status"
+            ></div>
+            Cargando grupos de servicio...
+          </div>
+        </div>
+        <div id="jerarquiagruposSection" class="section">
+          <div class="include-loading">
+            <div
+              class="spinner-border spinner-border-sm me-2"
+              role="status"
+            ></div>
+            Cargando jerarquía...
+          </div>
+        </div>
+        <div id="turnosSection" class="section">
+          <div class="include-loading">
+            <div
+              class="spinner-border spinner-border-sm me-2"
+              role="status"
+            ></div>
+            Cargando turnos...
+          </div>
+        </div>
+        <div id="asignacionesSection" class="section">
+          <div class="include-loading">
+            <div
+              class="spinner-border spinner-border-sm me-2"
+              role="status"
+            ></div>
+            Cargando asignaciones...
+          </div>
+        </div>
+        <div id="cuadrantesPlanificacionSection" class="section">
+          <div class="include-loading">
+            <div
+              class="spinner-border spinner-border-sm me-2"
+              role="status"
+            ></div>
+            Cargando cuadrantes...
+          </div>
+        </div>
+        <div id="planificacionSection" class="section">
+          <div class="include-loading">
+            <div
+              class="spinner-border spinner-border-sm me-2"
+              role="status"
+            ></div>
+            Cargando planificación...
+          </div>
+        </div>
+        <div id="informesSection" class="section">
+          <div class="include-loading">
+            <div
+              class="spinner-border spinner-border-sm me-2"
+              role="status"
+            ></div>
+            Cargando exportación...
+          </div>
+        </div>
+        <div id="configuracionSection" class="section">
+          <div class="include-loading">
+            <div
+              class="spinner-border spinner-border-sm me-2"
+              role="status"
+            ></div>
+            Cargando configuración...
+          </div>
+        </div>
+        <div id="devengosSection" class="section">
+          <div class="include-loading">
+            <div
+              class="spinner-border spinner-border-sm me-2"
+              role="status"
+            ></div>
+            Cargando devengos...
+          </div>
+        </div>
+        <div id="ledgerSection" class="section">
+          <div class="include-loading">
+            <div
+              class="spinner-border spinner-border-sm me-2"
+              role="status"
+            ></div>
+            Cargando ledger...
+          </div>
+        </div>
+        <div id="helpAdminSection" class="section">
+          <div class="include-loading">
+            <div
+              class="spinner-border spinner-border-sm me-2"
+              role="status"
+            ></div>
+            Cargando gestión de ayuda...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="agenteModalHost"></div>
+    <div id="actividadModalHost"></div>
+    <div id="usuarioModalHost"></div>
+    <div id="configModalHost"></div>
+    <div id="agenteDeleteModalHost"></div>
+    <div id="comentariosAgenteModalHost"></div>
+    <div id="actividadDeleteModalHost"></div>
+    <div id="usuarioDeleteModalHost"></div>
+    <div id="fichaAgenteModalHost"></div>
+    <div id="fichaActividadModalHost"></div>
+    <div id="turnoModalHost"></div>
+    <div id="turnoDeleteModalHost"></div>
+    <div id="turnoHistorialModalHost"></div>
+    <div id="profileModalHost"></div>
+    <div id="changePasswordModalHost"></div>
+    <div id="helpAdminModalHost"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/vendor/echarts/echarts.min.js"></script>
+    <script src="/vendor/luxon.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6.4.0/dist/js/tabulator.min.js"></script>
+    <script src="/vendor/editorjs/editorjs/editorjs.umd.js"></script>
+    <script src="/vendor/editorjs/header/header.umd.js"></script>
+    <script src="/vendor/editorjs/list/editorjs-list.umd.js"></script>
+    <script src="/vendor/editorjs/checklist/checklist.umd.js"></script>
+    <script src="/vendor/editorjs/code/code.umd.js"></script>
+    <script src="/vendor/editorjs/image/image.umd.js"></script>
+    <script src="js/tabulator-qbe-utils.js?v=20260417a"></script>
+    <script src="js/dashboard-utils.js?v=20260427a"></script>
+    <script src="js/dashboard-state.js?v=20260502d"></script>
+    <script src="js/dashboard-grupos.js?v=20260412a"></script>
+    <script src="js/dashboard-jerarquiagrupos.js?v=20260417c"></script>
+    <script src="js/dashboard-config.js?v=20260402e"></script>
+    <script src="js/dashboard-devengos.js?v=20260418a"></script>
+    <script src="js/dashboard-ledger.js?v=20260421a"></script>
+    <script src="js/dashboard-calendarios.js?v=20260412a"></script>
+    <script src="js/dashboard-actividades-templates.js?v=20260330d"></script>
+    <script src="js/dashboard-agentes-templates.js?v=20260330d"></script>
+    <script src="js/dashboard-usuarios-templates.js?v=20260330d"></script>
+    <script src="js/dashboard-actividades-form.js?v=20260330d"></script>
+    <script src="js/dashboard-agentes-form.js?v=20260330d"></script>
+    <script src="js/dashboard-usuarios-form.js?v=20260330d"></script>
+    <script src="js/dashboard-actividades.js?v=20260401j"></script>
+
+    <script src="js/dashboard-agentes.js?v=20260502d"></script>
+    <script src="js/dashboard-agentes-acciones.js?v=20260504c"></script>
+    <script src="js/dashboard-usuarios.js?v=20260425c"></script>
+    <script src="js/dashboard-profile.js?v=20260413a"></script>
+    <script src="js/dashboard-auditoria.js?v=20260413a"></script>
+
+    <script src="js/dashboard-turnos.js?v=20260401d"></script>
+    <script src="js/dashboard-asignaciones-utils.js?v=20260415c"></script>
+    <script src="js/dashboard-asignaciones-historial.js?v=20260406k"></script>
+    <script src="js/dashboard-asignaciones-modals.js?v=20260415a"></script>
+    <script src="js/dashboard-asignaciones-grid.js?v=20260415m"></script>
+    <script src="js/dashboard-asignaciones.js?v=20260425c"></script>
+    <!-- Cuadrantes (NUEVO - después de asignaciones) -->
+    <script src="/js/cuadrante-preview.js?v=20260417e"></script>
+    <script src="/js/dashboard-cuadrantes.js?v=20260415d"></script>
+    <script src="/js/dashboard-planificacion-cuadrantes.js?v=20260415b"></script>
+    <script src="/js/dashboard-planificacion-api.js?v=20260502a"></script>
+    <script src="/js/dashboard-planificacion-store.js?v=20260502b"></script>
+    <script src="/js/dashboard-planificacion-grid-data.js?v=20260502c"></script>
+    <script src="/js/dashboard-planificacion.js?v=20260502a"></script>
+    <script src="js/dashboard-informes.js?v=20260417s"></script>
+    <script src="js/dashboard-layout.js?v=20260504a"></script>
+    <script src="js/dashboard.js?v=20260330d"></script>
+    <!-- Ayudas -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.5/dist/purify.min.js"></script>
+    <script src="/js/help-widget.js?v=20260424d"></script>
+    <script src="/js/dashboard-help-admin.js?v=20260424f"></script>
+  </body>
+</html>

@@ -1,0 +1,13 @@
+﻿$origen = "C:\Desarrollo\node\grs1"
+$destino = "E:\Desarrollo\grs1"
+
+New-Item -ItemType Directory -Path $destino -Force | Out-Null
+
+robocopy $origen $destino /E /XD "node_modules" /R:2 /W:2 /NFL /NDL /NP /TEE
+
+if ($LASTEXITCODE -le 7) {
+Write-Host "Copia completada correctamente. ExitCode: $LASTEXITCODE" -ForegroundColor Green
+} else {
+Write-Host "Error en la copia. ExitCode: $LASTEXITCODE" -ForegroundColor Red
+exit $LASTEXITCODE
+}

@@ -1,0 +1,18 @@
+<div class="modal fade" id="confirmTurnoDeleteModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content modal-notion">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Confirmar Eliminación</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <p>¿Estás seguro de que deseas eliminar el turno <strong id="deleteTurnoNombre"></strong>?</p>
+        <p class="text-muted small">Esta acción quedará registrada en el historial de auditoría.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="confirmTurnoDeleteBtn">Eliminar</button>
+      </div>
+    </div>
+  </div>
+</div>

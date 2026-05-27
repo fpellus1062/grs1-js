@@ -1,0 +1,204 @@
+<!-- Modal crear / editar item de ayuda -->
+<div class="modal fade" id="helpAdminModal" tabindex="-1" aria-hidden="true">
+  <div
+    class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable"
+  >
+    <div class="modal-content modal-notion">
+      <div class="modal-header">
+        <h5 class="modal-title" id="helpAdminModalTitle">
+          Nuevo item de ayuda
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Cerrar"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <form id="helpAdminForm" novalidate>
+          <input type="hidden" id="helpAdminEditId" value="" />
+          <div class="row g-3">
+            <div class="col-12">
+              <label for="helpAdminTitle" class="form-label"
+                >Título <span class="text-danger">*</span></label
+              >
+              <input
+                type="text"
+                class="form-control"
+                id="helpAdminTitle"
+                maxlength="255"
+                required
+                placeholder="Ej: Cómo calcular devengos"
+              />
+            </div>
+            <div class="col-md-6">
+              <label for="helpAdminContext" class="form-label"
+                >Contexto <span class="text-danger">*</span></label
+              >
+              <input
+                type="text"
+                class="form-control"
+                id="helpAdminContext"
+                maxlength="100"
+                required
+                placeholder="Ej: devengos-form"
+              />
+              <div class="form-text">
+                Clave que usan los botones <code>data-help-context</code>.
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label for="helpAdminType" class="form-label">Tipo</label>
+              <select class="form-select" id="helpAdminType">
+                <option value="modal">modal</option>
+                <option value="tooltip">tooltip</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label for="helpAdminContent" class="form-label"
+                >Contenido <span class="text-danger">*</span></label
+              >
+              <div
+                id="helpAdminEditorHolder"
+                class="border rounded bg-white"
+                style="min-height: 360px; padding: 0.75rem"
+              ></div>
+              <textarea
+                class="form-control font-monospace"
+                id="helpAdminContent"
+                rows="16"
+                required
+                placeholder="EditorJS payload en JSON (fallback técnico)."
+                style="display: none"
+              ></textarea>
+              <div class="form-text">
+                Edición por bloques tipo Notion con EditorJS. Se guarda como
+                JSON estructurado para renderizarlo de forma consistente.
+              </div>
+            </div>
+          </div>
+          <div
+            id="helpAdminFormError"
+            class="alert alert-danger mt-3 d-none"
+            role="alert"
+          ></div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button
+          type="button"
+          class="btn btn-outline-secondary btn-sm py-1 px-3"
+          id="helpAdminBtnPreview"
+        >
+          <i class="bi bi-eye me-1"></i>Vista previa
+        </button>
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm py-1 px-3"
+          data-bs-dismiss="modal"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm py-1 px-3"
+          id="helpAdminBtnGuardar"
+        >
+          Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal vista previa -->
+<div
+  class="modal fade"
+  id="helpAdminPreviewModal"
+  tabindex="-1"
+  aria-hidden="true"
+>
+  <div
+    class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable"
+  >
+    <div class="modal-content modal-notion">
+      <div class="modal-header py-2 px-3">
+        <span
+          class="modal-title d-flex align-items-center gap-2"
+          style="font-size: 0.9rem; font-weight: 600"
+        >
+          <i class="bi bi-question-circle text-secondary"></i>
+          <span id="helpAdminPreviewTitle">Vista previa</span>
+        </span>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Cerrar"
+        ></button>
+      </div>
+      <div
+        class="modal-body px-3 py-3 help-body"
+        id="helpAdminPreviewBody"
+        style="min-height: 220px"
+      ></div>
+      <div class="modal-footer py-2 px-3">
+        <button
+          type="button"
+          class="btn btn-primary btn-sm py-1 px-3"
+          data-bs-dismiss="modal"
+        >
+          Entendido
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal confirmar borrado -->
+<div
+  class="modal fade"
+  id="helpAdminDeleteModal"
+  tabindex="-1"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 420px">
+    <div class="modal-content modal-notion">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirmar eliminación</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Cerrar"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-1" style="font-size: 0.88rem">
+          ¿Eliminar el item de ayuda
+          <strong id="helpAdminDeleteTitle"></strong>?
+        </p>
+        <p class="text-muted mb-0" style="font-size: 0.8rem">
+          Esta acción no se puede deshacer.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm py-1 px-3"
+          data-bs-dismiss="modal"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="btn btn-danger btn-sm py-1 px-3"
+          id="helpAdminBtnConfirmDelete"
+        >
+          Eliminar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

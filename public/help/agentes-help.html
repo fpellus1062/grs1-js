@@ -1,0 +1,236 @@
+<div class="d-flex align-items-center gap-2 border-bottom border-3 border-warning pb-2">
+  <h1 class="text-warning m-0">
+    <i class="bi bi-person-vcard-fill"></i>
+    Listado de Agentes
+  </h1>
+</div>
+</br>
+
+<div class="contenido-doc">
+  <div class="container my-4">
+
+    <!-- Primera tarjeta -->
+    <div class="row mb-5">
+      <div class="col-12">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title fw-bold">
+              <i class="bi bi-person-vcard-fill text-primary"></i> Cabecera
+            </h5>
+
+            <p class="card-text">
+              En la cabecera superior de la pantalla a la izquierda, ofrecemos información básica del listado de
+              agentes,
+              como el número total de agentes, el número de agentes seleccionados por el check y el número de agentes
+              ocultos.
+            </p>
+
+            <p class="card-text">
+            <p>Opciones Principales:</p>
+            <ul>
+              <li><strong>Filtro</strong> Botón de filtro que nos permite mostrar u ocultar agentes según su situación
+                (activos, inactivos o todos).</li>
+              <li><strong>Nuevo Agente</strong> El sistema abre una ventana (modal) para su alta, mediante un
+                formulario.</li>
+              <li><strong>Cuadrante</strong> Botón que nos muestra una ventana (modal), donde podremos ver el/los
+                cuadrantes asociados al agente.</li>
+              <li><strong>Refrescar</strong> En este botón podremos refrescar la pantalla, lo que es útil para
+                actualizar la información de los agentes tras realizar cambios en su ficha.</li>
+              <li><strong>Exportar</strong> Botón que permite exportar el listado de agentes a un archivo Excel,
+                incluyendo toda la información visible en la tabla.</li>
+            </ul>
+            </p>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resto de tarjetas: 2 columnas -->
+    <div class="row g-4">
+
+      <!-- Situación -->
+      <div class="col-12 col-md-6">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title fw-bold">
+              <i class="bi bi-activity text-primary me-2"></i>Situación
+            </h5>
+            <p class="card-text">
+              Este es un campo que informa del estado de disponibilidad de un agente, en el largo plazo.
+              Puede tener incidencia en la asignación de servicios, de tal forma que el sistema podrá
+              nombrar de manera automática servicios asociados a esta situación.
+            </p>
+            <p class="card-text">
+              <em>Ejemplo:</em> Si un agente, en la nueva creación de un cuadrante, el sistema podrá asignar
+              de forma automática el servicio de baja a todo el cuadrante de dicho agente.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Orden -->
+      <div class="col-12 col-md-6">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title fw-bold">
+              <i class="bi bi-list-ol text-success me-2"></i>Orden
+            </h5>
+            <p class="card-text">
+              Es el ordinal que recibe un agente tras su nombramiento. Este campo forma parte del algoritmo
+              de cálculo del escalafón del agente, compuesto por:
+            </p>
+            <ul>
+              <li>Jerarquía</li>
+              <li>Fecha de Nombramiento</li>
+              <li>Nº de Orden</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Aptitudes -->
+      <div class="col-12 col-md-6">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title fw-bold">
+              <i class="bi bi-award text-warning me-2"></i>Aptitudes
+            </h5>
+            <p class="card-text">
+              Campo que define los cursos y especialidades de un agente. Es un campo compuesto sujeto a un
+              estricto orden:
+            </p>
+            <p class="card-text">
+              <code>Aptitud (4 caracteres) + espacio + @ + espacio</code>
+            </p>
+            <p class="card-text">
+              Se recomienda crear un nomenclátor estándar para cada aptitud.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- PEI -->
+      <div class="col-12 col-md-6">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title fw-bold">
+              <i class="bi bi-shield-exclamation text-danger me-2"></i>PEI
+            </h5>
+            <p class="card-text">
+              Plan de Emergencia Interior. Sistema organizativo y de procedimientos para la gestión de accidentes.
+            </p>
+            <p class="card-text">
+              Se activa mediante interacción (click) y tiene tres valores: <strong>Nulo / Sí / No</strong>.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAEF -->
+      <div class="col-12 col-md-6">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title fw-bold">
+              <i class="bi bi-shield-check text-info me-2"></i>PAEF
+            </h5>
+            <p class="card-text">
+              Plan de Atención de Emergencias. Medidas de prevención y respuesta ante situaciones de emergencia
+              en el ámbito de la seguridad y protección ciudadana.
+            </p>
+            <p class="card-text">
+              Se activa mediante interacción (click) y tiene tres valores: <strong>Nulo / Sí / No</strong>.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fecha de Nombramiento -->
+      <div class="col-12 col-md-6">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title fw-bold">
+              <i class="bi bi-calendar-event text-secondary me-2"></i>Fecha de Nombramiento
+            </h5>
+            <p class="card-text">
+              Es la fecha en la que el agente se incorpora al cuerpo y que posteriormente cambia conforme
+              recibe nuevos nombramientos.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Escalafón -->
+      <div class="col-12 col-md-6">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title fw-bold">
+              <i class="bi bi-sort-numeric-up text-secondary me-2"></i>Escalafón
+            </h5>
+            <p class="card-text">
+              Es la estructura jerárquica que define la posición del agente dentro del cuerpo, la cual cambia conforme
+              recibe nuevos nombramientos.
+            </p>
+            <p class="card-text">
+              Esta estructura es clave dentro del escalafón del agente, compuesto por:
+            </p>
+            <ul>
+              <li>Jerarquía Empleo</li>
+              <li>Fecha de Nombramiento</li>
+              <li>Nº Orden</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Operativa de Baja -->
+      <div class="col-12 col-md-6">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title fw-bold">
+              <i class="bi bi-person-dash text-warning me-2"></i>Operativa de Baja
+            </h5>
+            <p class="card-text">
+              Si pulsamos el botón de baja, el sistema nos preguntará si queremos dar de baja al agente. Si confirmamos,
+              el sistema dará de baja al agente, lo que implica que el agente dejará de estar disponible para la
+              asignación de servicios, pero no se eliminará su ficha. Esto es útil para mantener un registro histórico
+              de los agentes que han formado parte del cuerpo, incluso aquellos que ya no están activos.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Operativa de Baja Nota -->
+      <div class="col-12 col-md-6">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title fw-bold">
+              <i class="bi bi-person-dash text-warning me-2"></i> Operativa de Baja (Nota)
+            </h5>
+            <p class="card-text">
+              Notas al procedimiento de baja de un agente.
+            </p>
+            <div class="alert alert-warning" role="alert">
+              <p class="card-text">
+                <strong><i class="bi bi-exclamation-triangle-fill"></i> Atención:</strong> Esta acción es reversible,
+                pero se recomienda precaución al dar de baja a un
+                agente.
+              </p>
+              <p class="card-text">
+                <strong><i class="bi bi-exclamation-triangle-fill"></i> Importante:</strong> Una vez dado de baja, el
+                agente no podrá ser reasignado a servicios activos.
+              </p>
+              <p class="card-text">
+                <strong><i class="bi bi-exclamation-triangle-fill"></i> Nota:</strong> Podemos volver a dar de alta al
+                agente, pulsando el icono de recuperar. Este habrá
+                sustituido a la papelera inicialmente, y al pulsarlo, el agente volverá a estar disponible para la
+                asignación de servicios.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

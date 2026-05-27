@@ -1,0 +1,412 @@
+<div class="d-flex align-items-center gap-2 border-bottom border-3 border-success pb-2 mb-4">
+  <h1 class="text-success m-0">
+    <i class="bi bi-cpu"></i>
+    Motor de Reglas de Días de Devengos, Disfrutes y Descansos
+  </h1>
+</div>
+
+<div class="row g-4">
+  <div class="col-12">
+    <div class="card shadow-sm border-0 rounded-4">
+      <div class="card-header bg-success bg-opacity-10 border-0 rounded-top-4 py-3">
+        <h5 class="mb-0 fw-bold text-success">
+          <i class="bi bi-bullseye me-2"></i>
+          1. Objetivo
+        </h5>
+      </div>
+      <div class="card-body">
+        <p class="text-muted mb-0">
+          El motor de reglas automatiza el cálculo de días de devengo, disfrute y descanso a partir de las asignaciones
+          del mes SIGO,
+          evitando cálculos manuales y aplicando siempre criterios homogéneos.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-6">
+    <div class="card shadow-sm border-0 rounded-4 h-100">
+      <div class="card-header bg-primary bg-opacity-10 border-0 rounded-top-4 py-3">
+        <h5 class="mb-0 fw-bold text-primary">
+          <i class="bi bi-gear me-2"></i>
+          2. Qué hace el motor
+        </h5>
+      </div>
+      <div class="card-body">
+        <ol class="small text-muted mb-0">
+          <li>Lee las asignaciones del período.</li>
+          <li>Busca la regla aplicable para cada caso.</li>
+          <li>Calcula módulos y cantidad de días.</li>
+          <li>Genera movimientos en el ledger.</li>
+          <li>Muestra saldo antes y saldo después de cada movimiento.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-6">
+    <div class="card shadow-sm border-0 rounded-4 h-100">
+      <div class="card-header bg-info bg-opacity-10 border-0 rounded-top-4 py-3">
+        <h5 class="mb-0 fw-bold text-info">
+          <i class="bi bi-book me-2"></i>
+          3. Conceptos principales
+        </h5>
+      </div>
+      <div class="card-body">
+        <ul class="small mb-0">
+          <li><strong>Devengo:</strong> suma días al saldo.</li>
+          <li><strong>Disfrute:</strong> resta días al saldo.</li>
+          <li><strong>Descanso:</strong> suma días al saldo.</li>
+          <li><strong>Regla:</strong> configuración que define cuándo y cuánto sumar o restar.</li>
+          <li><strong>Borrador:</strong> entorno editable para preparar cálculos antes de consolidar.</li>
+          <li><strong>Ledger de movimientos:</strong> historial real y fuente única de verdad para saldos.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="card shadow-sm border-0 rounded-4">
+      <div class="card-header bg-warning bg-opacity-10 border-0 rounded-top-4 py-3">
+        <h5 class="mb-0 fw-bold text-warning">
+          <i class="bi bi-sliders me-2"></i>
+          4. Cómo se configura una regla
+        </h5>
+      </div>
+      <div class="card-body">
+        <ul class="small mb-0">
+          <li>Qué actividad o grupo de actividades afecta.</li>
+          <li>Qué empleo afecta (si aplica).</li>
+          <li>Tipo de movimiento: devengo, disfrute o descanso.</li>
+          <li>Valor por módulo.</li>
+          <li>Condición de cálculo: en período o consecutivos.</li>
+          <li>Días por módulo.</li>
+          <li>Si aplica cruce con festivos.</li>
+          <li>Vigencia desde y hasta.</li>
+          <li>Prioridad.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="card shadow-sm border-0 rounded-4">
+      <div class="card-header bg-primary bg-opacity-10 border-0 rounded-top-4 py-3">
+        <h5 class="mb-0 fw-bold text-primary">
+          <i class="bi bi-calculator me-2"></i>
+          5. Cómo calcula el motor
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-12 col-lg-4">
+            <div class="border rounded-3 p-3 h-100">
+              <div class="fw-semibold mb-2">5.1 Cálculo en período</div>
+              <p class="small text-muted mb-2">Se calcula por módulos completos:</p>
+              <div class="small mb-1"><code>modulos = floor(dias aplicables / dias por modulo)</code></div>
+              <div class="small"><code>cantidad = modulos x valor</code></div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-4">
+            <div class="border rounded-3 p-3 h-100">
+              <div class="fw-semibold mb-2">5.2 Cálculo por consecutivos</div>
+              <p class="small text-muted mb-2">Cuenta rachas de días consecutivos y suma módulos por racha:</p>
+              <div class="small mb-1"><code>modulos totales = sum(floor(longitud de racha / dias por modulo))</code>
+              </div>
+              <div class="small"><code>cantidad = modulos totales x valor</code></div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-4">
+            <div class="border rounded-3 p-3 h-100">
+              <div class="fw-semibold mb-2">5.3 Cálculo por cruce festivo</div>
+              <p class="small text-muted mb-2">Si la regla tiene activado cruce festivo:</p>
+              <div class="small mb-2"><code>cantidad = numero de cruces festivos x valor</code></div>
+              <div class="alert alert-info py-2 px-2 small mb-0">
+                Importante: aplicar cruce festivo es una condición propia de la regla y se respeta en preview y
+                consolidación.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-6">
+    <div class="card shadow-sm border-0 rounded-4 h-100">
+      <div class="card-header bg-secondary bg-opacity-10 border-0 rounded-top-4 py-3">
+        <h5 class="mb-0 fw-bold text-secondary">
+          <i class="bi bi-funnel me-2"></i>
+          6. Cómo elige una regla cuando hay varias
+        </h5>
+      </div>
+      <div class="card-body">
+        <p class="small text-muted mb-2">Si varias reglas podrían aplicar, el motor prioriza la más específica según:
+        </p>
+        <ol class="small mb-3">
+          <li>Coincidencia exacta por actividad antes que grupo.</li>
+          <li>Mejor encaje de empleo.</li>
+          <li>Regla alcanzada por umbral de días.</li>
+          <li>Mayor especificidad modular en solapamientos.</li>
+          <li>Prioridad y vigencia.</li>
+        </ol>
+        <div class="alert alert-light border small mb-0">
+          <strong>Ejemplo modular:</strong><br />
+          Regla A: cada 6 días, devenga 2.<br />
+          Regla B: cada 10 días, devenga 3.<br />
+          Regla C: cada 15 días, devenga 4.<br />
+          Si un agente tiene 12 días aplicables, se selecciona la regla de 10 días por ser la más específica alcanzada.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-6">
+    <div class="card shadow-sm border-0 rounded-4 h-100">
+      <div class="card-header bg-warning bg-opacity-10 border-0 rounded-top-4 py-3">
+        <h5 class="mb-0 fw-bold text-warning">
+          <i class="bi bi-lightbulb me-2"></i>
+          7. Ejemplos funcionales
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="small mb-2">
+          <strong>7.1 Devengo en período:</strong> regla cada 6 días devenga 2, días aplicables 14.<br />
+          <code>floor(14/6) = 2 modulos</code><br />
+          Cantidad final: 4 días de devengo.
+        </div>
+        <div class="small mb-2">
+          <strong>7.2 Disfrute en consecutivos:</strong> regla cada 3 días consecutivos disfruta 1, rachas 4 y 2.<br />
+          <code>floor(4/3) + floor(2/3) = 1 + 0 = 1</code><br />
+          Cantidad final: 1 día de disfrute.
+        </div>
+        <div class="small mb-0">
+          <strong>7.3 Con festivos:</strong> por cada cruce festivo devenga 1, cruces detectados 2.<br />
+          Cantidad final: 2 días de devengo.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="card shadow-sm border-0 rounded-4">
+      <div class="card-header bg-dark bg-opacity-10 border-0 rounded-top-4 py-3">
+        <h5 class="mb-0 fw-bold text-dark">
+          <i class="bi bi-database-check me-2"></i>
+          8. Autonomía y versatilidad del motor
+        </h5>
+      </div>
+      <div class="card-body">
+        <p>Este es un motor de reglas sencillo, pero potente y flexible, capaz de adaptarse a diversas necesidades.
+          Considerando la futura implantación en otros grupos operativos de la aplicación, se ha diseñado para que pueda
+          adaptarse
+          a diferentes reglamentos y criterios de cálculo, simplemente configurando reglas específicas para cada caso.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-6">
+    <div class="card shadow-sm border-0 rounded-4 h-100">
+      <div class="card-header bg-info bg-opacity-10 border-0 rounded-top-4 py-3">
+        <h5 class="mb-0 fw-bold text-info">
+          <i class="bi bi-eye me-2"></i>
+          9. Qué ve el usuario en preview
+        </h5>
+      </div>
+      <div class="card-body">
+        <ul class="small mb-0">
+          <li>Regla aplicada.</li>
+          <li>Cantidad calculada.</li>
+          <li>Módulos.</li>
+          <li>Base de cálculo.</li>
+          <li>Saldo anterior.</li>
+          <li>Saldo proyectado.</li>
+          <li>Aviso si el resultado dejaría saldo negativo.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-6">
+    <div class="card shadow-sm border-0 rounded-4 h-100">
+      <div class="card-header bg-danger bg-opacity-10 border-0 rounded-top-4 py-3">
+        <h5 class="mb-0 fw-bold text-danger">
+          <i class="bi bi-check2-square me-2"></i>
+          10. Recomendaciones de uso
+        </h5>
+      </div>
+      <div class="card-body">
+        <ol class="small mb-0">
+          <li>Validar en preview antes de <strong> Guardar</strong>>.</li>
+          <li>Revisar siempre vigencia y prioridad de la regla.</li>
+          <li>Evitar reglas duplicadas con misma finalidad.</li>
+          <li>Documentar internamente cuándo usar en período y cuándo consecutivos.</li>
+          <li>Usar cruce festivo solo cuando la normativa lo requiera.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="card shadow-sm border-0 rounded-4">
+      <div class="card-header bg-primary bg-opacity-10 border-0 rounded-top-4 py-3">
+        <h5 class="mb-0 fw-bold text-primary">
+          <i class="bi bi-question-circle me-2"></i>
+          11. Preguntas frecuentes
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="small mb-2"><strong>¿Cuántas reglas puedo tener?</strong><br />Las que necesites, siempre que no se
+          contradigan funcionalmente.</div>
+        <div class="small mb-2"><strong>¿Puedo tener reglas de devengo, disfrute y descanso al mismo
+            tiempo?</strong><br />Sí, una para sumar y otra para restar, según actividad y condiciones.</div>
+        <div class="small mb-2"><strong>No veo los dias devengados correctos</strong><br />
+          <ul>
+            <li> Revisa la <strong>vigencia </strong> de las <strong>fechas de aplicación de las reglas</strong>.</li>
+            <li> Revisa el <strong>Grupo de Actividades</strong> asociado a la regla.</li>
+            <li> Revisa los <strong>días (periodo, festivos, fin de semana)</strong> asociados a la regla.</li>
+          </ul>
+        </div>
+        <div class="small mb-0"><strong>¿Qué pasa si no hay regla aplicable?</strong><br />No se genera movimiento.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 ">
+    <div class="card shadow-sm border-0 rounded-4">
+      <div class="card-header bg-success bg-opacity-10 border-0 rounded-top-4 py-3">
+        <h5 class="mb-0 fw-bold text-success">
+          <i class="bi bi-table me-2"></i>
+          Tabla Resumen de Campos de Regla
+        </h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle mb-0 small">
+            <thead class="table-light">
+              <tr>
+                <th>Campo</th>
+                <th>Significado</th>
+                <th>Ejemplo</th>
+                <th>Impacto en el cálculo</th>
+                <th>Observaciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>tipo_movimiento</strong></td>
+                <td>Define si el movimiento suma o resta saldo.</td>
+                <td>devengo / disfrute / descanso</td>
+                <td>Devengo y descanso <strong class="text-bg-success">suman</strong> días, disfrute <strong
+                    class="text-bg-danger">resta</strong> días.</td>
+                <td><strong>Recuerda que los días de descanso se aplican automáticamente, cuando generamos un nuevo
+                    mes SIGO. Todo mes SIGO empezará con los días de descanso ya aplicados.</strong></td>
+              </tr>
+              <tr>
+                <td><strong>valor</strong></td>
+                <td>Días generados por cada módulo o evento válido.</td>
+                <td>2</td>
+                <td>Multiplica los módulos calculados para obtener la cantidad final.</td>
+                <td>El módulo se refiere a la cantidad de días trabajados.</td>
+              </tr>
+              <tr>
+                <td><strong>condicion_dias</strong></td>
+                <td>Umbral de días para completar un módulo.</td>
+                <td>6</td>
+                <td>Determina cuántos módulos caben dentro de los días aplicables.</td>
+                <td>Este es el módulo.</td>
+              </tr>
+              <tr>
+                <td><strong>condicion_tipo</strong></td>
+                <td>Modo de cómputo de días.</td>
+                <td>en_periodo / consecutivos</td>
+                <td>En período calcula por bloque global; consecutivos calcula por rachas.</td>
+                <td>En periodo se refiere a todos los días del mes SIGO, incluidos festivos. En consecutivos se refiere
+                  a días consecutivos trabajados, sin festivos que corten la "racha".</td>
+              </tr>
+              <tr>
+                <td><strong>condicion_alcance</strong></td>
+                <td>Ámbito de aplicación funcional de la regla.</td>
+                <td>actividad / grupo / cualquier_actividad</td>
+                <td>Filtra qué asignaciones entran en base de cálculo.</td>
+                <td>Actividad (1 sola) es la más específica, grupo (varias) es más general y cualquier_actividad aplica
+                  a todas las asignaciones sin discriminar por actividad.</td>
+              </tr>
+              <tr>
+                <td><strong>Actividad</strong></td>
+                <td>Actividad concreta a la que aplica la regla.</td>
+                <td>27</td>
+                <td>Mayor especificidad.</td>
+                <td>Si una asignación coincide con una regla de actividad, se aplica esa regla aunque haya otras reglas
+                  de grupo o generales que también podrían aplicar.</td>
+              </tr>
+              <tr>
+                <td><strong>grupo_id</strong></td>
+                <td>Grupo de actividades al que aplica la regla.</td>
+                <td>NO DISPONIBLES</td>
+                <td>Aplica cuando no hay una regla más específica por actividad.</td>
+                <td>Si una asignación no coincide con ninguna regla de actividad, pero sí con una regla de grupo a la
+                  que pertenece su actividad, se aplica la regla de grupo.</td>
+              </tr>
+              <tr>
+                <td><strong>empleo_id</strong></td>
+                <td>Restringe la regla a un empleo concreto (opcional).</td>
+                <td>CABO_1</td>
+                <td>Mejora el encaje de regla en escenarios con varias candidatas.</td>
+                <td>Si se especifica, la regla solo se aplica a asignaciones de agentes que tengan ese empleo. Si no se
+                  especifica, la regla puede aplicar a cualquier empleo.</td>
+              </tr>
+              <tr>
+                <td><strong>aplica_cruce_festivo</strong></td>
+                <td>Activa cálculo por cruces con festivos.</td>
+                <td>true</td>
+                <td>Cantidad final basada en número de cruces festivos por valor.</td>
+                <td>Si se activa, el motor cuenta cuántos días festivos en el mes SIGO cruzan las asignaciones válidas,
+                  y multiplica ese número por el valor de la regla para obtener la cantidad final. Si no se activa, el
+                  cálculo se basa únicamente en los días trabajados, sin considerar los festivos.</td>
+              </tr>
+              <tr>
+                <td><strong>tipo_dia</strong></td>
+                <td>Tipo de día a considerar en el cómputo.</td>
+                <td>periodo / festivo / fin_semana / laborable</td>
+                <td>Acota la base de días válidos para formar módulos.</td>
+                <td>Si se elige "periodo", se consideran todos los días del mes SIGO. Si se elige "festivo", solo se
+                  consideran los días festivos. Si se elige "fin_semana", solo se consideran sábados y domingos. Si se
+                  elige "laborable", solo se consideran los días que no son ni festivos ni fines de semana.</td>
+              </tr>
+              <tr>
+                <td><strong>vigencia_desde / vigencia_hasta</strong></td>
+                <td>Intervalo temporal de validez de la regla.</td>
+                <td>2026-01-01 / 2026-12-31</td>
+                <td>Fuera de vigencia la regla no participa en la selección.</td>
+                <td>Es importante revisar siempre la vigencia de las reglas, especialmente si se han creado con mucha
+                  anticipación o si se mantienen reglas antiguas que podrían solaparse con nuevas reglas para el mismo
+                  período.</td>
+              </tr>
+              <tr>
+                <td><strong>prioridad</strong></td>
+                <td>Peso de desempate entre reglas candidatas.</td>
+                <td>100</td>
+                <td>Ayuda a resolver conflictos junto con especificidad y vigencia.</td>
+                <td>En casos donde varias reglas podrían aplicar con igual especificidad y vigencia, la prioridad es el
+                  criterio final de desempate. La regla con mayor valor numérico de prioridad se selecciona sobre las
+                  demás.</td>
+              </tr>
+              <tr>
+                <td><strong>activo</strong></td>
+                <td>Indica si la regla está habilitada.</td>
+                <td>true</td>
+                <td>Solo reglas activas pueden aplicarse en preview y consolidación.</td>
+                <td>Si una regla no está activa, el motor la ignora completamente, como si no existiera. Esto permite
+                  mantener reglas inactivas para uso futuro o para conservar un historial de reglas sin que afecten los
+                  cálculos actuales.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

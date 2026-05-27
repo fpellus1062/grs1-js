@@ -1,0 +1,79 @@
+<div class="d-flex align-items-center gap-2 border-bottom border-3 border-warning pb-2 mb-4">
+    <h1 class="text-warning m-0">
+        <i class="bi bi-table"></i>
+        Resumen de Actividades por Pelotón
+    </h1>
+</div>
+
+<div class="row g-4">
+
+    <!-- Filtros y Período -->
+    <div class="col-12 col-lg-5">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-primary bg-opacity-10 border-0 rounded-top-4 py-3">
+                <h5 class="mb-0 fw-bold text-primary">
+                    <i class="bi bi-funnel me-2"></i>
+                    Filtros y Período
+                </h5>
+            </div>
+
+            <div class="card-body">
+
+                <p class="text-muted">
+                    Selecciona los parámetros necesarios para generar el informe.
+                    Permite definir el origen de datos, el período de análisis y el borrador a utilizar.
+                </p>
+
+                <ul class="small">
+                    <li><strong>Fuente de datos:</strong> Selecciona si deseas trabajar con datos del borrador o del cuadrante Definitivo.</li>
+                    <li><strong>Año y Mes:</strong> Determinan el período natural del informe.</li>
+                    <li><strong>Desde / Hasta:</strong> Permiten acotar el rango exacto de fechas a analizar.</li>
+                    <li><strong>Borrador:</strong> Selecciona la versión del borrador sobre la que se realizará el cálculo.</li>
+                </ul>
+
+                <p class="text-muted">
+                    Una vez configurados los filtros, puedes:
+                </p>
+
+                <ul class="small mb-0">
+                    <li><strong>Generar tabla:</strong> Muestra el resumen de actividades por pelotón.</li>
+                    <li><strong>Exportar a Excel:</strong> Descarga el informe en formato Excel.</li>
+                </ul>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Servicios -->
+    <div class="col-12 col-lg-7">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-success bg-opacity-10 border-0 rounded-top-4 py-3">
+                <h5 class="mb-0 fw-bold text-success">
+                    <i class="bi bi-list-ol me-2"></i>
+                    Tabla de Servicios por Agente y Día
+                </h5>
+            </div>
+
+            <div class="card-body">
+
+                <p class="text-muted">
+                    El informe muestra un resumen de todos los servicios realizados por cada agente y día
+                    dentro del período seleccionado.
+                </p>
+
+                <ul class="small">
+                    <li><strong>Pelotón:</strong> Identificador del pelotón o unidad.</li>
+                    <li><strong>Fecha:</strong> Fecha en la que se realiza el servicio.</li>
+                    <li><strong>Servicio:</strong> Código y nombre del servicio realizado.</li>
+                    <li><strong>Cantidad:</strong> Número total de agentes que han realizado ese servicio.</li>
+                </ul>
+
+                <p class="text-muted mb-0">
+                    El número total de servicios encontrados se muestra en la parte superior.
+                </p>
+
+            </div>
+        </div>
+    </div>
+
+</div>

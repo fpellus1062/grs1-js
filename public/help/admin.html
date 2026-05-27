@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Help CMS – GRS1</title>
+    <link rel="stylesheet" href="/vendor/bootstrap/bootstrap.min.css" />
+    <link rel="stylesheet" href="/vendor/bootstrap/bootstrap-icons.min.css" />
+    <style>
+      :root {
+        --primary-gc-color: #276836;
+        --primary-gc-color-hover: #1e4e28;
+      }
+      body {
+        background: #f5f5f5;
+        font-size: 0.9rem;
+      }
+      .notion-toolbar {
+        background: #fff;
+        border-bottom: 1px solid #e3e1db;
+      }
+      .modal-header {
+        border-bottom: 1.5px solid var(--primary-gc-color);
+      }
+      .modal-header .modal-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+      }
+      .btn-primary {
+        background: var(--primary-gc-color);
+        border-color: var(--primary-gc-color);
+      }
+      .btn-primary:hover {
+        background: var(--primary-gc-color-hover);
+        border-color: var(--primary-gc-color-hover);
+      }
+      .type-badge {
+        font-size: 0.68rem;
+      }
+      #helpTable td,
+      #helpTable th {
+        vertical-align: middle;
+        font-size: 0.82rem;
+      }
+      .help-content-preview {
+        max-width: 300px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: #555;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Notion Toolbar -->
+    <div class="card shadow-sm mb-3 rounded-0 border-start-0 border-end-0">
+      <div
+        class="notion-toolbar d-flex align-items-center gap-2 px-3 py-2 flex-wrap"
+      >
+        <i
+          class="bi bi-question-circle text-secondary"
+          style="font-size: 0.95rem"
+        ></i>
+        <span class="fw-semibold text-dark" style="font-size: 0.875rem"
+          >Help Management</span
+        >
+        <span class="badge bg-secondary type-badge" id="badgeCount">0</span>
+        <span class="vr mx-1 opacity-25"></span>
+        <select
+          id="filterType"
+          class="form-select form-select-sm w-auto py-1"
+          style="font-size: 0.78rem"
+        >
+          <option value="">Todos los tipos</option>
+          <option value="tooltip">Tooltip</option>
+          <option value="modal">Modal</option>
+          <option value="page">Page</option>
+        </select>
+        <div class="ms-auto d-flex align-items-center gap-2">
+          <button
+            class="btn btn-primary btn-sm py-1 px-2"
+            style="font-size: 0.78rem"
+            data-bs-toggle="modal"
+            data-bs-target="#helpItemModal"
+            id="btnNuevo"
+          >
+            <i class="bi bi-plus-lg me-1"></i>Nuevo
+          </button>
+          <button
+            class="btn btn-outline-secondary btn-sm py-1 px-2"
+            title="Recargar"
+            id="btnReload"
+          >
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+          <a
+            href="/dashboard.html"
+            class="btn btn-outline-secondary btn-sm py-1 px-2"
+            title="Dashboard"
+          >
+            <i class="bi bi-house"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabla -->
+    <div class="container-fluid px-3">
+      <div class="card shadow-sm">
+        <div class="card-body p-0">
+          <table class="table table-hover mb-0" id="helpTable">
+            <thead class="table-light">
+              <tr>
+                <th style="width: 3rem">ID</th>
+                <th>Título</th>
+                <th>Contenido</th>
+                <th style="width: 7rem">Tipo</th>
+                <th>Contexto</th>
+                <th style="width: 8rem" class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+              <tr id="loadingRow">
+                <td colspan="6" class="text-center text-muted py-4">
+                  <span class="spinner-border spinner-border-sm me-2"></span
+                  >Cargando…
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Crear/Editar -->
+    <div
+      class="modal fade"
+      id="helpItemModal"
+      tabindex="-1"
+      aria-labelledby="helpItemModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow">
+          <div class="modal-header py-2 px-3">
+            <span class="modal-title d-flex align-items-center gap-2">
+              <i class="bi bi-question-circle text-secondary"></i>
+              <span id="helpItemModalLabel">Nuevo help item</span>
+            </span>
+            <button
+              type="button"
+              class="btn-close btn-sm"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <form id="helpForm" novalidate>
+            <input type="hidden" id="editId" />
+            <div class="modal-body px-3 py-3">
+              <div class="mb-2">
+                <label
+                  class="form-label"
+                  style="font-size: 0.8rem; font-weight: 600"
+                  for="inputTitle"
+                  >Título</label
+                >
+                <input
+                  class="form-control form-control-sm"
+                  id="inputTitle"
+                  placeholder="Título descriptivo"
+                  required
+                />
+              </div>
+              <div class="mb-2">
+                <label
+                  class="form-label"
+                  style="font-size: 0.8rem; font-weight: 600"
+                  for="inputContent"
+                  >Contenido</label
+                >
+                <textarea
+                  class="form-control form-control-sm"
+                  id="inputContent"
+                  rows="4"
+                  placeholder="Texto de ayuda…"
+                  required
+                ></textarea>
+              </div>
+              <div class="row g-2">
+                <div class="col-md-5">
+                  <label
+                    class="form-label"
+                    style="font-size: 0.8rem; font-weight: 600"
+                    for="inputType"
+                    >Tipo</label
+                  >
+                  <select class="form-select form-select-sm" id="inputType">
+                    <option value="tooltip">Tooltip</option>
+                    <option value="modal">Modal</option>
+                    <option value="page">Page</option>
+                  </select>
+                </div>
+                <div class="col-md-7">
+                  <label
+                    class="form-label"
+                    style="font-size: 0.8rem; font-weight: 600"
+                    for="inputContext"
+                    >Contexto</label
+                  >
+                  <input
+                    class="form-control form-control-sm"
+                    id="inputContext"
+                    placeholder="ej: usuarios-form"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer py-2 px-3">
+              <button
+                type="button"
+                class="btn btn-outline-secondary btn-sm py-1 px-2"
+                style="font-size: 0.78rem"
+                data-bs-dismiss="modal"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                class="btn btn-primary btn-sm py-1 px-2"
+                style="font-size: 0.78rem"
+              >
+                <i class="bi bi-check2 me-1"></i>Guardar
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Confirmar Eliminar -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content shadow">
+          <div class="modal-header py-2 px-3">
+            <span
+              class="modal-title d-flex align-items-center gap-2"
+              style="font-size: 0.9rem; font-weight: 600"
+            >
+              <i class="bi bi-trash text-danger"></i> Eliminar
+            </span>
+            <button
+              type="button"
+              class="btn-close btn-sm"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body px-3 py-3" style="font-size: 0.82rem">
+            ¿Eliminar el help item <strong id="deleteItemTitle"></strong>?
+          </div>
+          <div class="modal-footer py-2 px-3">
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-sm py-1 px-2"
+              style="font-size: 0.78rem"
+              data-bs-dismiss="modal"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              class="btn btn-danger btn-sm py-1 px-2"
+              style="font-size: 0.78rem"
+              id="btnConfirmDelete"
+            >
+              <i class="bi bi-trash me-1"></i>Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/vendor/bootstrap/bootstrap.min.js"></script>
+    <script src="/js/dashboard-help.js"></script>
+  </body>
+</html>

@@ -1,0 +1,268 @@
+<div class="card shadow-sm mb-3">
+  <!-- Notion-style compact toolbar -->
+  <div
+    class="d-flex align-items-center gap-2 px-3 py-2 border-bottom bg-white flex-wrap"
+  >
+    <i
+      class="bi bi-calendar3-week text-secondary"
+      style="font-size: 0.95rem"
+    ></i>
+    <span class="fw-semibold text-dark" style="font-size: 0.875rem"
+      >Cuadrantes</span>
+
+    <button class="btn btn-link p-0 ms-1" type="button" data-help-context="cuadrantes-sigo-help" data-bs-toggle="modal" data-bs-target="#helpModal" title="Meses SIGO">
+      <i class="bi bi-question-circle text-secondary" style="font-size: 0.85rem"></i>
+    </button>
+    <span class="vr mx-1 opacity-25"></span>
+    <!-- Nav año -->
+    <div class="btn-group btn-group-sm">
+      <button
+        id="planCuadYearPrev"
+        type="button"
+        class="btn btn-outline-secondary py-1 px-2"
+        title="Año anterior"
+      >
+        <i class="bi bi-chevron-left"></i>
+      </button>
+      <input
+        id="planCuadYearInput"
+        type="number"
+        min="2020"
+        max="2050"
+        class="form-control form-control-sm text-center"
+        style="width: 5rem; border-radius: 0"
+        aria-label="Año"
+        title="Año"
+      />
+      <button
+        id="planCuadYearNext"
+        type="button"
+        class="btn btn-outline-secondary py-1 px-2"
+        title="Año siguiente"
+      >
+        <i class="bi bi-chevron-right"></i>
+      </button>
+    </div>
+    <span class="vr mx-1 opacity-25"></span>
+    <!-- Filtro mes -->
+    <select
+      id="planCuadMonthFilter"
+      class="form-select form-select-sm w-auto py-1"
+      aria-label="Mes"
+      title="Mes"
+      style="font-size: 0.78rem"
+    >
+      <option value="0">Todos los meses</option>
+    </select>
+    <!-- Acciones derecha -->
+    <div class="ms-auto d-flex align-items-center gap-1">
+      <button
+        id="planCuadBtnCreate"
+        data-permiso="cuadrantes:crear"
+        type="button"
+        class="btn btn-primary btn-sm py-1 px-2"
+        style="font-size: 0.78rem"
+      >
+        <i class="bi bi-plus-circle"></i> Nuevo
+      </button>
+      <button
+        id="planCuadBtnRefresh"
+        type="button"
+        class="btn btn-outline-secondary btn-sm py-1 px-2"
+        title="Recargar"
+      >
+        <i class="bi bi-arrow-clockwise"></i>
+      </button>
+
+      <button
+        class="btn btn-outline-secondary btn-sm py-1 px-2"
+        data-section-trigger="dashboard"
+        type="button"
+        title="Ir al Dashboard"
+      >
+        <i class="bi bi-house"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="planCuadAlert" class="mb-2"></div>
+
+<div id="planCuadGrid" class="row g-2"></div>
+
+<div class="modal fade" id="planCuadFormModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content modal-notion asig-modal-notion shadow-sm">
+      <div class="modal-header py-2">
+        <h5 class="modal-title" id="planCuadFormTitle">
+          <i class="bi bi-calendar3-week me-2"></i>Nuevo cuadrante
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Cerrar"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2 mb-2">
+          <div class="col-6">
+            <label class="form-label small mb-1">Mes referencia</label>
+            <select
+              id="planCuadMesRef"
+              class="form-select form-select-sm"
+            ></select>
+          </div>
+          <div class="col-6">
+            <label class="form-label small mb-1">Anio referencia</label>
+            <input
+              id="planCuadAnioRef"
+              type="number"
+              class="form-control form-control-sm"
+              min="2020"
+              max="2050"
+            />
+          </div>
+        </div>
+
+        <div class="row g-2 mb-2">
+          <div class="col-6">
+            <label class="form-label small mb-1">Fecha inicio</label>
+            <input
+              id="planCuadFechaInicio"
+              type="date"
+              class="form-control form-control-sm"
+            />
+          </div>
+          <div class="col-6">
+            <label class="form-label small mb-1">Semanas</label>
+            <select id="planCuadSemanas" class="form-select form-select-sm">
+              <option value="">Selecciona semanas</option>
+              <option value="3">3 Semanas</option>
+              <option value="4">4 Semanas</option>
+              <option value="5">5 Semanas</option>
+              <option value="6">6 Semanas</option>
+              <option value="7">7 Semanas</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label small mb-1">Fecha fin</label>
+          <input
+            id="planCuadFechaFin"
+            type="date"
+            class="form-control form-control-sm"
+            readonly
+          />
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label small mb-1">Nombre</label>
+          <input
+            id="planCuadNombre"
+            type="text"
+            class="form-control form-control-sm"
+          />
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label small mb-1">Descripcion</label>
+          <textarea
+            id="planCuadDescripcion"
+            class="form-control form-control-sm"
+            rows="2"
+          ></textarea>
+        </div>
+
+        <div id="planCuadFormAlert" class="mb-2"></div>
+        <div id="planCuadPreviewInfo" class="small text-muted mb-1"></div>
+        <div id="planCuadFormPreview" class="p-2 border rounded bg-light"></div>
+      </div>
+      <div class="modal-footer py-2">
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm"
+          data-bs-dismiss="modal"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          id="planCuadBtnSave"
+        >
+          <i class="bi bi-check2 me-1"></i>Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div
+  class="modal fade"
+  id="planCuadDeleteModal"
+  tabindex="-1"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-centered">
+    <div
+      class="modal-content modal-notion asig-modal-notion asig-modal-danger shadow-sm"
+    >
+      <div class="modal-header py-2">
+        <h5 class="modal-title">
+          <i class="bi bi-exclamation-triangle me-2"></i>Confirmar eliminacion
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Cerrar"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning py-2 mb-2">
+          Esta accion eliminara el cuadrante y no se puede deshacer.
+        </div>
+        <div
+          id="planCuadDeleteName"
+          class="p-2 border rounded bg-light mb-1"
+        ></div>
+        <div id="planCuadDeleteMeta" class="small text-muted"></div>
+        <div id="planCuadDeleteError" class="mt-2"></div>
+        <div class="form-check form-switch mt-3 mb-0">
+          <input
+            class="form-check-input"
+            type="checkbox"
+            role="switch"
+            id="planCuadDeleteConfirmSwitch"
+          />
+          <label
+            class="form-check-label ms-1"
+            for="planCuadDeleteConfirmSwitch"
+            id="planCuadDeleteConfirmLabel"
+            >No</label
+          >
+        </div>
+      </div>
+      <div
+        class="modal-footer py-2 d-flex justify-content-between align-items-center"
+      >
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm"
+          data-bs-dismiss="modal"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="btn btn-danger btn-sm"
+          id="planCuadDeleteConfirmBtn"
+        >
+          <i class="bi bi-trash me-1"></i>Eliminar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

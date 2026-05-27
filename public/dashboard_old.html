@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - GRS1</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="styles.css" rel="stylesheet">
+  <style>
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      width: 250px;
+      background-color: #343a40;
+      color: white;
+      transition: transform 0.3s ease;
+      z-index: 1000;
+    }
+    .sidebar.collapsed {
+      transform: translateX(-250px);
+    }
+    .main-content {
+      margin-left: 250px;
+      transition: margin-left 0.3s ease;
+    }
+    .main-content.expanded {
+      margin-left: 0;
+    }
+    .sidebar .nav-link {
+      color: rgba(255,255,255,.75);
+    }
+    .sidebar .nav-link:hover {
+      color: white;
+    }
+    .user-info {
+      background-color: #f8f9fa;
+      padding: 20px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+    
+    .section {
+      display: none;
+    }
+    
+    .section.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar -->
+  <nav class="sidebar" id="sidebar">
+    <div class="p-3">
+      <h5>GRS1 Dashboard</h5>
+      <hr>
+      <ul class="nav flex-column">
+        <li class="nav-item">
+          <a class="nav-link active" href="#" onclick="showSection('dashboard')">Dashboard</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#" onclick="showSection('agentes')">Lista de Agentes</a>
+        </li>
+        <li class="nav-item" id="menuUsuarios" style="display: none;">
+          <a class="nav-link" href="#" onclick="showSection('usuarios')">Lista de Usuarios</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#" onclick="logout()">Cerrar Sesión</a>
+        </li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="main-content" id="mainContent">
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+      <div class="container-fluid">
+        <button class="btn btn-outline-secondary" id="sidebarToggle">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <span class="navbar-brand mb-0 h1">Dashboard</span>
+      </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+      <!-- Sección Dashboard -->
+      <div id="dashboardSection" class="section active">
+        <h2>Bienvenido al Dashboard</h2>
+        
+        <div class="user-info">
+          <h4>Datos del Usuario</h4>
+          <p><strong>Nombre:</strong> <span id="userName"></span></p>
+          <p><strong>Rol:</strong> <span id="userRole"></span></p>
+          <p><strong>Fecha y Hora:</strong> <span id="currentDateTime"></span></p>
+        </div>
+
+        <div class="row">
+          <div class="col-md-4">
+            <div class="card">
+              <div class="card-body">
+                <h5 class="card-title">Agentes</h5>
+                <p class="card-text">Gestionar agentes del sistema.</p>
+                <button class="btn btn-primary" onclick="showSection('agentes')">Ver Lista</button>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4" id="cardUsuarios" style="display: none;">
+            <div class="card">
+              <div class="card-body">
+                <h5 class="card-title">Usuarios</h5>
+                <p class="card-text">Administrar usuarios del sistema.</p>
+                <button class="btn btn-primary" onclick="showSection('usuarios')">Ver Lista</button>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card">
+              <div class="card-body">
+                <h5 class="card-title">Reportes</h5>
+                <p class="card-text">Ver reportes y estadísticas.</p>
+                <button class="btn btn-primary" disabled>Próximamente</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sección Agentes -->
+      <div id="agentesSection" class="section">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <h2>Lista de Agentes</h2>
+          <button class="btn btn-outline-secondary" onclick="showSection('dashboard')">
+            <i class="bi bi-house"></i> Volver al Dashboard
+          </button>
+        </div>
+        <div id="agentesContent"></div>
+      </div>
+
+      <!-- Sección Usuarios -->
+      <div id="usuariosSection" class="section">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <h2>Lista de Usuarios</h2>
+          <button class="btn btn-outline-secondary" onclick="showSection('dashboard')">
+            <i class="bi bi-house"></i> Volver al Dashboard
+          </button>
+        </div>
+        <div id="usuariosContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Estado global
+    const globalState = {
+      token: localStorage.getItem('token'),
+      userRole: localStorage.getItem('userRole') || 'user',
+      userName: localStorage.getItem('userName') || 'Usuario'
+    };
+
+    // Verificar autenticación
+    if (!globalState.token) {
+      window.location.href = 'login.html';
+    }
+
+    // Estado de agentes
+    const agentesState = {
+      agentes: [],
+      filtrados: [],
+      originalAgentes: [],
+      cambiosPendientes: new Map(),
+      editingId: null,
+      deleteId: null,
+      sortField: null,
+      sortOrder: 'asc'
+    };
+
+    // Estado de usuarios
+    const usuariosState = {
+      usuarios: [],
+      filtrados: [],
+      originalUsuarios: [],
+      cambiosPendientes: new Map(),
+      editingId: null,
+      deleteId: null,
+      sortField: null,
+      sortOrder: 'asc'
+    };
+
+    // Mostrar datos del usuario
+    document.getElementById('userName').textContent = localStorage.getItem('userName') || 'Usuario';
+    const userRole = localStorage.getItem('userRole') || 'user';
+    document.getElementById('userRole').textContent = userRole;
+
+    // Mostrar elementos solo para admins
+    if (userRole === 'admin') {
+      document.getElementById('menuUsuarios').style.display = 'block';
+      document.getElementById('cardUsuarios').style.display = 'block';
+    }
+
+    // Actualizar fecha y hora cada segundo
+    function updateDateTime() {
+      document.getElementById('currentDateTime').textContent = new Date().toLocaleString('es-ES');
+    }
+    updateDateTime();
+    setInterval(updateDateTime, 1000);
+
+    // Toggle sidebar
+    document.getElementById('sidebarToggle').addEventListener('click', function() {
+      const sidebar = document.getElementById('sidebar');
+      const mainContent = document.getElementById('mainContent');
+      sidebar.classList.toggle('collapsed');
+      mainContent.classList.toggle('expanded');
+    });
+
+    // Función de logout
+    function logout() {
+      localStorage.clear();
+      window.location.href = 'login.html';
+    }
+
+    // Mostrar sección
+    function showSection(sectionName) {
+      // Ocultar todas las secciones
+      document.querySelectorAll('.section').forEach(section => {
+        section.classList.remove('active');
+      });
+      
+      // Mostrar la sección seleccionada
+      document.getElementById(sectionName + 'Section').classList.add('active');
+      
+      // Actualizar menú activo
+      document.querySelectorAll('.nav-link').forEach(link => {
+        link.classList.remove('active');
+      });
+      event.target.classList.add('active');
+      
+      // Cargar contenido si es necesario
+      if (sectionName === 'agentes' && !document.getElementById('agentesContent').hasChildNodes()) {
+        loadAgentesContent();
+      } else if (sectionName === 'usuarios' && !document.getElementById('usuariosContent').hasChildNodes()) {
+        loadUsuariosContent();
+      }
+    }
+
+    // Cargar contenido de agentes
+    function loadAgentesContent() {
+      const container = document.getElementById('agentesContent');
+      container.innerHTML = `
+        <div class="card shadow">
+          <div class="card-header text-white d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+              <h4 class="mb-0">Listado de Agentes</h4>
+              <span id="userRoleBadgeAgentes" class="badge bg-secondary">user</span>
+            </div>
+            <button class="btn btn-primary" id="btnAgregarNuevoAgente" title="Agregar Nuevo">
+              <i class="bi bi-plus-circle"></i> Agregar Nuevo
+            </button>
+          </div>
+          <div class="card-body">
+            <div class="filters-section">
+              <h6 class="mb-3">Filtros</h6>
+              <div class="row g-2">
+                <div class="col-md-2">
+                  <input type="text" class="form-control filter-input" id="filterNombreAgente" placeholder="Nombre">
+                </div>
+                <div class="col-md-2">
+                  <input type="text" class="form-control filter-input" id="filterApellido1Agente" placeholder="Apellido 1">
+                </div>
+                <div class="col-md-2">
+                  <input type="text" class="form-control filter-input" id="filterApellido2Agente" placeholder="Apellido 2">
+                </div>
+                <div class="col-md-3">
+                  <input type="email" class="form-control filter-input" id="filterEmailAgente" placeholder="Email">
+                </div>
+                <div class="col-md-2">
+                  <input type="text" class="form-control filter-input" id="filterNifAgente" placeholder="NIF">
+                </div>
+                <div class="col-md-1">
+                  <button class="btn btn-outline-secondary btn-sm w-100" id="btnResetFiltersAgente">↻</button>
+                </div>
+              </div>
+              <div class="mt-2 text-muted">
+                <small>Total: <strong id="totalRecordsAgente">0</strong> | Mostrados: <strong id="filteredRecordsAgente">0</strong></small>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-striped table-hover">
+                <thead class="table-light">
+                  <tr>
+                    <th style="width: 3%;"><input type="checkbox" id="selectAllAgente"></th>
+                    <th style="width: 5%;">ID</th>
+                    <th class="sortable-agente" data-field="nombre">Nombre ↕</th>
+                    <th class="sortable-agente" data-field="apellido_1">Apellido 1 ↕</th>
+                    <th class="sortable-agente" data-field="apellido_2">Apellido 2 ↕</th>
+                    <th class="sortable-agente" data-field="email">Email ↕</th>
+                    <th class="sortable-agente" data-field="nif">NIF ↕</th>
+                    <th class="sortable-agente" data-field="telefono">Teléfono ↕</th>
+                    <th style="width: 8%;">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="tableBodyAgente">
+                  <tr><td colspan="9" class="text-center py-4">
+                    <div class="spinner-border spinner-border-sm me-2"></div>
+                    Cargando datos...
+                  </td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="save-changes-section" id="saveChangesSectionAgente">
+              <div class="d-flex justify-content-between align-items-center">
+                <div><strong>Cambios pendientes:</strong> <span id="pendingChangesCountAgente">0</span> filas</div>
+                <div>
+                  <button class="btn btn-success me-2" id="btnSaveAllChangesAgente">Guardar Cambios</button>
+                  <button class="btn btn-outline-secondary" id="btnDiscardChangesAgente">Descartar</button>
+                </div>
+              </div>
+            </div>
+            <div id="alertContainerAgente" class="mt-3"></div>
+          </div>
+        </div>
+      `;
+      
+      // Inicializar agentes
+      initializeAgentes();
+    }
+
+    // Cargar contenido de usuarios
+    function loadUsuariosContent() {
+      const container = document.getElementById('usuariosContent');
+      container.innerHTML = `
+        <div class="card shadow">
+          <div class="card-header text-white d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+              <h4 class="mb-0">Listado de Usuarios</h4>
+              <span id="userRoleBadgeUsuarios" class="badge bg-secondary">user</span>
+            </div>
+            <button class="btn btn-primary" id="btnAgregarNuevoUsuario" title="Agregar Nuevo Usuario">
+              <i class="bi bi-plus-circle"></i> Agregar Nuevo
+            </button>
+          </div>
+          <div class="card-body">
+            <div class="filters-section">
+              <h6 class="mb-3">Filtros</h6>
+              <div class="row g-2">
+                <div class="col-md-4">
+                  <input type="text" class="form-control filter-input" id="filterNombreUsuario" placeholder="Nombre">
+                </div>
+                <div class="col-md-4">
+                  <input type="email" class="form-control filter-input" id="filterEmailUsuario" placeholder="Email">
+                </div>
+                <div class="col-md-3">
+                  <select class="form-control filter-input" id="filterRoleUsuario">
+                    <option value="">Todos los roles</option>
+                    <option value="admin">Admin</option>
+                    <option value="user">User</option>
+                  </select>
+                </div>
+                <div class="col-md-1">
+                  <button class="btn btn-outline-secondary btn-sm w-100" id="btnResetFiltersUsuario">↻</button>
+                </div>
+              </div>
+              <div class="mt-2 text-muted">
+                <small>Total: <strong id="totalRecordsUsuario">0</strong> | Mostrados: <strong id="filteredRecordsUsuario">0</strong></small>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-striped table-hover">
+                <thead class="table-light">
+                  <tr>
+                    <th style="width: 3%;"><input type="checkbox" id="selectAllUsuario"></th>
+                    <th style="width: 5%;">ID</th>
+                    <th class="sortable-usuario" data-field="nombre">Nombre ↕</th>
+                    <th class="sortable-usuario" data-field="email">Email ↕</th>
+                    <th class="sortable-usuario" data-field="role">Rol ↕</th>
+                    <th style="width: 8%;">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="tableBodyUsuario">
+                  <tr><td colspan="6" class="text-center py-4">
+                    <div class="spinner-border spinner-border-sm me-2"></div>
+                    Cargando datos...
+                  </td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="save-changes-section" id="saveChangesSectionUsuario">
+              <div class="d-flex justify-content-between align-items-center">
+                <div><strong>Cambios pendientes:</strong> <span id="pendingChangesCountUsuario">0</span> filas</div>
+                <div>
+                  <button class="btn btn-success me-2" id="btnSaveAllChangesUsuario">Guardar Cambios</button>
+                  <button class="btn btn-outline-secondary" id="btnDiscardChangesUsuario">Descartar</button>
+                </div>
+              </div>
+            </div>
+            <div id="alertContainerUsuario" class="mt-3"></div>
+          </div>
+        </div>
+      `;
+      
+      // Inicializar usuarios
+      initializeUsuarios();
+    }
+  </script>
+</body>
+</html>

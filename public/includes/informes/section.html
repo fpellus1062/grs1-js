@@ -1,0 +1,710 @@
+<style>
+  :root {
+    --notion-radius: 10px;
+    --notion-border: #e0e0e0;
+    --notion-bg: #fafbfc;
+  }
+
+  .informes-accordion {
+    border: none;
+    gap: 0.55rem;
+  }
+
+  .informes-accordion .accordion-item {
+    border: 1px solid var(--notion-border);
+    border-radius: var(--notion-radius);
+    background: white;
+    box-shadow: none;
+    overflow: hidden;
+    margin-bottom: 0;
+  }
+
+  .informes-accordion .accordion-button {
+    background: white;
+    border: none;
+    font-weight: 600;
+    color: var(--primary-gc-color, #276836);
+    padding: 0.58rem 0.85rem;
+    font-size: 0.86rem;
+    letter-spacing: 0;
+    min-height: 2.45rem;
+  }
+
+  .informes-accordion .accordion-button:not(.collapsed) {
+    background: var(--notion-bg);
+    color: var(--primary-gc-color, #276836);
+    box-shadow: none;
+  }
+
+  .informes-accordion .accordion-button::after {
+    transform: scale(0.84);
+    opacity: 0.85;
+  }
+
+  .informes-accordion .accordion-button:focus {
+    border-color: var(--primary-gc-color, #276836);
+    box-shadow: 0 0 0 0.15rem rgba(39, 104, 54, 0.12);
+  }
+
+  .informes-accordion .accordion-body {
+    background: var(--notion-bg);
+    border-top: 1px solid var(--notion-border);
+    padding: 0.95rem;
+  }
+
+  /* Card compacta para dos columnas */
+  .informes-card-compact {
+    background: white;
+    border: 1px solid var(--notion-border);
+    border-radius: var(--notion-radius);
+    padding: 0.82rem;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    overflow: visible;
+  }
+
+  .informes-card-filtros {
+    gap: 0.75rem;
+  }
+
+  .informes-card-compact h6 {
+    color: var(--primary-gc-color, #276836);
+    font-weight: 700;
+    margin-bottom: 0;
+    font-size: 0.82rem;
+  }
+
+  .informes-card-compact .informes-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .informes-card-compact label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #333;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .informes-card-compact .form-select {
+    font-size: 0.82rem;
+    padding: 0.36rem 0.6rem;
+    height: 2.1rem;
+    min-width: 180px;
+  }
+
+  .informes-card-compact .form-select-sm {
+    height: 2.1rem;
+  }
+
+  .informes-card-compact .form-check {
+    margin: 0;
+  }
+
+  .informes-card-compact .form-check-label {
+    font-size: 0.82rem;
+    font-weight: 500;
+    margin-left: 0.42rem;
+    cursor: pointer;
+  }
+
+  /* Selector de fechas elegante */
+  .informes-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.5rem;
+  }
+
+  .informes-calendar-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border: 2px solid var(--notion-border);
+    border-radius: 6px;
+    cursor: pointer;
+    background: white;
+    transition: all 0.15s ease;
+    -webkit-user-select: none;
+    user-select: none;
+    position: relative;
+  }
+
+  .informes-calendar-day:hover {
+    border-color: var(--primary-gc-color, #276836);
+    background: var(--notion-bg);
+  }
+
+  .informes-calendar-day input[type='checkbox'] {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+  }
+
+  .informes-calendar-day.checked {
+    background: var(--primary-gc-color, #276836);
+    border-color: var(--primary-gc-color, #276836);
+    color: white;
+  }
+
+  .informes-calendar-day.checked label {
+    color: white;
+    font-weight: 700;
+  }
+
+  .informes-calendar-header {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    font-weight: 700;
+    font-size: 0.7rem;
+    color: #666;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  .informes-calendar-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.65rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid var(--notion-border);
+  }
+
+  .informes-calendar-actions button {
+    flex: 1;
+    padding: 0.42rem 0.65rem;
+    font-size: 0.76rem;
+  }
+
+  /* Visibilidad */
+  .informes-borrador-wrap {
+    display: none;
+  }
+
+  .informes-fechas-wrap {
+    display: block;
+  }
+
+  .informes-hidden {
+    display: none;
+  }
+
+  .informes-section-title {
+    color: var(--primary-gc-color, #276836);
+    font-weight: 700;
+    margin-bottom: 0;
+  }
+
+  .informes-borrador-divider {
+    border-top: 1px solid var(--notion-border);
+    padding-top: 0.65rem;
+  }
+
+  .informes-source-summary {
+    font-size: 0.76rem;
+    padding: 0.45rem 0.55rem;
+    margin-bottom: 0;
+  }
+
+  .informes-fechas-placeholder {
+    padding: 2rem;
+    text-align: center;
+    color: #999;
+  }
+
+  .informes-fechas-placeholder i {
+    font-size: 2rem;
+    display: block;
+    margin-bottom: 1rem;
+    opacity: 0.3;
+  }
+
+  .informes-fechas-placeholder small {
+    display: block;
+  }
+
+  .informes-info-box-custom {
+    font-size: 0.78rem;
+    padding: 0.5rem 0.6rem;
+    margin-bottom: 0;
+    border-left: 4px solid #198754 !important;
+  }
+
+  .informes-info-box-custom strong {
+    color: #198754;
+  }
+
+  .informes-fechas-wrap-visible {
+    border: none;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+  }
+
+  .informes-fechas-wrap-visible.is-disabled {
+    opacity: 0.52;
+  }
+
+  .informes-ra-table-wrap {
+    max-height: 58vh;
+    overflow-y: auto;
+    overflow-x: auto;
+    border: 1px solid var(--notion-border);
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  .informes-ra-table-wrap table {
+    margin-bottom: 0;
+  }
+
+  .informes-ra-table-wrap thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #f8f9fa;
+  }
+
+  .informes-calendar-toggle {
+    border-top: 1px solid var(--notion-border);
+    padding-top: 0.6rem;
+    margin-top: -0.2rem;
+  }
+
+  .informes-calendar-select-hidden {
+    display: none;
+  }
+
+  /* Calendario reutilizado de cuadrante */
+  .informes-cuadrante-preview {
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    display: block;
+    overflow: visible;
+  }
+
+  .informes-cuadrante-preview .cuadrante-preview {
+    width: 100%;
+    overflow: visible;
+  }
+
+  .informes-cuadrante-preview .cuadrante-header {
+    margin-bottom: 0.75rem;
+  }
+
+  .informes-cuadrante-preview .cuadrante-day {
+    font-weight: 500;
+  }
+
+  .informes-cuadrante-preview .cuadrante-day input[type='checkbox'] {
+    cursor: pointer;
+  }
+
+  .informes-download-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    margin-top: 0.9rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--notion-border);
+  }
+
+  .informes-download-progress.informes-hidden {
+    display: none;
+  }
+
+  .informes-download-progress-label {
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: #40634b;
+  }
+
+  .informes-download-progress-track {
+    position: relative;
+    width: 100%;
+    height: 8px;
+    overflow: hidden;
+    background: #e8efe9;
+    border-radius: 999px;
+  }
+
+  .informes-download-progress-bar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 38%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #276836 0%, #4ea563 100%);
+    animation: informes-progress-slide 1.15s ease-in-out infinite;
+  }
+
+  @keyframes informes-progress-slide {
+    0% {
+      transform: translateX(-115%);
+    }
+    50% {
+      transform: translateX(95%);
+    }
+    100% {
+      transform: translateX(250%);
+    }
+  }
+</style>
+
+<div class="card shadow-sm mb-2">
+  <!-- Notion-style compact toolbar -->
+  <div
+    class="d-flex align-items-center gap-2 px-3 py-2 border-bottom bg-white flex-wrap"
+  >
+    <i
+      class="bi bi-file-earmark-spreadsheet text-secondary"
+      style="font-size: 0.95rem"
+    ></i>
+    <span class="fw-semibold text-dark" style="font-size: 0.875rem"
+      >Informes y exportación</span
+    >
+    
+    <span class="vr mx-1 opacity-25"></span>
+    <span class="text-muted" style="font-size: 0.75rem"
+      >Parte de servicios diarios y exportación por período</span
+    >
+    <div class="ms-auto d-flex align-items-center gap-1">
+      <button
+        class="btn btn-outline-secondary btn-sm py-1 px-2"
+        data-section-trigger="dashboard"
+        type="button"
+        title="Ir al Dashboard"
+      >
+        <i class="bi bi-house"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="accordion informes-accordion" id="informesAccordion">
+  <!-- Card 1: Parte Servicios Diarios -->
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button d-flex align-items-center gap-2" type="button" data-bs-toggle="collapse"
+        data-bs-target="#informesParteServicios" aria-expanded="true">
+        <i class="bi bi-people text-secondary" style="font-size: 0.86rem"></i>
+    
+        <!-- Contenedor inline del texto + icono -->
+        <span class="d-inline-flex align-items-center gap-1">
+          <span class="fw-semibold text-dark" style="font-size: 0.82rem">
+            Parte servicios diarios
+          </span>
+
+        </span>
+      </button>
+    </h2>
+    
+    
+    
+    <div
+      id="informesParteServicios"
+      class="accordion-collapse collapse show"
+      data-bs-parent="#informesAccordion"
+    >
+      <div class="accordion-body">
+        <div class="row g-2">
+          <!-- COLUMNA IZQUIERDA: Card compacta de filtros -->
+          <div class="col-lg-6">
+            <div class="informes-card-compact informes-card-filtros">
+              <h6 class="informes-section-title">Filtros y Período <span><button class="btn btn-link p-0 lh-1" type="button" data-help-context="informes-partes-diarios-help" title="Informe Partes Diarios - Ayuda">
+                <i class="bi bi-question-circle text-secondary" style="font-size: 0.8rem"></i>
+              </button></span></h6>
+              
+              <div class="informes-filter-group">
+                <label for="informesTipo">Fuente de datos</label>
+                <select
+                  class="form-select form-select-sm informes-fuente-select"
+                  id="informesTipo"
+                  title="Fuente"
+                >
+                  <option value="definitivo">Definitivo</option>
+                  <option value="borrador">Borrador</option>
+                </select>
+              </div>
+
+              <div class="informes-filter-group">
+                <label for="informesAnio">Año</label>
+                <select
+                  class="form-select form-select-sm informes-anio-select"
+                  id="informesAnio"
+                  title="Año"
+                ></select>
+              </div>
+
+              <div class="informes-filter-group">
+                <label for="informesMes">Mes</label>
+                <select
+                  class="form-select form-select-sm informes-mes-select"
+                  id="informesMes"
+                  title="Mes"
+                ></select>
+              </div>
+
+              <!-- Selector de borrador (oculto por defecto) -->
+              <div class="informes-borrador-wrap" id="informesBorradorWrap">
+                <div class="informes-filter-group">
+                  <label for="informesBorrador">Borrador / Asignación</label>
+                  <select
+                    class="form-select form-select-sm"
+                    id="informesBorrador"
+                    title="Borrador"
+                  >
+                    <option value="">— Selecciona un borrador —</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Botones de exportación -->
+              <div class="d-flex gap-2">
+                <button
+                  class="btn btn-success w-100"
+                  id="btninformesExportar"
+                  type="button"
+                >
+                  <i class="bi bi-file-earmark-excel me-1"></i>Exportar a Excel
+                </button>
+                <button
+                  class="btn btn-outline-danger w-100"
+                  id="btninformesExportarPdf"
+                  type="button"
+                >
+                  <i class="bi bi-file-earmark-pdf me-1"></i>Exportar a PDF
+                </button>
+              </div>
+
+              <!-- Resumen de fuente -->
+              <div class="alert alert-info informes-source-summary">
+                <span id="informesFuenteResumen"
+                  >Fuente: Definitivo · Período: — —</span
+                >
+              </div>
+            </div>
+          </div>
+
+          <!-- COLUMNA DERECHA: Card elegante de fechas -->
+          <div class="col-lg-6">
+            <div class="informes-card-compact">
+              <h6 class="informes-section-title">Calendario Cuadrante <span><button class="btn btn-link p-0 lh-1" type="button" data-help-context="informes-calendario-cuadrante-help" title="Calendario Cuadrante - Ayuda">
+                <i class="bi bi-question-circle text-secondary" style="font-size: 0.95rem"></i>
+              </button></span></h6>
+
+              <div class="informes-calendar-toggle">
+                <div class="form-check">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    id="informesModoPorDia"
+                  />
+                  <label class="form-check-label" for="informesModoPorDia">
+                    <strong>Exportar por días</strong>
+                  </label>
+                </div>
+                <small class="text-muted d-block mt-1"
+                  >Activa para habilitar la selección de fechas del
+                  cuadrante.</small
+                >
+              </div>
+
+              <!-- Calendario de cuadrante (siempre visible) -->
+              <div
+                class="informes-fechas-wrap informes-fechas-wrap-visible"
+                id="informesFechasWrap"
+              >
+                <!-- Contenedor para renderizar cuadrante preview -->
+                <div
+                  id="informesCuadrantePreviewContainer"
+                  class="informes-cuadrante-preview"
+                >
+                  <div class="text-center text-muted py-3">
+                    No existe Cuadrante ....
+                  </div>
+                </div>
+
+                <!-- Select oculto para mantener compatibilidad con JS -->
+                <select
+                  class="form-select form-select-sm informes-calendar-select-hidden"
+                  id="informesFechas"
+                  title="Fechas del cuadrante"
+                  multiple
+                  size="8"
+                ></select>
+
+                <!-- Botones de acciones -->
+                <div class="informes-calendar-actions">
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary btn-sm"
+                    id="btninformesFechasTodas"
+                  >
+                    Seleccionar todas
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary btn-sm"
+                    id="btninformesFechasLimpiar"
+                  >
+                    Limpiar
+                  </button>
+                </div>
+
+                <div
+                  id="informesStatus"
+                  class="informes-download-progress informes-hidden"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <div
+                    id="informesStatusLabel"
+                    class="informes-download-progress-label"
+                  >
+                    Generando archivo, por favor espera…
+                  </div>
+                  <div
+                    class="informes-download-progress-track"
+                    aria-hidden="true"
+                  >
+                    <div class="informes-download-progress-bar"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Status y errores (fuera de columnas) -->
+        <div class="mt-3">
+          <div
+            id="informesError"
+            class="alert alert-danger informes-hidden"
+            role="alert"
+          ></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       Card 2: Resumen Actividades por Pelotón
+  ════════════════════════════════════════════════════════════════════════ -->
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button
+        class="accordion-button collapsed d-flex align-items-center gap-2"
+        type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#informesResumenActividades"
+        aria-expanded="false"
+      >
+        <i class="bi bi-bar-chart-steps text-secondary" style="font-size: 0.86rem"></i>
+        <span class="fw-semibold text-dark" style="font-size: 0.82rem">
+          Numérico de Agentes por Servicio
+        </span>
+      </button>
+    </h2>
+    <div
+      id="informesResumenActividades"
+      class="accordion-collapse collapse"
+      data-bs-parent="#informesAccordion"
+    >
+      <div class="accordion-body">
+        <div class="row g-2">
+
+          <!-- ── COLUMNA IZQUIERDA: Filtros ──────────────────────── -->
+          <div class="col-lg-4">
+            <div class="informes-card-compact informes-card-filtros">
+              <h6 class="informes-section-title">Filtros y Período <span><button class="btn btn-link p-0 lh-1" type="button" data-help-context="informes-servicios-peloton-help" title="Informe Servicios Pelotón - Ayuda">
+                  <i class="bi bi-question-circle text-secondary" style="font-size: 0.8rem"></i>
+                </button></span></h6>
+
+              <div class="informes-filter-group">
+                <label for="raFuente">Fuente de datos</label>
+                <select class="form-select form-select-sm" id="raFuente" title="Fuente">
+                  <option value="definitivo">Definitivo</option>
+                  <option value="borrador">Borrador</option>
+                </select>
+              </div>
+
+              <div class="informes-filter-group">
+                <label for="raAnio">Año</label>
+                <select class="form-select form-select-sm" id="raAnio" title="Año"></select>
+              </div>
+
+              <div class="informes-filter-group">
+                <label for="raMes">Mes</label>
+                <select class="form-select form-select-sm" id="raMes" title="Mes"></select>
+              </div>
+
+              <div class="informes-filter-group">
+                <label for="raFechaDesde">Desde</label>
+                <input class="form-control form-control-sm" id="raFechaDesde" type="date" title="Desde" />
+              </div>
+
+              <div class="informes-filter-group">
+                <label for="raFechaHasta">Hasta</label>
+                <input class="form-control form-control-sm" id="raFechaHasta" type="date" title="Hasta" />
+              </div>
+
+              <!-- Borrador (oculto por defecto) -->
+              <div id="raBorradorWrap" style="display:none">
+                <div class="informes-filter-group">
+                  <label for="raBorrador">Borrador</label>
+                  <select class="form-select form-select-sm" id="raBorrador" title="Borrador">
+                    <option value="">— Selecciona un borrador —</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Botones de acción -->
+              <div class="d-flex gap-2">
+                <button class="btn btn-primary w-100" id="btnRaGenerar" type="button">
+                  <i class="bi bi-table me-1"></i>Generar tabla
+                </button>
+                <button class="btn btn-success w-100" id="btnRaExcel" type="button" disabled>
+                  <i class="bi bi-file-earmark-excel me-1"></i>Excel
+                </button>
+              </div>
+
+              <div id="raError" class="alert alert-danger informes-hidden py-1 px-2" style="font-size:0.78rem" role="alert"></div>
+            </div>
+          </div>
+
+          <!-- ── COLUMNA DERECHA: Tabla de resumen ───────────────── -->
+          <div class="col-lg-8">
+            <div class="informes-card-compact" style="overflow:auto;min-height:300px;">
+              <div class="d-flex align-items-center justify-content-between gap-2 mb-1">
+                <h6 class="informes-section-title mb-0">Tabla de Servicios por Agentes</h6>
+                <span id="raResumenBadge" class="badge bg-secondary" style="font-size:0.72rem;display:none"></span>
+              </div>
+              <div id="raTablaContainer">
+                <div class="text-center text-muted py-5" style="font-size:0.82rem">
+                  <i class="bi bi-bar-chart-steps d-block mb-2" style="font-size:2rem;opacity:.3"></i>
+                  Configura los filtros y pulsa <strong>Generar tabla</strong>.
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>

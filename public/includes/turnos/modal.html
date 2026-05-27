@@ -1,0 +1,48 @@
+<div class="modal fade" id="turnoModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content modal-notion">
+      <div class="modal-header">
+        <h5 class="modal-title" id="turnoModalTitle">Agregar Nuevo Turno</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="turnoForm" novalidate>
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label for="turnoCodigo" class="form-label">Código *</label>
+              <input type="text" class="form-control" id="turnoCodigo" required minlength="1" maxlength="10" style="text-transform:uppercase">
+              <div class="form-text">Abreviatura única (ej: M, T, N, CM)</div>
+            </div>
+            <div class="col-md-8">
+              <label for="turnoNombre" class="form-label">Nombre *</label>
+              <input type="text" class="form-control" id="turnoNombre" required minlength="2" maxlength="100">
+            </div>
+            <div class="col-md-4">
+              <label for="turnoHoraInicio" class="form-label">Hora inicio</label>
+              <input type="time" class="form-control" id="turnoHoraInicio">
+            </div>
+            <div class="col-md-4">
+              <label for="turnoHoraFin" class="form-label">Hora fin</label>
+              <input type="time" class="form-control" id="turnoHoraFin">
+            </div>
+            <div class="col-md-4">
+              <label for="turnoColor" class="form-label">Color</label>
+              <div class="notion-color-picker">
+                <input type="color" class="form-control form-control-color" id="turnoColorPicker" value="#28a745" title="Seleccionar color">
+                <input type="text" class="form-control notion-color-hex" id="turnoColor" maxlength="7" placeholder="#RRGGBB" pattern="^#[0-9a-fA-F]{6}$">
+              </div>
+            </div>
+            <div class="col-12">
+              <label for="turnoObservaciones" class="form-label">Observaciones</label>
+              <textarea class="form-control" id="turnoObservaciones" rows="2" maxlength="1000"></textarea>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnSaveTurno">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>

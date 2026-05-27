@@ -1,0 +1,118 @@
+<div class="d-flex align-items-center gap-2 border-bottom border-3 border-warning pb-2 mb-4">
+    <h1 class="text-warning m-0">
+        <i class="bi bi-calendar3"></i>
+        Cuadrantes SIGO
+    </h1>
+</div>
+
+<div class="row g-4">
+
+    <!-- Objetivo -->
+    <div class="col-12 col-md-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-warning bg-opacity-10 border-0 rounded-top-4 py-3">
+                <h5 class="mb-0 fw-bold text-warning">
+                    <i class="bi bi-bullseye me-2"></i>
+                    Objetivo
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-0">
+                    La generación de meses en el correspondiente año de acuerdo a las normas SIGO.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Organización -->
+    <div class="col-12 col-md-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-primary bg-opacity-10 border-0 rounded-top-4 py-3">
+                <h5 class="mb-0 fw-bold text-primary">
+                    <i class="bi bi-diagram-3 me-2"></i>
+                    Organización
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    La pantalla se organiza en una cabecera superior donde se encuentran los controles principales.
+                    La organización del mes SIGO comienza eligiendo el año de referencia.
+                </p>
+                <p class="text-muted mb-0">
+                    En la parte superior derecha se encuentra el botón para generar los meses SIGO del año seleccionado.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generación de Mes SIGO -->
+    <div class="col-12 col-md-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-success bg-opacity-10 border-0 rounded-top-4 py-3">
+                <h5 class="mb-0 fw-bold text-success">
+                    <i class="bi bi-calendar-plus me-2"></i>
+                    Generación de Mes SIGO
+                </h5>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted">En el formulario se indican los siguientes parámetros:</p>
+
+                <ul class="small">
+                    <li>El mes y año de referencia.</li>
+                    <li>La fecha de inicio del mes SIGO (siempre lunes, el sistema lo controla).</li>
+                    <li>El número de semanas que abarca el mes SIGO.</li>
+                    <li>El sistema calcula automáticamente la fecha de fin (siempre domingo).</li>
+                    <li>Nombre personalizado y descripción opcional del mes SIGO.</li>
+                    <li><strong>El mes SIGO puede incluir días del mes natural anterior y siguiente.</strong></li>
+                    <li><strong class="text-danger">Los días festivos se destacan automáticamente.</strong></li>
+                </ul>
+
+                <a href="/help/mesSIGO-help-ejemplo.png" class="btn btn-outline-success btn-sm mt-2" target="_blank">
+                    <i class="bi bi-image me-1"></i>
+                    Ver ejemplo
+                </a>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Cómo lo uso -->
+    <div class="col-12 col-md-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-info bg-opacity-10 border-0 rounded-top-4 py-3">
+                <h5 class="mb-0 fw-bold text-info">
+                    <i class="bi bi-question-circle me-2"></i>
+                    ¿Cómo lo uso?
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-0">
+                    Una vez creado el mes SIGO, para poder utilizarlo en los cuadrantes de servicios,
+                    deberás <strong>Activarlo</strong> en la página principal de meses SIGO.
+                    <!-- Dias de descanso semanal -->
+                    <div class="col-12 mt-4">
+                        <div class="card shadow-sm border-0 rounded-4 h-100">
+                            <div class="card-header bg-danger bg-opacity-10 border-0 rounded-top-4 py-3">
+                                <h5 class="mb-0 fw-bold text-danger">
+                                    <i class="bi bi-calendar-week me-2"></i>
+                                    Dias de Descanso Semanal
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted mb-0">
+                                    Cuando activamos el cuadrante SIGO, el sistema nos propone asignar los dias de descanso semanal
+                                    correspondientes a dichos periodo.
+                                    Si se confirma, asigna automáticamente los días de descanso semanal (DSC) a los agentes, en función de
+                                    las reglas configuradas en el sistema.
+                                    <strong>La regla para asignar dias de descanso semanal esta grabada dentro del sistema y aplica: 1 día
+                                        de descanso semanal por 3,5 días de trabajo en el mes SIGO.</strong>
+                                </p>
+                            </div>
+                        </div>          </div>
+                </p>
+            </div>
+        </div>
+    </div>
+
+</div>

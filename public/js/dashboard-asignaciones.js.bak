@@ -1,0 +1,4741 @@
+// --- Estilos para cuadrícula de fechas en el modal de borrado ---
+const styleId = "asig-delete-date-grid-style";
+if (!document.getElementById(styleId)) {
+  const style = document.createElement("style");
+  style.id = styleId;
+  style.textContent = `
+.delete-date-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr); /* 7 columnas */
+  grid-template-rows: repeat(4, 1fr);    /* 4 filas fijas */
+  gap: 2px;
+  margin-bottom: 4px;
+  max-width: 350px; /* controla tamaño total */
+}
+
+.delete-date-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+
+  aspect-ratio: 1 / 1;  /* 🔥 clave para que sean cuadradas */
+  width: 100%;
+
+  font-size: 0.85rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  background: #f8f9fa;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+    .delete-date-cell input[type="checkbox"] {
+      margin-bottom: 2px;
+    }
+    .delete-date-cell.empty {
+      border: none;
+      background: transparent;
+      pointer-events: none;
+    }
+    .delete-date-cell input[type="checkbox"]:checked + span,
+    .delete-date-cell input[type="checkbox"]:checked {
+      background: #ffe082;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+// Renderiza las fechas visibles del cuadrante en el modal de borrado como cuadrícula 4x7 con encabezado de días
+function renderDeleteDateOptions(anio, mes) {
+  const container = document.getElementById("asigDeleteDates");
+  const summary = document.getElementById("asigDeleteDatesSummary");
+  if (!container) return;
+
+  const planningDays = getPlanningWindow(anio, mes);
+  const rows = 4;
+  const cols = 7;
+
+  // Encabezado de días de la semana (fuera del grid)
+  let header = '<div class="d-flex gap-1 mb-1">';
+  for (let c = 0; c < cols; c++) {
+    header += `<div class="delete-date-cell fw-bold text-center" style="background:#e3e6ea;">${WEEKDAY_SHORT[c]}</div>`;
+  }
+  header += "</div>";
+
+let html = '<div class="delete-date-grid">';
+
+for (let i = 0; i < 28; i++) {
+  if (i < planningDays.length) {
+    const day = planningDays[i];
+    const weekend = day.weekdayIndex >= 5;
+
+    html += `<label class="delete-date-cell" style="background:${weekend ? "#d8f0ca" : "#b1d0f0"}">
+      <input class="form-check-input mb-1 asig-delete-date-check"
+             type="checkbox"
+             value="${app.escapeHtml(day.key)}"
+             data-dia="${day.dia}">
+      <div class="fw-semibold" style="font-size:.72rem">
+        ${app.escapeHtml(day.label)}
+      </div>
+      <div style="font-size:.7rem">
+        ${app.escapeHtml(day.labelDate)}
+      </div>
+    </label>`;
+  } else {
+    html += '<span class="delete-date-cell empty"></span>';
+  }
+}
+
+html += '</div>';
+  container.innerHTML = header + html;
+
+  function updateSummary() {
+    const checked = container.querySelectorAll(
+      ".asig-delete-date-check:checked",
+    ).length;
+    if (summary) {
+      summary.textContent = checked
+        ? "Fechas seleccionadas: " + checked
+        : "Seleccione una o varias fechas visibles del cuadrante.";
+    }
+  }
+
+  container
+    .querySelectorAll(".asig-delete-date-check")
+    .forEach(function (input) {
+      input.addEventListener("change", updateSummary);
+    });
+  updateSummary();
+}
+
+function mesStringToNumber(value) {
+  var MONTHS_LOCAL = [
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
+  ];
+  function normalizeMonthText(v) {
+    return String(v || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+  }
+
+  var raw = String(value || "").trim();
+  if (!raw) return NaN;
+  var asNum = Number(raw);
+  if (Number.isInteger(asNum) && asNum >= 1 && asNum <= 12) return asNum;
+
+  var norm = normalizeMonthText(raw);
+  for (var i = 0; i < MONTHS_LOCAL.length; i++) {
+    if (normalizeMonthText(MONTHS_LOCAL[i]) === norm) return i + 1;
+  }
+  return NaN;
+}
+
+function mesNumberToString(mes) {
+  var MONTHS_LOCAL = [
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
+  ];
+  var n = Number(mes);
+  if (!Number.isInteger(n) || n < 1 || n > 12) return "";
+  return MONTHS_LOCAL[n - 1];
+}
+(function () {
+  const app = window.GRS1Dashboard;
+  const ASIG_FE_VERSION = "asig-fe-20260401l";
+  let asigTabulator = null;
+
+  const TABULATOR_LANGS = {
+    "es-es": {
+      data: { loading: "Cargando...", error: "Error al cargar datos" },
+      pagination: {
+        page_size: "Registros por página",
+        first: "«",
+        first_title: "Primera",
+        last: "»",
+        last_title: "Última",
+        prev: "‹",
+        prev_title: "Anterior",
+        next: "›",
+        next_title: "Siguiente",
+        all: "Todos",
+        counter: {
+          showing: "Mostrando",
+          of: "de",
+          rows: "filas",
+          pages: "páginas",
+        },
+      },
+      headerFilters: { default: "Filtrar..." },
+    },
+  };
+
+  const MONTHS = [
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
+  ];
+  const WEEKDAY_SHORT = ["L", "M", "X", "J", "V", "S", "D"];
+
+
+
+  function agenteNombre(ag) {
+    return [
+      ag.apellido_1 || ag.agente_apellido1,
+      ag.apellido_2 || ag.agente_apellido2,
+      ag.nombre || ag.agente_nombre,
+    ]
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  function headers() {
+    return { Authorization: "Bearer " + app.globalState.token };
+  }
+
+  const BULK_REQUEST_AGENT_CHUNK_SIZE = Number(
+    window.BULK_REQUEST_AGENT_CHUNK_SIZE || 50,
+  );
+
+  function chunkItems(items, chunkSize) {
+    var safeSize = Math.max(1, Number(chunkSize) || 1);
+    var chunks = [];
+    for (var i = 0; i < items.length; i += safeSize) {
+      chunks.push(items.slice(i, i + safeSize));
+    }
+    return chunks;
+  }
+
+  function updateBulkProgress(percent, text) {
+    var wrap = document.getElementById("asigBulkProgressWrap");
+    var bar = document.getElementById("asigBulkProgressBar");
+    var label = document.getElementById("asigBulkProgressText");
+    if (!wrap || !bar || !label) return;
+
+    var value = Math.max(0, Math.min(100, Number(percent) || 0));
+    wrap.classList.remove("d-none");
+    bar.style.width = value + "%";
+    bar.setAttribute("aria-valuenow", String(Math.round(value)));
+    bar.textContent = Math.round(value) + "%";
+    label.textContent = text || "Procesando...";
+  }
+
+  function resetBulkProgress() {
+    var wrap = document.getElementById("asigBulkProgressWrap");
+    var bar = document.getElementById("asigBulkProgressBar");
+    var label = document.getElementById("asigBulkProgressText");
+    if (wrap) wrap.classList.add("d-none");
+    if (bar) {
+      bar.style.width = "0%";
+      bar.setAttribute("aria-valuenow", "0");
+      bar.textContent = "0%";
+    }
+    if (label) label.textContent = "";
+  }
+
+  function showAlert(message, type) {
+    const el = document.getElementById("alertContainerAsignaciones");
+    if (!el) return;
+    el.innerHTML =
+      '<div class="alert alert-' +
+      type +
+      ' alert-dismissible py-1 mb-1 fade show" role="alert">' +
+      app.escapeHtml(message) +
+      '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+      "</div>";
+    setTimeout(function () {
+      el.innerHTML = "";
+    }, 5000);
+  }
+
+  function parseDias(value) {
+    return Array.from(
+      new Set(
+        String(value || "")
+          .split(",")
+          .map(function (x) {
+            return Number(String(x).trim());
+          })
+          .filter(function (n) {
+            return Number.isInteger(n) && n >= 1 && n <= 31;
+          }),
+      ),
+    ).sort(function (a, b) {
+      return a - b;
+    });
+  }
+
+  function resolvePlanningDatesFromDays(anio, mes, dias) {
+    const wanted = new Set(
+      (dias || []).map(function (n) {
+        return Number(n);
+      }),
+    );
+    return getPlanningWindow(anio, mes)
+      .filter(function (day) {
+        return wanted.has(Number(day.dia));
+      })
+      .map(function (day) {
+        return day.key;
+      });
+  }
+
+  function renderDeleteDateOptions(anio, mes) {
+    var container = document.getElementById("asigDeleteDates");
+    var summary = document.getElementById("asigDeleteDatesSummary");
+    if (!container) return;
+
+    var planningDays = getPlanningWindow(anio, mes);
+    var weeks = [];
+    for (var i = 0; i < planningDays.length; i += 7) {
+      weeks.push(planningDays.slice(i, i + 7));
+    }
+
+    container.innerHTML = weeks
+      .map(function (week, weekIndex) {
+        return (
+          '<div class="d-flex gap-1 mb-1" data-week="' +
+          weekIndex +
+          '">' +
+          week
+            .map(function (day) {
+              var weekend = day.weekdayIndex >= 5;
+              return (
+                '<label class="border rounded px-1 py-1 small text-center" style="width:52px;min-width:52px;cursor:pointer;line-height:1.1;background:' +
+                (weekend ? "#fff8e1" : "#f8f9fa") +
+                '">' +
+                '<input class="form-check-input mb-1 asig-delete-date-check" type="checkbox" value="' +
+                app.escapeHtml(day.key) +
+                '" data-dia="' +
+                day.dia +
+                '">' +
+                '<div class="fw-semibold" style="font-size:.72rem">' +
+                app.escapeHtml(day.label) +
+                "</div>" +
+                '<div style="font-size:.7rem">' +
+                app.escapeHtml(day.labelDate) +
+                "</div>" +
+                "</label>"
+              );
+            })
+            .join("") +
+          "</div>"
+        );
+      })
+      .join("");
+
+    function updateSummary() {
+      var checked = container.querySelectorAll(
+        ".asig-delete-date-check:checked",
+      ).length;
+      if (summary) {
+        summary.textContent = checked
+          ? "Fechas seleccionadas: " + checked
+          : "Seleccione una o varias fechas visibles del cuadrante.";
+      }
+    }
+
+    container
+      .querySelectorAll(".asig-delete-date-check")
+      .forEach(function (input) {
+        input.addEventListener("change", updateSummary);
+      });
+    updateSummary();
+  }
+
+  function getSelectedDeleteDates() {
+    return Array.from(
+      document.querySelectorAll(
+        "#asigDeleteDates .asig-delete-date-check:checked",
+      ),
+    )
+      .map(function (input) {
+        return String(input.value || "");
+      })
+      .filter(Boolean);
+  }
+
+  function renderCopyDateOptions(anio, mes) {
+    var container = document.getElementById("asigCopyDates");
+    var summary = document.getElementById("asigCopyDatesSummary");
+    if (!container) return;
+
+    var planningDays = getPlanningWindow(anio, mes);
+    var weeks = [];
+    for (var i = 0; i < planningDays.length; i += 7) {
+      weeks.push(planningDays.slice(i, i + 7));
+    }
+
+    container.innerHTML = weeks
+      .map(function (week, weekIndex) {
+        return (
+          '<div class="d-flex gap-1 mb-1" data-week="' +
+          weekIndex +
+          '">' +
+          week
+            .map(function (day) {
+              var weekend = day.weekdayIndex >= 5;
+              return (
+                '<label class="border rounded px-1 py-1 small text-center" style="width:52px;min-width:52px;cursor:pointer;line-height:1.1;background:' +
+                (weekend ? "#fff8e1" : "#f8f9fa") +
+                '">' +
+                '<input class="form-check-input mb-1 asig-copy-date-check" type="checkbox" value="' +
+                app.escapeHtml(day.key) +
+                '" data-dia="' +
+                day.dia +
+                '">' +
+                '<div class="fw-semibold" style="font-size:.72rem">' +
+                app.escapeHtml(day.label) +
+                "</div>" +
+                '<div style="font-size:.7rem">' +
+                app.escapeHtml(day.labelDate) +
+                "</div>" +
+                "</label>"
+              );
+            })
+            .join("") +
+          "</div>"
+        );
+      })
+      .join("");
+
+    function updateSummary() {
+      var checked = container.querySelectorAll(
+        ".asig-copy-date-check:checked",
+      ).length;
+      if (summary) {
+        summary.textContent = checked
+          ? "Fechas seleccionadas: " + checked
+          : "Seleccione una o varias fechas visibles del cuadrante.";
+      }
+    }
+
+    container
+      .querySelectorAll(".asig-copy-date-check")
+      .forEach(function (input) {
+        input.addEventListener("change", updateSummary);
+      });
+    updateSummary();
+  }
+
+  function getSelectedCopyDates() {
+    return Array.from(
+      document.querySelectorAll("#asigCopyDates .asig-copy-date-check:checked"),
+    )
+      .map(function (input) {
+        return String(input.value || "");
+      })
+      .filter(Boolean);
+  }
+
+  function getSelectedNumbersFromSelect(selectEl) {
+    return Array.from(selectEl?.selectedOptions || [])
+      .map(function (opt) {
+        return Number(opt.value);
+      })
+      .filter(Boolean);
+  }
+
+  function makeModalDraggable(modalEl) {
+    if (!modalEl || modalEl.dataset.draggableBound === "1") return;
+    const dialog = modalEl.querySelector(".modal-dialog");
+    const header = modalEl.querySelector(".modal-header");
+    if (!dialog || !header) return;
+
+    modalEl.dataset.draggableBound = "1";
+    header.style.cursor = "move";
+
+    let dragging = false;
+    let startMouseX = 0;
+    let startMouseY = 0;
+    let startOffsetX = 0;
+    let startOffsetY = 0;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    function applyTransform(x, y) {
+      dialog.style.transform = "translate(" + x + "px, " + y + "px)";
+    }
+
+    function resetPosition() {
+      offsetX = 0;
+      offsetY = 0;
+      dialog.style.transform = "";
+    }
+
+    modalEl.addEventListener("shown.bs.modal", function () {
+      resetPosition();
+    });
+
+    modalEl.addEventListener("hidden.bs.modal", function () {
+      dragging = false;
+      resetPosition();
+    });
+
+    header.addEventListener("mousedown", function (ev) {
+      if (ev.target.closest("button")) return;
+      dragging = true;
+      startMouseX = ev.clientX;
+      startMouseY = ev.clientY;
+      startOffsetX = offsetX;
+      startOffsetY = offsetY;
+      ev.preventDefault();
+    });
+
+    document.addEventListener("mousemove", function (ev) {
+      if (!dragging) return;
+
+      let nextX = startOffsetX + (ev.clientX - startMouseX);
+      let nextY = startOffsetY + (ev.clientY - startMouseY);
+
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const rect = dialog.getBoundingClientRect();
+
+      const projectedLeft = rect.left + (nextX - offsetX);
+      const projectedTop = rect.top + (nextY - offsetY);
+
+      if (projectedLeft < 0) nextX += -projectedLeft;
+      if (projectedLeft + rect.width > vw)
+        nextX -= projectedLeft + rect.width - vw;
+      if (projectedTop < 0) nextY += -projectedTop;
+      if (projectedTop + 80 > vh) nextY -= projectedTop + 80 - vh;
+
+      offsetX = nextX;
+      offsetY = nextY;
+      applyTransform(offsetX, offsetY);
+    });
+
+    document.addEventListener("mouseup", function () {
+      dragging = false;
+    });
+  }
+
+  function getPeriodo() {
+    const anio = Number(document.getElementById("asigAnio")?.value);
+    const mes = Number(document.getElementById("asigMes")?.value);
+    return { anio, mes };
+  }
+
+  function getSelectedBorradorId() {
+    const id = Number(document.getElementById("asigBorrador")?.value || 0);
+    return id > 0 ? id : null;
+  }
+
+  function updateObsBtnStyle() {
+    var btn = document.getElementById("btnEditObservacionesBorrador");
+    if (!btn) return;
+    var borradorId = getSelectedBorradorId();
+    var borradores = app.asignacionesState.borradores || [];
+    var borrador = borradores.find(function (b) { return Number(b.id) === Number(borradorId); });
+    var tieneObs = borrador && borrador.observaciones && borrador.observaciones.trim();
+    btn.className = tieneObs
+      ? 'btn btn-outline-primary btn-sm px-2 py-1'
+      : 'btn btn-outline-secondary btn-sm px-2 py-1';
+    btn.title = tieneObs
+      ? 'Ver/editar observaciones del borrador'
+      : 'Crear observaciones del borrador';
+  }
+
+  function renderBorradoresSelect(items, selectedId) {
+    const sel = document.getElementById("asigBorrador");
+    if (!sel) return;
+
+    const rows = Array.isArray(items) ? items : [];
+    if (!rows.length) {
+      sel.innerHTML = '<option value="">Sin borradores</option>';
+      sel.value = "";
+      app.asignacionesState.borradorId = null;
+      app.asignacionesState.borradores = [];
+      return;
+    }
+
+    sel.innerHTML = rows
+      .map(function (b) {
+        const tag = b.estado === "validado" ? " (validado)" : "";
+        const owner = b.propietario_username
+          ? " · " + b.propietario_username
+          : "";
+        return (
+          '<option value="' +
+          b.id +
+          '">' +
+          app.escapeHtml(
+            (b.nombre || "Borrador") + " v" + (b.version || 1) + tag + owner,
+          ) +
+          "</option>"
+        );
+      })
+      .join("");
+
+    const exists = rows.some(function (b) {
+      return Number(b.id) === Number(selectedId);
+    });
+    sel.value = String(exists ? selectedId : rows[0].id);
+
+    app.asignacionesState.borradorId = Number(sel.value);
+    app.asignacionesState.borradores = rows;
+    updateObsBtnStyle();
+  }
+
+  app.loadAsignacionesBorradores = async function loadAsignacionesBorradores(
+    preferredId,
+  ) {
+    const p = getPeriodo();
+    if (!p.anio || !p.mes) return;
+    try {
+      const res = await fetch(
+        "/api/asignaciones/borradores/" + p.anio + "/" + p.mes,
+        { headers: headers() },
+      );
+      if (!res.ok) throw new Error("No se pudieron cargar borradores");
+      const json = await res.json();
+      const list =
+        json && Array.isArray(json.borradores) ? json.borradores : [];
+      renderBorradoresSelect(
+        list,
+        preferredId || app.asignacionesState.borradorId || null,
+      );
+    } catch (e) {
+      renderBorradoresSelect([], null);
+      showAlert(e.message, "danger");
+    }
+  };
+
+  function daysInMonth(anio, mes) {
+    return new Date(anio, mes, 0).getDate();
+  }
+
+  function toIsoDate(dateObj) {
+    var y = dateObj.getFullYear();
+    var m = String(dateObj.getMonth() + 1).padStart(2, "0");
+    var d = String(dateObj.getDate()).padStart(2, "0");
+    return y + "-" + m + "-" + d;
+  }
+
+  function getPlanningWindow(anio, mes) {
+    var first = new Date(anio, mes - 1, 1);
+    var mondayOffset = (first.getDay() + 6) % 7; // Monday=0..Sunday=6
+    var start = new Date(anio, mes - 1, 1 - mondayOffset);
+    var days = [];
+    for (var i = 0; i < 28; i += 1) {
+      var dt = new Date(start);
+      dt.setDate(start.getDate() + i);
+      days.push({
+        key: toIsoDate(dt),
+        anio: dt.getFullYear(),
+        mes: dt.getMonth() + 1,
+        dia: dt.getDate(),
+        weekdayIndex: i % 7,
+        label: WEEKDAY_SHORT[i % 7],
+        labelDate:
+          String(dt.getDate()).padStart(2, "0") +
+          "/" +
+          String(dt.getMonth() + 1).padStart(2, "0"),
+      });
+    }
+
+    return days;
+  }
+
+  function periodoKey(anio, mes) {
+    return String(anio) + "-" + String(mes).padStart(2, "0");
+  }
+
+  function normalizeAgenteId(value) {
+    return Number(value || 0);
+  }
+
+  function normalizeSearchText(value) {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+  }
+
+  function getAgentSearchTerm() {
+    return normalizeSearchText(app.asignacionesState.searchTerm || "");
+  }
+
+  function updateSearchSummary(visibleCount, totalCount) {
+    var el = document.getElementById("asigSearchSummary");
+    if (!el) return;
+
+    var term = String(app.asignacionesState.searchTerm || "").trim();
+    if (!term) {
+      el.textContent = "Sin filtro activo";
+      return;
+    }
+
+    el.textContent =
+      "Mostrando " +
+      visibleCount +
+      " de " +
+      totalCount +
+      ' agente(s) para "' +
+      term +
+      '"';
+  }
+
+  function getTurnoLabel(entry) {
+    const codigo = entry.turno_codigo || "-";
+    const nombre = entry.turno_nombre || "";
+    return nombre ? codigo + " · " + nombre : codigo;
+  }
+
+  function getActividadLabelById(id) {
+    const actividades =
+      (app.asignacionesState.meta && app.asignacionesState.meta.actividades) ||
+      [];
+    const item = actividades.find(function (actividad) {
+      return Number(actividad.id_actividad) === Number(id);
+    });
+    if (!item) return String(id);
+    return item.codigo ? item.codigo + " · " + item.nombre : item.nombre;
+  }
+
+  function getSelectedHistorialAgentIds() {
+    return Array.from(
+      new Set(
+        (app.asignacionesState.selectedAgenteIdsVista || [])
+          .map(function (id) {
+            return Number(id);
+          })
+          .filter(function (id) {
+            return Number.isInteger(id) && id > 0;
+          }),
+      ),
+    );
+  }
+
+  function getCurrentBorradorLabel() {
+    var borradorId = getSelectedBorradorId();
+    if (!borradorId) return "Sin borrador seleccionado";
+    var borrador = (app.asignacionesState.borradores || []).find(
+      function (item) {
+        return Number(item.id) === Number(borradorId);
+      },
+    );
+    if (!borrador) return "Borrador #" + borradorId;
+    var estado = borrador.estado === "validado" ? "validado" : "borrador";
+    return (
+      (borrador.nombre || "Borrador") +
+      " v" +
+      (borrador.version || 1) +
+      " · " +
+      estado
+    );
+  }
+
+  function getHistorialActionOptions() {
+    return [
+      { value: "BORRADOR_CREAR", label: "Alta en borrador" },
+      { value: "BORRADOR_EDITAR", label: "Edición en borrador" },
+      { value: "BORRADOR_CREAR_MASIVO", label: "Alta masiva" },
+      { value: "BORRADOR_EDITAR_MASIVO", label: "Edición masiva" },
+      { value: "BORRADOR_BULK", label: "Asignación masiva" },
+      { value: "BORRADOR_ELIMINAR", label: "Eliminación en borrador" },
+      { value: "BORRADOR_COPIAR_MES", label: "Copia de mes" },
+      { value: "BORRADOR_ELIMINADO", label: "Borrador eliminado" },
+      { value: "VALIDAR", label: "Validación" },
+      { value: "REVALIDAR", label: "Revalidación" },
+    ];
+  }
+
+  function ensureHistorialFilterControls() {
+    var actionEl = document.getElementById("asigHistorialFiltroAccion");
+    if (actionEl && !actionEl.dataset.ready) {
+      actionEl.innerHTML = getHistorialActionOptions()
+        .map(function (item) {
+          var id = "asigAccCb_" + item.value;
+          return (
+            '<label style="display:flex;align-items:center;gap:5px;padding:2px 0;cursor:pointer;white-space:nowrap;">'
+            + '<input type="checkbox" id="' + id + '" value="' + app.escapeHtml(item.value) + '" style="cursor:pointer;">'
+            + '<span>' + app.escapeHtml(item.label) + '</span>'
+            + '</label>'
+          );
+        })
+        .join("");
+      actionEl.dataset.ready = "1";
+    }
+  }
+
+  function getHistorialUiFilters() {
+    var actionEl = document.getElementById("asigHistorialFiltroAccion");
+    var dateEl = document.getElementById("asigHistorialFiltroFechaCambio");
+    var acciones = actionEl
+      ? Array.from(actionEl.querySelectorAll('input[type=checkbox]:checked')).map(function (cb) { return cb.value; })
+      : [];
+    var fechasCambio = dateEl
+      ? Array.from(dateEl.querySelectorAll('input[type=checkbox]:checked')).map(function (cb) { return cb.value; })
+      : [];
+    return {
+      acciones: acciones,
+      usuario_id: document.getElementById("asigHistorialFiltroUsuario")?.value || "",
+      fechas_cambio: fechasCambio,
+    };
+  }
+
+  function hasActiveHistorialFilters() {
+    var uiFilters = getHistorialUiFilters();
+    return Boolean(
+      (uiFilters.acciones && uiFilters.acciones.length) ||
+      uiFilters.usuario_id ||
+      (uiFilters.fechas_cambio && uiFilters.fechas_cambio.length),
+    );
+  }
+
+  function updateHistorialApplyButtonState() {
+    var btnEl = document.getElementById("btnAsigHistorialAplicarFiltros");
+    if (!btnEl) return;
+    btnEl.disabled = !hasActiveHistorialFilters();
+  }
+
+  function resetHistorialUiFilters() {
+    var actionEl = document.getElementById("asigHistorialFiltroAccion");
+    var userEl = document.getElementById("asigHistorialFiltroUsuario");
+    var dateEl = document.getElementById("asigHistorialFiltroFechaCambio");
+    if (actionEl) actionEl.querySelectorAll('input[type=checkbox]').forEach(function (cb) { cb.checked = false; });
+    if (userEl) userEl.value = "";
+    if (dateEl) dateEl.querySelectorAll('input[type=checkbox]').forEach(function (cb) { cb.checked = false; });
+    updateHistorialApplyButtonState();
+  }
+
+  function populateHistorialUsers(logs) {
+    var userEl = document.getElementById("asigHistorialFiltroUsuario");
+    if (!userEl) return;
+    var selected = userEl.value || "";
+    var users = [];
+    var seen = new Set();
+    (logs || []).forEach(function (entry) {
+      var userId = Number(entry.usuario_id || 0);
+      if (!userId || seen.has(userId)) return;
+      seen.add(userId);
+      users.push({
+        id: userId,
+        label: entry.usuario_nombre || "Usuario #" + userId,
+      });
+    });
+    users.sort(function (a, b) {
+      return a.label.localeCompare(b.label, "es", { sensitivity: "base" });
+    });
+    userEl.innerHTML =
+      '<option value="">Todos los usuarios</option>' +
+      users
+        .map(function (user) {
+          return (
+            '<option value="' +
+            user.id +
+            '">' +
+            app.escapeHtml(user.label) +
+            "</option>"
+          );
+        })
+        .join("");
+    userEl.value = users.some(function (user) {
+      return String(user.id) === String(selected);
+    })
+      ? String(selected)
+      : "";
+    updateHistorialApplyButtonState();
+  }
+
+  function populateHistorialDates(logs) {
+    var dateEl = document.getElementById("asigHistorialFiltroFechaCambio");
+    if (!dateEl) return;
+
+    var selected = new Set(
+      Array.from(dateEl.querySelectorAll('input[type=checkbox]:checked')).map(function (cb) {
+        return String(cb.value);
+      }),
+    );
+
+    var uniqueDates = [];
+    var seen = new Set();
+    (logs || []).forEach(function (entry) {
+      var key = normalizeDateKey(entry.created_at);
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      uniqueDates.push(key);
+    });
+
+    uniqueDates.sort(function (a, b) {
+      return b.localeCompare(a);
+    });
+
+    if (!uniqueDates.length) {
+      dateEl.innerHTML = '<div class="text-muted small">Sin fechas disponibles</div>';
+      return;
+    }
+
+    dateEl.innerHTML = uniqueDates
+      .map(function (dateKey, idx) {
+        var id = "asigFechaCambioCb_" + idx;
+        var checked = selected.has(dateKey) ? " checked" : "";
+        return (
+          '<label style="display:flex;align-items:center;gap:5px;padding:2px 0;cursor:pointer;white-space:nowrap;">'
+          + '<input type="checkbox" id="' + id + '" value="' + app.escapeHtml(dateKey) + '" style="cursor:pointer;"' + checked + '>'
+          + '<span>' + app.escapeHtml(formatHistorialDate(dateKey, false)) + '</span>'
+          + '</label>'
+        );
+      })
+      .join("");
+    updateHistorialApplyButtonState();
+  }
+
+  async function preloadAsignacionesHistorialFilterOptions() {
+    var filters = getHistorialFilters();
+    var userEl = document.getElementById("asigHistorialFiltroUsuario");
+    var dateEl = document.getElementById("asigHistorialFiltroFechaCambio");
+
+    if (userEl) {
+      userEl.innerHTML = '<option value="">Cargando usuarios...</option>';
+      userEl.value = "";
+    }
+    if (dateEl) {
+      dateEl.innerHTML = '<div class="text-muted small">Cargando fechas...</div>';
+    }
+
+    if (!filters.periodo.anio || !filters.periodo.mes || !filters.agentIds.length || !filters.borradorId) {
+      if (userEl) {
+        userEl.innerHTML = '<option value="">Todos los usuarios</option>';
+      }
+      if (dateEl) {
+        dateEl.innerHTML = '<div class="text-muted small">Sin fechas disponibles</div>';
+      }
+      app.asignacionesState.historialDateSourceLogs = [];
+      return;
+    }
+
+    try {
+      var queryString = buildHistorialQueryString({
+        acciones: [],
+        usuario_id: "",
+        fechas_cambio: [],
+      });
+      var response = await fetch("/api/asignaciones/historial?" + queryString, {
+        headers: headers(),
+      });
+      if (!response.ok) {
+        throw new Error("No se pudieron cargar los filtros del historial");
+      }
+      var data = await response.json();
+      var logs = Array.isArray(data.logs) ? data.logs : [];
+      var total = Number(data.total || 0);
+      app.asignacionesState.historialDateSourceLogs = logs.slice();
+      renderHistorialResumen(total, filters);
+      populateHistorialUsers(logs);
+      populateHistorialDates(logs);
+    } catch (error) {
+      if (userEl) {
+        userEl.innerHTML = '<option value="">Todos los usuarios</option>';
+      }
+      if (dateEl) {
+        dateEl.innerHTML = '<div class="text-danger small">No se pudieron cargar las fechas</div>';
+      }
+      app.asignacionesState.historialDateSourceLogs = [];
+      renderHistorialResumen(0, filters);
+    }
+  }
+
+  function getHistorialFilters() {
+    var periodo = getPeriodo();
+    var agentIds = getSelectedHistorialAgentIds();
+    var borradorId = getSelectedBorradorId();
+    var planningDays =
+      Array.isArray(app.asignacionesState.cuadranteDays) &&
+      app.asignacionesState.cuadranteDays.length
+        ? app.asignacionesState.cuadranteDays
+        : getPlanningWindow(periodo.anio, periodo.mes);
+    return {
+      periodo: periodo,
+      borradorId: borradorId,
+      agentIds: agentIds,
+      fechas: planningDays.map(function (day) { return day.key; }),
+      nombreBorrador: getCurrentBorradorLabel(),
+    };
+  }
+
+  function buildHistorialQueryString(extraFilters) {
+    var filters = getHistorialFilters();
+    var uiFilters = extraFilters || getHistorialUiFilters();
+    var params = new URLSearchParams({
+      anio: String(filters.periodo.anio),
+      mes: String(filters.periodo.mes),
+      nombre_borrador: filters.nombreBorrador,
+      page: "1",
+      limit: "5000",
+    });
+    if (filters.borradorId)
+      params.set("borrador_id", String(filters.borradorId));
+    if (filters.agentIds.length)
+      params.set("agente_ids", filters.agentIds.join(","));
+    if (uiFilters.acciones && uiFilters.acciones.length) params.set("acciones", uiFilters.acciones.join(","));
+    if (uiFilters.usuario_id)
+      params.set("usuario_id", String(uiFilters.usuario_id));
+    if (uiFilters.fechas_cambio && uiFilters.fechas_cambio.length)
+      params.set("fechas_cambio", uiFilters.fechas_cambio.join(","));
+    return params.toString();
+  }
+
+  function formatHistorialDate(value, withTime) {
+    if (!value) return "Cuadrante completo";
+    var dt = new Date(withTime ? value : String(value) + "T00:00:00");
+    return withTime
+      ? dt.toLocaleString("es-ES")
+      : dt.toLocaleDateString("es-ES");
+  }
+
+  function getTurnoLabelById(turnoId) {
+    var id = Number(turnoId);
+    if (!id) return "—";
+    var turnos =
+      (app.asignacionesState.meta && app.asignacionesState.meta.turnos) || [];
+    var turno = turnos.find(function (item) {
+      return Number(item.id_turno) === id;
+    });
+    if (!turno) return "#" + id;
+    return turno.codigo
+      ? turno.codigo + (turno.nombre ? " · " + turno.nombre : "")
+      : turno.nombre || "#" + id;
+  }
+
+  function getHistorialActionLabel(action) {
+    var labels = {
+      BORRADOR_CREAR: "Alta en borrador",
+      BORRADOR_EDITAR: "Edición en borrador",
+      BORRADOR_CREAR_MASIVO: "Alta masiva",
+      BORRADOR_EDITAR_MASIVO: "Edición masiva",
+      BORRADOR_BULK: "Asignación masiva",
+      BORRADOR_ELIMINAR: "Eliminación en borrador",
+      BORRADOR_COPIAR_MES: "Copia de mes",
+      BORRADOR_ELIMINADO: "Borrador eliminado",
+      VALIDAR: "Validación",
+      REVALIDAR: "Revalidación",
+    };
+    return labels[action] || action || "Cambio";
+  }
+
+  function normalizeHistorialValue(value) {
+    if (value === null || value === undefined || value === "") return "—";
+    if (Array.isArray(value)) {
+      return (
+        value
+          .map(function (item) {
+            return Number.isFinite(Number(item))
+              ? getActividadLabelById(item)
+              : String(item);
+          })
+          .join(", ") || "—"
+      );
+    }
+    return String(value);
+  }
+
+  function normalizeActividadIds(raw) {
+    if (Array.isArray(raw))
+      return raw
+        .map(function (x) {
+          return Number(x);
+        })
+        .filter(Boolean);
+    var n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? [n] : [];
+  }
+
+  function buildHistorialCellValue(entry) {
+    var before =
+      entry &&
+      entry.datos_anteriores &&
+      typeof entry.datos_anteriores === "object"
+        ? entry.datos_anteriores
+        : {};
+    var after =
+      entry && entry.datos_nuevos && typeof entry.datos_nuevos === "object"
+        ? entry.datos_nuevos
+        : {};
+
+    var beforeTurno = getTurnoLabelById(before.turno_id);
+    var afterTurno = getTurnoLabelById(after.turno_id);
+
+    var beforeActs =
+      normalizeActividadIds(before.actividad_ids)
+        .map(function (id) {
+          return getActividadLabelById(id);
+        })
+        .join(", ") || "—";
+    var afterActs =
+      normalizeActividadIds(after.actividad_ids)
+        .map(function (id) {
+          return getActividadLabelById(id);
+        })
+        .join(", ") || "—";
+
+    return {
+      beforeTurno: beforeTurno,
+      afterTurno: afterTurno,
+      beforeActs: beforeActs,
+      afterActs: afterActs,
+    };
+  }
+
+  function normalizeDateKey(value) {
+    if (!value) return null;
+    var raw = String(value);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    if (/^\d{4}-\d{2}-\d{2}T/.test(raw)) return raw.slice(0, 10);
+    var dt = new Date(raw);
+    if (!Number.isNaN(dt.getTime())) {
+      var y = dt.getFullYear();
+      var m = String(dt.getMonth() + 1).padStart(2, "0");
+      var d = String(dt.getDate()).padStart(2, "0");
+      return y + "-" + m + "-" + d;
+    }
+    return null;
+  }
+
+  function getAgenteMetaMap() {
+    var map = new Map();
+    (
+      (app.asignacionesState.meta && app.asignacionesState.meta.agentes) ||
+      []
+    ).forEach(function (ag) {
+      var id = Number(ag.id_agente || ag.id || 0);
+      if (!id) return;
+      map.set(id, {
+        tip: ag.agente_tip || ag.tip || "",
+        nombre: ag.agente_nombre || ag.nombre || "",
+        apellido1: ag.agente_apellido1 || ag.apellido_1 || "",
+        apellido2: ag.agente_apellido2 || ag.apellido_2 || "",
+        empleo: ag.empleo_nombre || "",
+      });
+    });
+    return map;
+  }
+
+  function expandBulkHistorialEntries(logs, filters) {
+    var agentMap = getAgenteMetaMap();
+    var planningDates = (
+      filters && Array.isArray(filters.fechas) ? filters.fechas : []
+    ).map(function (d) {
+      return String(d);
+    });
+    var byDayNumber = new Map();
+    planningDates.forEach(function (iso) {
+      var day = Number(String(iso).slice(8, 10));
+      if (!byDayNumber.has(day)) byDayNumber.set(day, []);
+      byDayNumber.get(day).push(iso);
+    });
+
+    var expanded = [];
+    (logs || []).forEach(function (entry) {
+      var isAgentBulk =
+        String(entry.accion || "") === "BORRADOR_CREAR_MASIVO" ||
+        String(entry.accion || "") === "BORRADOR_EDITAR_MASIVO";
+      var isBulkSummary = String(entry.accion || "") === "BORRADOR_BULK";
+      var beforePayload =
+        entry &&
+        entry.datos_anteriores &&
+        typeof entry.datos_anteriores === "object"
+          ? entry.datos_anteriores
+          : {};
+      var afterPayload =
+        entry && entry.datos_nuevos && typeof entry.datos_nuevos === "object"
+          ? entry.datos_nuevos
+          : {};
+
+      if (
+        isAgentBulk &&
+        afterPayload.fechas &&
+        typeof afterPayload.fechas === "object"
+      ) {
+        var fechasMap = afterPayload.fechas || {};
+        Object.keys(fechasMap).forEach(function (fecha) {
+          var meta = agentMap.get(Number(entry.agente_id)) || {};
+          expanded.push({
+            ...entry,
+            fecha: fecha,
+            agente_tip: meta.tip || entry.agente_tip || "",
+            agente_nombre: meta.nombre || entry.agente_nombre || "",
+            agente_apellido1: meta.apellido1 || entry.agente_apellido1 || "",
+            agente_apellido2: meta.apellido2 || entry.agente_apellido2 || "",
+            empleo_nombre: meta.empleo || entry.empleo_nombre || "—",
+            datos_anteriores:
+              beforePayload.fechas && beforePayload.fechas[fecha]
+                ? beforePayload.fechas[fecha]
+                : {},
+            datos_nuevos: fechasMap[fecha] || {},
+          });
+        });
+        return;
+      }
+
+      if (
+        !isBulkSummary ||
+        !entry.datos_nuevos ||
+        typeof entry.datos_nuevos !== "object"
+      ) {
+        expanded.push(entry);
+        return;
+      }
+
+      var payload = afterPayload || {};
+      var agentIds = Array.isArray(payload.agente_ids)
+        ? payload.agente_ids
+            .map(function (x) {
+              return Number(x);
+            })
+            .filter(Boolean)
+        : [];
+      var diasRaw = Array.isArray(payload.dias) ? payload.dias : [];
+
+      var fechas = [];
+      diasRaw.forEach(function (d) {
+        var dateKey = normalizeDateKey(d);
+        if (dateKey) {
+          fechas.push(dateKey);
+          return;
+        }
+        var num = Number(d);
+        if (!Number.isInteger(num)) return;
+        var mapped = byDayNumber.get(num) || [];
+        mapped.forEach(function (iso) {
+          fechas.push(iso);
+        });
+      });
+      fechas = Array.from(new Set(fechas));
+
+      if (!agentIds.length || !fechas.length) {
+        expanded.push(entry);
+        return;
+      }
+
+      agentIds.forEach(function (agentId) {
+        var meta = agentMap.get(agentId) || {};
+        fechas.forEach(function (fecha) {
+          expanded.push({
+            ...entry,
+            accion: "BORRADOR_EDITAR_MASIVO",
+            agente_id: agentId,
+            fecha: fecha,
+            agente_tip: meta.tip || entry.agente_tip || "",
+            agente_nombre: meta.nombre || entry.agente_nombre || "",
+            agente_apellido1: meta.apellido1 || entry.agente_apellido1 || "",
+            agente_apellido2: meta.apellido2 || entry.agente_apellido2 || "",
+            empleo_nombre: meta.empleo || entry.empleo_nombre || "—",
+            datos_anteriores:
+              entry.datos_anteriores &&
+              typeof entry.datos_anteriores === "object"
+                ? entry.datos_anteriores
+                : {},
+            datos_nuevos: {
+              turno_id: payload.turno_id,
+              actividad_ids: payload.actividad_ids || [],
+              observaciones: payload.observaciones || null,
+            },
+            detalle: "Desglose de cambio masivo por agente y fecha",
+          });
+        });
+      });
+    });
+
+    return expanded;
+  }
+
+  function getTurnoById(turnoId) {
+    var id = Number(turnoId);
+    if (!id) return null;
+    var turnos = (app.asignacionesState.meta && app.asignacionesState.meta.turnos) || [];
+    return turnos.find(function (t) { return Number(t.id_turno) === id; }) || null;
+  }
+
+  function getActividadById(actId) {
+    var id = Number(actId);
+    if (!id) return null;
+    var acts = (app.asignacionesState.meta && app.asignacionesState.meta.actividades) || [];
+    return acts.find(function (a) { return Number(a.id_actividad) === id; }) || null;
+  }
+
+  // Devuelve un string de color legible: si el fondo es oscuro, texto blanco; si claro, negro.
+  function colorContrast(hex) {
+    if (!hex || hex === "none") return "#000";
+    var c = hex.replace("#", "");
+    if (c.length === 3) c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+    var r = parseInt(c.substring(0,2),16);
+    var g = parseInt(c.substring(2,4),16);
+    var b = parseInt(c.substring(4,6),16);
+    var lum = (0.299*r + 0.587*g + 0.114*b);
+    return lum > 145 ? "#222" : "#fff";
+  }
+
+  // Formatea los datos de una celda de día como HTML con badges de color.
+  function formatHistorialDayEntry(data) {
+    if (!data || typeof data !== "object") return "—";
+    var html = "";
+
+    // Turno: badge de color + código · nombre
+    var turno = getTurnoById(data.turno_id);
+    if (turno) {
+      var bg = turno.color || "#6c757d";
+      var fg = colorContrast(bg);
+      var codigo = turno.codigo || ("#" + turno.id_turno);
+      var nombre = turno.nombre || "";
+      html += '<span style="display:inline-block;background:' + bg + ';color:' + fg +
+        ';border-radius:3px;padding:1px 5px;font-size:.7rem;font-weight:600;white-space:nowrap;margin-bottom:2px">' +
+        app.escapeHtml(codigo) + "</span>" +
+        (nombre ? ' <span style="font-size:.7rem">' + app.escapeHtml(nombre) + "</span>" : "");
+    } else if (data.turno_id) {
+      html += '<span style="font-size:.7rem;color:#888">#' + Number(data.turno_id) + "</span>";
+    } else {
+      html += '<span style="color:#aaa">—</span>';
+    }
+
+    // Actividades: badge de color + nombre
+    var actIds = normalizeActividadIds(data.actividad_ids);
+    if (actIds.length) {
+      actIds.forEach(function (id) {
+        var act = getActividadById(id);
+        if (act) {
+          var abg = act.color || "#adb5bd";
+          var afg = colorContrast(abg);
+          var acodigo = act.codigo || ("#" + id);
+          var anombre = act.nombre || "";
+          html += '<br><span style="display:inline-block;background:' + abg + ';color:' + afg +
+            ';border-radius:3px;padding:0px 4px;font-size:.67rem;white-space:nowrap;margin-top:1px">' +
+            app.escapeHtml(acodigo) + "</span>" +
+            (anombre ? ' <span style="font-size:.67rem">' + app.escapeHtml(anombre) + "</span>" : "");
+        } else {
+          html += '<br><span style="font-size:.67rem;color:#888">#' + id + "</span>";
+        }
+      });
+    }
+
+    return html || "—";
+  }
+
+  // Devuelve el valor a mostrar en la columna de un día concreto para un lado (before/after).
+  // — Para entradas masivas: datos_X.fechas[dateKey]
+  // — Para entradas individuales: usa entry.fecha
+  // Retorna null si esa fecha no forma parte de la operación.
+  function getHistorialDayValue(entry, dateKey, side) {
+    var datos = side === "before" ? entry.datos_anteriores : entry.datos_nuevos;
+    if (!datos || typeof datos !== "object") return null;
+
+    if (datos.fechas && typeof datos.fechas === "object") {
+      if (!(dateKey in datos.fechas)) return null;
+      var dayData = datos.fechas[dateKey];
+      // null explícito → la fecha era nueva, no había dato anterior
+      if (dayData === null) return side === "before" ? "—" : null;
+      return formatHistorialDayEntry(dayData);
+    }
+
+    // Entrada individual: compara con la fecha del registro DB
+    var entryFecha = normalizeDateKey(entry.fecha);
+    if (entryFecha !== dateKey) return null;
+    return formatHistorialDayEntry(datos);
+  }
+
+  // Construye los pares de filas Tabulator (Anterior / Posterior) directamente desde
+  // los logs de BD, sin necesitar expansión previa.
+  // — Cada fila de BD → 2 filas Tabulator (before + after)
+  // — Agrupadas por agente, ordenadas por created_at DESC (par más reciente = pair_idx más bajo)
+  function buildHistorialRows(logs, planningDays) {
+    // Ordenar por created_at DESC; tie-break por id DESC
+    var sorted = (logs || []).slice().sort(function (a, b) {
+      var tA = new Date(a.created_at || 0).getTime();
+      var tB = new Date(b.created_at || 0).getTime();
+      if (tB !== tA) return tB - tA;
+      return Number(b.id || 0) - Number(a.id || 0);
+    });
+
+    var rows = [];
+    sorted.forEach(function (entry, pairIdx) {
+      var agentName =
+        [entry.agente_apellido1, entry.agente_apellido2, entry.agente_nombre]
+          .filter(Boolean)
+          .join(" ") || "Acción global";
+
+      var beforeRow = {
+        id: "before-" + entry.id + "-" + pairIdx,
+        row_type: "before",
+        pair_idx: pairIdx,
+        row_order: 1,
+        estado: "Anterior",
+        log_id: Number(entry.id || 0),
+        tip: entry.agente_tip || "",
+        agente: agentName,
+        empleo: entry.empleo_nombre || "—",
+        accion: getHistorialActionLabel(entry.accion),
+        usuario: entry.usuario_nombre || "Usuario #" + entry.usuario_id,
+        cambio_datetime: formatHistorialDate(entry.created_at, true),
+        agente_group: agentName,
+      };
+
+      var afterRow = {
+        id: "after-" + entry.id + "-" + pairIdx,
+        row_type: "after",
+        pair_idx: pairIdx,
+        row_order: 2,
+        estado: "Posterior",
+        log_id: Number(entry.id || 0),
+        tip: "",
+        agente: "",
+        empleo: "",
+        accion: "",
+        usuario: "",
+        cambio_datetime: "",
+        agente_group: agentName,
+      };
+
+      planningDays.forEach(function (d) {
+        var bv = getHistorialDayValue(entry, d.key, "before");
+        var av = getHistorialDayValue(entry, d.key, "after");
+        if (bv !== null) beforeRow["dia_" + d.key] = bv;
+        if (av !== null) afterRow["dia_" + d.key] = av;
+      });
+
+      rows.push(beforeRow, afterRow);
+    });
+
+    return rows;
+  }
+
+  function buildHistorialDiffLines(entry) {
+    var before =
+      entry &&
+      entry.datos_anteriores &&
+      typeof entry.datos_anteriores === "object"
+        ? entry.datos_anteriores
+        : null;
+    var after =
+      entry && entry.datos_nuevos && typeof entry.datos_nuevos === "object"
+        ? entry.datos_nuevos
+        : null;
+    var lines = [];
+
+    if (before && after) {
+      var keys = Array.from(
+        new Set(Object.keys(before).concat(Object.keys(after))),
+      );
+      keys.forEach(function (key) {
+        var prev = normalizeHistorialValue(before[key]);
+        var next = normalizeHistorialValue(after[key]);
+        if (prev !== next) lines.push(key + ": " + prev + " -> " + next);
+      });
+    } else if (after) {
+      Object.keys(after).forEach(function (key) {
+        lines.push(key + ": " + normalizeHistorialValue(after[key]));
+      });
+    } else if (before) {
+      Object.keys(before).forEach(function (key) {
+        lines.push(key + ": " + normalizeHistorialValue(before[key]));
+      });
+    }
+
+    return lines;
+  }
+
+  function groupHistorialByAgent(logs) {
+    return (logs || []).reduce(function (acc, entry) {
+      var agentName =
+        [entry.agente_apellido1, entry.agente_apellido2, entry.agente_nombre]
+          .filter(Boolean)
+          .join(" ") || "Acciones globales del cuadrante";
+      if (!acc[agentName]) acc[agentName] = [];
+      acc[agentName].push(entry);
+      return acc;
+    }, {});
+  }
+
+  function renderHistorialResumen(total, filters) {
+    var resumenEl = document.getElementById("asigHistorialResumen");
+    var subtitleEl = document.getElementById("asigHistorialModalSubtitulo");
+    if (!resumenEl) return;
+    if (subtitleEl) {
+      subtitleEl.textContent =
+        filters.nombreBorrador +
+        " · " +
+        filters.periodo.anio +
+        "/" +
+        String(filters.periodo.mes).padStart(2, "0");
+    }
+    resumenEl.innerHTML =
+      '<div class="d-flex flex-wrap gap-2">' +
+      '<span class="badge bg-light text-dark border"><strong>Agentes:</strong> ' +
+      filters.agentIds.length +
+      "</span>" +
+      '<span class="badge bg-light text-dark border"><strong>Borrador:</strong> ' +
+      app.escapeHtml(filters.nombreBorrador) +
+      "</span>" +
+      '<span class="badge bg-primary text-white"><strong>Cambios:</strong> ' +
+      total +
+      "</span>" +
+      "</div>";
+  }
+
+  function getHistorialFechasText(entry) {
+    var datos = entry.datos_nuevos;
+    if (datos && typeof datos === "object" && datos.fechas && typeof datos.fechas === "object") {
+      var keys = Object.keys(datos.fechas).sort();
+      if (keys.length) {
+        var formatted = keys.map(function (k) {
+          return formatHistorialDate(k, false);
+        });
+        return formatted.join(", ");
+      }
+    }
+    return entry.fecha
+      ? formatHistorialDate(String(entry.fecha).slice(0, 10), false)
+      : "—";
+  }
+
+  function renderHistorialContent(logs, filters) {
+    var contentEl = document.getElementById("asigHistorialContent");
+    if (!contentEl) return;
+    contentEl.innerHTML = "";
+    if (!logs.length) {
+      contentEl.innerHTML =
+        '<div class="text-center text-muted py-4">No hay cambios registrados para los agentes seleccionados.</div>';
+      return;
+    }
+
+    var planningDays = (
+      filters && Array.isArray(filters.fechas) ? filters.fechas : []
+    ).map(function (key, idx) {
+      var dt = new Date(key + "T00:00:00");
+      var weekday = WEEKDAY_SHORT[idx % 7] || "";
+      return {
+        key: key,
+        label:
+          weekday +
+          " " +
+          String(dt.getDate()).padStart(2, "0") +
+          "/" +
+          String(dt.getMonth() + 1).padStart(2, "0"),
+      };
+    });
+
+    // Ordenar logs por agente (nombre) ASC, luego created_at DESC dentro de cada agente
+    var sorted = (logs || []).slice().sort(function (a, b) {
+      var nameA = [a.agente_apellido1, a.agente_apellido2, a.agente_nombre].filter(Boolean).join(" ");
+      var nameB = [b.agente_apellido1, b.agente_apellido2, b.agente_nombre].filter(Boolean).join(" ");
+      var nameCmp = nameA.localeCompare(nameB, "es", { sensitivity: "base" });
+      if (nameCmp !== 0) return nameCmp;
+      var tA = new Date(a.created_at || 0).getTime();
+      var tB = new Date(b.created_at || 0).getTime();
+      if (tB !== tA) return tB - tA;
+      return Number(b.id || 0) - Number(a.id || 0);
+    });
+
+    // Construir HTML de la tabla directamente — orden garantizado sin depender de Tabulator sort
+    var FIXED_COLS = ["Estado", "TIP", "Agente", "Empleo", "Accción", "Usuario", "Fecha/Hora cambio"];
+    var FIXED_W    = ["80px",  "72px", "180px",  "130px",  "150px",  "130px",  "155px"];
+
+    var stickyStyle = "position:sticky;left:0;z-index:2;background:inherit;";
+    var thBase = "white-space:nowrap;font-size:.75rem;padding:3px 6px;border:1px solid #dee2e6;";
+
+    var html = '<div style="overflow-x:auto;max-height:52vh;overflow-y:auto;">';
+    html += '<table class="table table-sm table-bordered mb-0" style="border-collapse:separate;border-spacing:0;font-size:.78rem;">';
+
+    // ── THEAD ──
+    html += "<thead><tr>";
+    FIXED_COLS.forEach(function (col, i) {
+      html += '<th style="' + thBase + 'min-width:' + FIXED_W[i] + ';background:#f8f9fa;">' + col + "</th>";
+    });
+    planningDays.forEach(function (d) {
+      html += '<th style="' + thBase + 'min-width:78px;max-width:90px;text-align:center;background:#f8f9fa;">' + app.escapeHtml(d.label) + "</th>";
+    });
+    html += "</tr></thead><tbody>";
+
+    // ── TBODY: par de filas por cada entrada de log, agrupadas por agente ──
+    var lastAgentName = null;
+    sorted.forEach(function (entry) {
+      var agentName = [entry.agente_apellido1, entry.agente_apellido2, entry.agente_nombre]
+        .filter(Boolean).join(" ") || "Acción global";
+
+      // Cabecera de grupo cuando cambia de agente
+      if (agentName !== lastAgentName) {
+        lastAgentName = agentName;
+        var totalCols = FIXED_COLS.length + planningDays.length;
+        html += '<tr style="background:#e9ecef;">' +
+          '<td colspan="' + totalCols + '" style="font-size:.78rem;padding:3px 8px;font-weight:600;border:1px solid #dee2e6;">' +
+          app.escapeHtml(agentName) + " · " + app.escapeHtml(entry.agente_tip || "") +
+          " · " + app.escapeHtml(entry.empleo_nombre || "—") +
+          "</td></tr>";
+      }
+
+      var accion  = getHistorialActionLabel(entry.accion);
+      var usuario = entry.usuario_nombre || "Usuario #" + entry.usuario_id;
+      var fechaHora = formatHistorialDate(entry.created_at, true);
+
+      var tdBase = "padding:3px 5px;border:1px solid #dee2e6;vertical-align:top;white-space:nowrap;";
+      var tdDay  = "padding:3px 4px;border:1px solid #dee2e6;vertical-align:top;font-size:.72rem;max-width:90px;white-space:normal;line-height:1.2;text-align:center;";
+
+      // Fila ANTERIOR
+      html += '<tr style="background:#fff5f5;">';
+      html += '<td style="' + tdBase + 'font-weight:600;color:#c0392b;">Anterior</td>';
+      html += '<td style="' + tdBase + '">' + app.escapeHtml(entry.agente_tip || "") + "</td>";
+      html += '<td style="' + tdBase + '">' + app.escapeHtml(agentName) + "</td>";
+      html += '<td style="' + tdBase + '">' + app.escapeHtml(entry.empleo_nombre || "—") + "</td>";
+      html += '<td style="' + tdBase + '">' + app.escapeHtml(accion) + "</td>";
+      html += '<td style="' + tdBase + '">' + app.escapeHtml(usuario) + "</td>";
+      html += '<td style="' + tdBase + '">' + app.escapeHtml(fechaHora) + "</td>";
+      planningDays.forEach(function (d) {
+        var val = getHistorialDayValue(entry, d.key, "before");
+        html += '<td style="' + tdDay + '">' +
+          (val && val !== "—" ? val : '<span style="color:#aaa">—</span>') +
+          "</td>";
+      });
+      html += "</tr>";
+
+      // Fila POSTERIOR
+      html += '<tr style="background:#f0faf0;border-top:1px dashed #a8d5b5;">';
+      html += '<td style="' + tdBase + 'font-weight:600;color:#1a7a3c;">Posterior</td>';
+      html += '<td style="' + tdBase + '"></td>';
+      html += '<td style="' + tdBase + '"></td>';
+      html += '<td style="' + tdBase + '"></td>';
+      html += '<td style="' + tdBase + '"></td>';
+      html += '<td style="' + tdBase + '"></td>';
+      html += '<td style="' + tdBase + '"></td>';
+      planningDays.forEach(function (d) {
+        var val = getHistorialDayValue(entry, d.key, "after");
+        html += '<td style="' + tdDay + '">' +
+          (val ? val : '<span style="color:#aaa">—</span>') +
+          "</td>";
+      });
+      html += "</tr>";
+    });
+
+    html += "</tbody></table></div>";
+    contentEl.innerHTML = html;
+  }
+
+  function getHistorialActionLabel(action) {
+    var labels = {
+      BORRADOR_CREAR: "Alta en borrador",
+      BORRADOR_EDITAR: "Edición en borrador",
+      BORRADOR_CREAR_MASIVO: "Alta masiva",
+      BORRADOR_EDITAR_MASIVO: "Edición masiva",
+      BORRADOR_BULK: "Asignación masiva",
+      BORRADOR_ELIMINAR: "Eliminación en borrador",
+      BORRADOR_COPIAR_MES: "Copia de mes",
+      BORRADOR_ELIMINADO: "Borrador eliminado",
+      VALIDAR: "Validación",
+      REVALIDAR: "Revalidación",
+    };
+    return labels[action] || action || "Cambio";
+  }
+
+  async function loadAsignacionesHistorial() {
+    var filters = getHistorialFilters();
+    var uiFilters = getHistorialUiFilters();
+    if (!filters.periodo.anio || !filters.periodo.mes) {
+      showAlert("Selecciona primero el período del cuadrante.", "warning");
+      return;
+    }
+    if (!filters.agentIds.length) {
+      showAlert(
+        "Marca al menos un agente en la tabla para consultar el historial.",
+        "warning",
+      );
+      return;
+    }
+    if (!filters.borradorId) {
+      showAlert(
+        "Selecciona un borrador para consultar el historial exacto del cuadrante.",
+        "warning",
+      );
+      return;
+    }
+
+    var contentEl = document.getElementById("asigHistorialContent");
+    var pdfBtn = document.getElementById("btnAsigHistorialPdf");
+    if (!contentEl) return;
+
+    contentEl.innerHTML =
+      '<div class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Cargando historial...</div>';
+    renderHistorialResumen(0, filters);
+    if (pdfBtn) pdfBtn.disabled = true;
+
+    try {
+      var queryString = buildHistorialQueryString(uiFilters);
+      var response = await fetch("/api/asignaciones/historial?" + queryString, {
+        headers: headers(),
+      });
+      if (!response.ok)
+        throw new Error("No se pudo cargar el historial del cuadrante");
+      var data = await response.json();
+      var logs = Array.isArray(data.logs) ? data.logs : [];
+      var total = Number(data.total || 0);
+
+      var dateSourceLogs =
+        Array.isArray(app.asignacionesState.historialDateSourceLogs) &&
+        app.asignacionesState.historialDateSourceLogs.length
+          ? app.asignacionesState.historialDateSourceLogs
+          : logs;
+
+      app.asignacionesState.historialLogs = logs;
+      renderHistorialResumen(total, filters);
+      populateHistorialUsers(logs);
+      populateHistorialDates(dateSourceLogs);
+      renderHistorialContent(logs, filters);
+      if (pdfBtn) {
+        pdfBtn.disabled = !logs.length;
+        pdfBtn.dataset.query = queryString;
+      }
+    } catch (error) {
+      contentEl.innerHTML =
+        '<div class="alert alert-danger mb-0">' +
+        app.escapeHtml(error.message || "Error al cargar historial") +
+        "</div>";
+      if (pdfBtn) {
+        pdfBtn.disabled = true;
+        delete pdfBtn.dataset.query;
+      }
+    }
+  }
+
+  async function openAsignacionesHistorialModal() {
+    var filters = getHistorialFilters();
+    if (!filters.agentIds.length) {
+      showAlert(
+        "Marca al menos un agente en la tabla para consultar el historial.",
+        "warning",
+      );
+      return;
+    }
+    var modalEl = document.getElementById("modalHistorialAsignaciones");
+    if (!modalEl) return;
+    ensureHistorialFilterControls();
+    resetHistorialUiFilters();
+    app.asignacionesState.historialDateSourceLogs = [];
+    if (!modalEl.dataset.historialShownBound) {
+      modalEl.dataset.historialShownBound = "1";
+      modalEl.addEventListener("hide.bs.modal", function () {
+        if (document.activeElement && modalEl.contains(document.activeElement)) {
+          document.activeElement.blur();
+        }
+      });
+    }
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    // No cargamos automáticamente — el usuario pulsa «Consultar»
+    var contentEl = document.getElementById("asigHistorialContent");
+    if (contentEl) {
+      contentEl.innerHTML = '<div class="text-center text-muted py-4">Selecciona los filtros y pulsa <strong>Consultar</strong> para cargar el historial.</div>';
+    }
+    var pdfBtn = document.getElementById("btnAsigHistorialPdf");
+    if (pdfBtn) pdfBtn.disabled = true;
+    renderHistorialResumen(0, getHistorialFilters());
+    updateHistorialApplyButtonState();
+    await preloadAsignacionesHistorialFilterOptions();
+  }
+
+  function buildServiciosMap(serviciosRows, keyField) {
+    const map = new Map();
+    (serviciosRows || []).forEach(function (s) {
+      const key = Number(s[keyField]);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push({
+        id: Number(s.actividad_id),
+        label: s.actividad_codigo || s.actividad_nombre || "#" + s.actividad_id,
+      });
+    });
+    return map;
+  }
+
+  // Refactor: Acualizacion de una unica celda 202060404 FPM 17:20
+  // ★ REFACTOR: Actualizar el state local con la respuesta del upsert
+  function updateStateFromUpsert(asignacion) {
+    var cuadrante = app.asignacionesState.cuadrante;
+    if (!cuadrante) return;
+
+    var agenteId = Number(asignacion.agente_id);
+    var fecha = String(asignacion.fecha).slice(0, 10);
+
+    // Actualizar array de borrador
+    if (cuadrante.borrador) {
+      var idx = -1;
+      for (var i = 0; i < cuadrante.borrador.length; i++) {
+        if (
+          Number(cuadrante.borrador[i].agente_id) === agenteId &&
+          String(cuadrante.borrador[i].fecha).slice(0, 10) === fecha
+        ) {
+          idx = i;
+          break;
+        }
+      }
+      if (idx >= 0) {
+        cuadrante.borrador[idx] = asignacion;
+      } else {
+        cuadrante.borrador.push(asignacion);
+      }
+    }
+
+    // Actualizar array de servicios del borrador
+    if (cuadrante.borradorServicios) {
+      cuadrante.borradorServicios = cuadrante.borradorServicios.filter(
+        function (s) {
+          return Number(s.asignacion_borrador_id) !== Number(asignacion.id);
+        },
+      );
+      (asignacion.servicios || []).forEach(function (s) {
+        cuadrante.borradorServicios.push({
+          asignacion_borrador_id: asignacion.id,
+          actividad_id: s.actividad_id,
+          actividad_codigo: s.actividad_codigo,
+          actividad_nombre: s.actividad_nombre,
+        });
+      });
+    }
+  }
+
+  // ★ REFACTOR: Actualizar solo la celda Tabulator modificada sin re-render completo
+  function updateCell(asignacion) {
+    var agenteId = Number(asignacion.agente_id);
+    var fecha = String(asignacion.fecha).slice(0, 10);
+
+    // 1. Actualizar el state
+    updateStateFromUpsert(asignacion);
+
+    // Tabulator-only flow: update row data directly without DOM manipulation.
+    if (!asigTabulator) return;
+
+    var rows = asigTabulator.getRows();
+    var row = null;
+    for (var ri = 0; ri < rows.length; ri++) {
+      if (Number(rows[ri].getData().agente_id) === agenteId) {
+        row = rows[ri];
+        break;
+      }
+    }
+    if (!row) return;
+
+    var tCode = asignacion.turno_codigo || "";
+    var tName = asignacion.turno_nombre || "";
+    var tLabel = tName ? tCode + " · " + tName : tCode || "-";
+    var tColor = asignacion.turno_color || "#6c757d";
+    var tServs = asignacion.servicios || [];
+    // Map to {id, label} format expected by the Tabulator day-column formatter.
+    var tServsMapped = tServs.map(function (s) {
+      return {
+        id: Number(s.actividad_id),
+        label: s.actividad_codigo || s.actividad_nombre || "#" + s.actividad_id,
+      };
+    });
+    var tObs = asignacion.observaciones || "";
+    var updateObj = {};
+    updateObj["dia_" + fecha] = {
+      asignacionId: asignacion.id || null,
+      turnoLabel: tLabel,
+      turnoColor: tColor,
+      turno_id: Number(asignacion.turno_id),
+      servicios: tServsMapped,
+      actividad_ids: tServs.map(function (s) {
+        return Number(s.actividad_id);
+      }),
+      observaciones: tObs || null,
+      revision: asignacion.revision != null ? Number(asignacion.revision) : null,
+    };
+    row.update(updateObj);
+  }
+  function attachSelectFilter(inputEl, selectEl) {
+    if (!inputEl || !selectEl) return;
+    inputEl.addEventListener("input", function () {
+      var term = normalizeSearchText(inputEl.value);
+      for (var i = 0; i < selectEl.options.length; i++) {
+        var opt = selectEl.options[i];
+        var text = normalizeSearchText(opt.text);
+        opt.style.display = text.indexOf(term) !== -1 ? "" : "none";
+      }
+    });
+  }
+
+  function ensureConfirmBorradorModal() {
+    var existing = document.getElementById("asigConfirmDeleteBorradorModal");
+    if (existing) return existing;
+
+    var wrapper = document.createElement("div");
+    wrapper.innerHTML =
+      '<div class="modal fade" id="asigConfirmDeleteBorradorModal" tabindex="-1" aria-labelledby="asigConfirmDeleteBorradorLabel" aria-hidden="true">' +
+      '<div class="modal-dialog">' +
+      '<div class="modal-content shadow">' +
+      '<div class="modal-header" style="background: #dc3545; color: #fff; border-bottom: 1px solid #dc3545;">' +
+      '<h5 class="modal-title" id="asigConfirmDeleteBorradorLabel"><i class="bi bi-exclamation-triangle me-2"></i>Confirmar eliminación</h5>' +
+      '<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>' +
+      "</div>" +
+      '<div class="modal-body">' +
+      '<div class="alert alert-warning mb-3"><strong>Atención:</strong> Para eliminar este borrador, todas las celdas deben estar vacías. ' +
+      "Esta acción no se puede deshacer!</div>" +
+      '<p class="mb-1"><strong>Borrador:</strong></p>' +
+      '<div id="asigConfirmBorradorNombre" class="mb-3 p-2 bg-light rounded border" style="font-size:.95rem;"></div>' +
+      '<p class="text-muted mb-0" style="font-size:.9rem;">¿Desea continuar con la eliminación?</p>' +
+      "</div>" +
+      '<div class="modal-footer d-flex justify-content-between align-items-center">' +
+      '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>' +
+      '<button type="button" class="btn btn-danger" id="btnConfirmDeleteBorrador"><i class="bi bi-trash me-1"></i>Eliminar</button>' +
+      "</div>" +
+      "</div>" +
+      "</div>" +
+      "</div>";
+    document.body.appendChild(wrapper.firstChild);
+    var modal = document.getElementById("asigConfirmDeleteBorradorModal");
+    makeModalDraggable(modal);
+    return modal;
+  }
+
+  function ensureAsignacionCellModal() {
+    var existing = document.getElementById("asigCellModal");
+    if (existing) {
+      existing.parentNode.removeChild(existing);
+    }
+    // Obliga a recrear el modal para evitar problemas de estado interno al editar varias celdas seguidas --
+    // Modal para asignar acividades/Servicios a una celda (agente + día)
+    var wrapper = document.createElement("div");
+    wrapper.innerHTML = `
+      <div class="modal fade" id="asigCellModal" tabindex="-1" aria-labelledby="asigCellModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content shadow">
+            <div class="modal-header" style="background: var(--primary-gc-color); color: #fff; border-bottom: 1px solid var(--primary-gc-color);">
+              <h5 class="modal-title" id="asigCellModalLabel"><i class="bi bi-calendar2-week me-2"></i>Editar asignación</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+              <div id="asigCellContext" class="text-muted mb-3" style="font-size:.98rem"></div>
+              <div class="row g-2">
+                <div class="col-md-4">
+                  <label class="form-label mb-1">Turno</label>
+                  <select id="asigCellTurno" class="form-select form-select-sm py-1" style="min-height:2.1em;"></select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label mb-1">Día(s)</label>
+                  <div class="d-flex align-items-center mb-1">
+                    <input type="checkbox" id="asigCellCheckAllDias" class="form-check-input me-2">
+                    <label for="asigCellCheckAllDias" class="form-check-label mb-0" style="cursor:pointer;font-size:.95em">Marcar todos</label>
+                  </div>
+                  <select id="asigCellDia" class="form-select form-select-sm py-1" multiple size="6" style="min-height:2.1em;"></select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label mb-1">Servicios/Actividades</label>
+                  <input type="text" id="asigCellFilterActividades" class="form-control form-control-sm mb-1" placeholder="Buscar actividad..." style="font-size:.85em">
+                  <select id="asigCellActividades" class="form-select form-select-sm py-1" multiple size="6" style="min-height:2.1em;"></select>
+                  <div class="form-text" style="font-size:.85em">Ctrl/Cmd para múltiple</div>
+                </div>
+                <div class="col-12 mt-2">
+                  <label class="form-label mb-1">Observaciones</label>
+                  <textarea id="asigCellObservaciones" class="form-control form-control-sm" rows="2" maxlength="500" placeholder="Añadir observaciones..."></textarea>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer d-flex justify-content-between align-items-center">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+              <button type="button" class="btn btn-primary" id="btnSaveAsigCell"><i class="bi bi-check2 me-1"></i>Guardar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(wrapper.firstElementChild);
+    var modal = document.getElementById("asigCellModal");
+    makeModalDraggable(modal);
+    return modal;
+  }
+
+  function ensureAsignacionesBulkModal() {
+    var existing = document.getElementById("asigBulkModal");
+    if (existing) return existing;
+
+    var wrapper = document.createElement("div");
+    wrapper.innerHTML = `
+      <div class="modal fade" id="asigBulkModal" tabindex="-1" aria-labelledby="asigBulkModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content shadow">
+            <div class="modal-header" style="background: var(--primary-gc-color); color: #fff; border-bottom: 1px solid var(--primary-gc-color);">
+              <h5 class="modal-title" id="asigBulkModalLabel"><i class="bi bi-grid-3x3-gap me-2"></i>Asignación masiva</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+              <div class="row g-2">
+                <div class="col-12 d-none" id="asigBulkSelectionWarningWrap">
+                  <div class="alert alert-warning py-1 mb-1" id="asigBulkSelectionWarning" style="font-size:.85em;">
+                    Debe seleccionar al menos un agente para aplicar la asignación masiva.
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label mb-1">Agentes</label>
+                  <input type="text" id="asigBulkFilterAgentes" class="form-control form-control-sm mb-1" placeholder="Buscar agente..." style="font-size:.85em">
+                  <div class="d-flex align-items-center mb-1">
+                    <input type="checkbox" id="asigBulkCheckAllAgentes" class="form-check-input me-2">
+                    <label for="asigBulkCheckAllAgentes" class="form-check-label mb-0" style="cursor:pointer;font-size:.95em">Marcar todos</label>
+                  </div>
+                  <select id="asigBulkAgentes" class="form-select form-select-sm py-1" multiple size="8" style="min-height:2.1em;"></select>
+                  <div id="asigBulkAgentesHint" class="form-text" style="font-size:.8em"></div>
+                  <div id="asigBulkSelectedCount" class="form-text" style="font-size:.8em"></div>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label mb-1">Día(s)</label>
+                  <div class="d-flex align-items-center mb-1">
+                    <input type="checkbox" id="asigBulkCheckAllDias" class="form-check-input me-2">
+                    <label for="asigBulkCheckAllDias" class="form-check-label mb-0" style="cursor:pointer;font-size:.95em">Marcar todos</label>
+                  </div>
+                  <select id="asigBulkDias" class="form-select form-select-sm py-1" multiple size="8" style="min-height:2.1em;"></select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label mb-1">Turno</label>
+                  <select id="asigBulkTurno" class="form-select form-select-sm py-1" style="min-height:2.1em;"></select>
+                  <label class="form-label mb-1 mt-2">Servicios/Actividades</label>
+                  <input type="text" id="asigBulkFilterActividades" class="form-control form-control-sm mb-1" placeholder="Buscar actividad..." style="font-size:.85em">
+                  <select id="asigBulkActividades" class="form-select form-select-sm py-1" multiple size="6" style="min-height:2.1em;"></select>
+                  <div class="form-text" style="font-size:.85em">Ctrl/Cmd para múltiple</div>
+                </div>
+                <div class="col-12 mt-2">
+                  <label class="form-label mb-1">Observaciones</label>
+                  <textarea id="asigBulkObservaciones" class="form-control form-control-sm" rows="2" maxlength="500" placeholder="Añadir observaciones..."></textarea>
+                </div>
+                <div class="col-12 mt-2 d-none" id="asigBulkProgressWrap">
+                  <div class="progress" role="progressbar" aria-label="Progreso de asignación masiva" aria-valuemin="0" aria-valuemax="100">
+                    <div id="asigBulkProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width:0%" aria-valuenow="0">0%</div>
+                  </div>
+                  <div id="asigBulkProgressText" class="form-text mt-1">Procesando...</div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer d-flex justify-content-between align-items-center">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+              <button type="button" class="btn btn-primary" id="btnSaveAsigBulk"><i class="bi bi-check2 me-1"></i>Aplicar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(wrapper.firstElementChild);
+    var modal = document.getElementById("asigBulkModal");
+    makeModalDraggable(modal);
+    return modal;
+  }
+
+  function ensureAsignacionesDeleteModal() {
+    var existing = document.getElementById("asigDeleteModal");
+    if (existing) return existing;
+
+    var wrapper = document.createElement("div");
+    wrapper.innerHTML =
+      '<div class="modal fade" id="asigDeleteModal" tabindex="-1" aria-labelledby="asigDeleteModalLabel" aria-hidden="true">' +
+      '<div class="modal-dialog">' +
+      '<div class="modal-content shadow">' +
+      '<div class="modal-header" style="background: #dc3545; color: #fff; border-bottom: 1px solid #dc3545;">' +
+      '<h5 class="modal-title" id="asigDeleteModalLabel"><i class="bi bi-eraser me-2"></i>Eliminar asignaciones</h5>' +
+      '<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>' +
+      "</div>" +
+      '<div class="modal-body">' +
+      '<div class="alert alert-warning mb-3"><strong>Atención:</strong> Esta acción no se puede deshacer!.</div>' +
+      '<label class="form-label mb-1">Agentes</label>' +
+      '<input type="text" id="asigDeleteFilterAgentes" class="form-control form-control-sm mb-1" placeholder="Buscar agente..." style="font-size:.85em">' +
+      '<div class="d-flex align-items-center mb-1">' +
+      '<input type="checkbox" id="asigDeleteCheckAllAgentes" class="form-check-input me-2">' +
+      '<label for="asigDeleteCheckAllAgentes" class="form-check-label mb-0" style="cursor:pointer;font-size:.95em">Marcar todos</label>' +
+      "</div>" +
+      '<select id="asigDeleteAgentes" class="form-select form-select-sm py-1" multiple size="8" style="min-height:2.1em;"></select>' +
+      '<div id="asigDeleteAgentesHint" class="form-text"></div>' +
+      '<label class="form-label mb-1 mt-2">Fechas visibles del cuadrante</label>' +
+      '<div class="d-flex align-items-center mb-1">' +
+      '<input type="checkbox" id="asigDeleteCheckAllFechas" class="form-check-input me-2">' +
+      '<label for="asigDeleteCheckAllFechas" class="form-check-label mb-0" style="cursor:pointer;font-size:.95em">Marcar todas</label>' +
+      "</div>" +
+      '<div id="asigDeleteDates" class="d-flex gap-2 overflow-auto pb-2"></div>' +
+      '<div id="asigDeleteDatesSummary" class="form-text">Seleccione una o varias fechas visibles del cuadrante.</div>' +
+      "</div>" +
+      '<div class="modal-footer d-flex justify-content-between align-items-center">' +
+      '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>' +
+      '<button type="button" class="btn btn-danger" id="btnRunAsigDelete"><i class="bi bi-trash me-1"></i>Eliminar</button>' +
+      "</div>" +
+      "</div>" +
+      "</div>" +
+      "</div>";
+    document.body.appendChild(wrapper.firstChild);
+    var modal = document.getElementById("asigDeleteModal");
+    makeModalDraggable(modal);
+    return modal;
+  }
+
+  function ensureAsignacionesCopyModal() {
+    var existing = document.getElementById("asigCopyModal");
+    if (existing) return existing;
+
+    var wrapper = document.createElement("div");
+    wrapper.innerHTML =
+      '<div class="modal fade" id="asigCopyModal" tabindex="-1" aria-labelledby="asigCopyModalLabel" aria-hidden="true">' +
+      '<div class="modal-dialog modal-lg">' +
+      '<div class="modal-content shadow">' +
+      '<div class="modal-header" style="background: var(--primary-gc-color); color: #fff; border-bottom: 1px solid var(--primary-gc-color);">' +
+      '<h5 class="modal-title" id="asigCopyModalLabel"><i class="bi bi-files me-2"></i>Copiar mes</h5>' +
+      '<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>' +
+      "</div>" +
+      '<div class="modal-body">' +
+      '<div class="row g-2">' +
+      '<div class="col-6"><label class="form-label mb-1">Origen año</label><input id="asigCopyOrigenAnio" type="number" class="form-control form-control-sm"></div>' +
+      '<div class="col-6"><label class="form-label mb-1">Origen mes</label><select id="asigCopyOrigenMes" class="form-select form-select-sm"></select></div>' +
+      '<div class="col-6"><label class="form-label mb-1">Destino año</label><input id="asigCopyDestinoAnio" type="number" class="form-control form-control-sm"></div>' +
+      '<div class="col-6"><label class="form-label mb-1">Destino mes</label><select id="asigCopyDestinoMes" class="form-select form-select-sm"></select></div>' +
+      '<div class="col-12 mt-2">' +
+      '<label class="form-label mb-1">Agentes (opcional)</label>' +
+      '<select id="asigCopyAgentes" class="form-select form-select-sm py-1" multiple size="6" style="min-height:2.1em;"></select>' +
+      "</div>" +
+      '<div class="col-12 mt-2">' +
+      '<label class="form-label mb-1">Fechas visibles del cuadrante (opcional)</label>' +
+      '<div class="d-flex align-items-center mb-1">' +
+      '<input type="checkbox" id="asigCopyCheckAllFechas" class="form-check-input me-2">' +
+      '<label for="asigCopyCheckAllFechas" class="form-check-label mb-0" style="cursor:pointer;font-size:.95em">Marcar todas</label>' +
+      "</div>" +
+      '<div id="asigCopyDates" class="d-flex gap-2 overflow-auto pb-2"></div>' +
+      '<div id="asigCopyDatesSummary" class="form-text">Seleccione una o varias fechas visibles del cuadrante.</div>' +
+      "</div>" +
+      "</div>" +
+      "</div>" +
+      '<div class="modal-footer d-flex justify-content-between align-items-center">' +
+      '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>' +
+      '<button type="button" class="btn btn-primary" id="btnRunAsigCopy"><i class="bi bi-files me-1"></i>Copia Servicios</button>' +
+      "</div>" +
+      "</div>" +
+      "</div>" +
+      "</div>";
+    document.body.appendChild(wrapper.firstChild);
+    var modal = document.getElementById("asigCopyModal");
+    makeModalDraggable(modal);
+    return modal;
+  }
+
+  function fillAgenteOptions(selectEl, options) {
+    if (!selectEl) return;
+    const opts = options || {};
+    const onlySelectedForBulk = !!opts.onlySelectedForBulk;
+    const preselectSelected = !!opts.preselectSelected;
+    const selectedIds = new Set(
+      (app.asignacionesState.selectedAgenteIdsVista || [])
+        .concat(app.globalState.selectedAgenteIdsForBulk || [])
+        .map(Number)
+        .filter(function (id) {
+          return Number.isFinite(id) && id > 0;
+        }),
+    );
+    var agentes = app.asignacionesState.meta?.agentes || [];
+
+    if (onlySelectedForBulk) {
+      agentes = agentes.filter(function (a) {
+        return selectedIds.has(Number(a.id_agente));
+      });
+    }
+
+    selectEl.innerHTML = agentes
+      .map(function (a) {
+        const id = Number(a.id_agente);
+        const label = (a.tip ? a.tip + " · " : "") + agenteNombre(a);
+        return (
+          '<option value="' +
+          id +
+          '">' +
+          app.escapeHtml(label || "Agente #" + id) +
+          "</option>"
+        );
+      })
+      .join("");
+
+    if (opts.preselectAll) {
+      for (var i = 0; i < selectEl.options.length; i++) {
+        selectEl.options[i].selected = true;
+      }
+    } else if (preselectSelected) {
+      for (var j = 0; j < selectEl.options.length; j++) {
+        var optId = Number(selectEl.options[j].value);
+        selectEl.options[j].selected = selectedIds.has(optId);
+      }
+    }
+
+    if (opts.hintEl) {
+      if (onlySelectedForBulk && !agentes.length) {
+        opts.hintEl.textContent =
+          "No hay agentes marcados en la vista de cuadrante.";
+      } else if (onlySelectedForBulk) {
+        opts.hintEl.textContent =
+          "Se muestran " + agentes.length + " agente(s) seleccionados.";
+      } else {
+        opts.hintEl.textContent = "";
+      }
+    }
+  }
+
+  function fillTurnosOptions(selectEl, selectedId) {
+    if (!selectEl) return;
+    const turnos = app.asignacionesState.meta?.turnos || [];
+    selectEl.innerHTML =
+      '<option value="">Seleccione turno...</option>' +
+      turnos
+        .map(function (t) {
+          const id = Number(t.id_turno);
+          const selected = Number(selectedId) === id ? " selected" : "";
+          const label = (t.codigo || "") + " · " + (t.nombre || "");
+          return (
+            '<option value="' +
+            id +
+            '"' +
+            selected +
+            ">" +
+            app.escapeHtml(label.trim()) +
+            "</option>"
+          );
+        })
+        .join("");
+  }
+
+  function fillActividadesOptions(selectEl, selectedIds) {
+    if (!selectEl) return;
+    const set = new Set((selectedIds || []).map(Number));
+    const actividades = app.asignacionesState.meta?.actividades || [];
+    selectEl.innerHTML = actividades
+      .map(function (a) {
+        const id = Number(a.id_actividad);
+        const selected = set.has(id) ? " selected" : "";
+        const label = (a.codigo || "") + " · " + (a.nombre || "");
+        return (
+          '<option value="' +
+          id +
+          '"' +
+          selected +
+          ">" +
+          app.escapeHtml(label.trim()) +
+          "</option>"
+        );
+      })
+      .join("");
+  }
+
+  app.openAsignacionCellModal = function openAsignacionCellModal(payload) {
+    // Añadir funcionalidad al checkbox "Marcar todos los días"
+    setTimeout(function () {
+      const checkAll = document.getElementById("asigCellCheckAllDias");
+      const diaEl = document.getElementById("asigCellDia");
+      if (checkAll && diaEl) {
+        checkAll.onclick = function () {
+          for (let i = 0; i < diaEl.options.length; i++) {
+            diaEl.options[i].selected = checkAll.checked;
+          }
+        };
+      }
+    }, 0);
+    const modalEl = ensureAsignacionCellModal();
+    if (!modalEl) {
+      alert("No se pudo crear el modal de asignación.");
+      console.error("[ASIG] No se pudo crear el modal de asignación");
+      return;
+    } else {
+      console.log("[ASIG] Modal insertado en el DOM:", modalEl);
+    }
+    const contextEl = document.getElementById("asigCellContext");
+    const turnoEl = document.getElementById("asigCellTurno");
+    const diaEl = document.getElementById("asigCellDia");
+    const actividadesEl = document.getElementById("asigCellActividades");
+    const obsEl = document.getElementById("asigCellObservaciones");
+    const saveBtn = document.getElementById("btnSaveAsigCell");
+
+    if (!turnoEl || !diaEl || !actividadesEl || !obsEl || !saveBtn) return;
+
+    // Limpia cualquier evento previo para evitar duplicados
+    const newSaveBtn = saveBtn.cloneNode(true);
+    saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
+    const actualSaveBtn = document.getElementById("btnSaveAsigCell");
+
+    // Restaurar el handler real asíncrono
+    actualSaveBtn.onclick = async function () {
+      // Log de todas las opciones del select de días
+      const allOptions = Array.from(diaEl.options).map((opt) => ({
+        value: opt.value,
+        selected: opt.selected,
+        text: opt.text,
+        date: opt.getAttribute("data-date"),
+      }));
+
+      const selectedOptions = Array.from(diaEl.options).filter(
+        (opt) => opt.selected,
+      );
+      const periodo = getPeriodo();
+      const diasPayload = selectedOptions
+        .map((opt) => {
+          const fecha = opt.getAttribute("data-date");
+          return {
+            anio: periodo.anio,
+            mes: periodo.mes,
+            dia: 1,
+            fecha,
+          };
+        })
+        .filter((d) => d.anio && d.mes && d.fecha);
+
+      const turnoId = Number(turnoEl.value || 0);
+      const actividadIds = Array.from(actividadesEl.selectedOptions)
+        .map((opt) => Number(opt.value))
+        .filter(Boolean);
+      if (!turnoId) {
+        showAlert("Debe seleccionar un turno", "warning");
+        return;
+      }
+      if (!actividadIds.length) {
+        showAlert("Debe seleccionar al menos una actividad", "warning");
+        return;
+      }
+      if (!diasPayload.length) {
+        showAlert("Debe seleccionar al menos un día", "warning");
+        return;
+      }
+
+      try {
+        var upsertResults = [];
+
+        // ★ REFACTOR: Si hay más de 1 día, usar /bulk en vez de N llamadas a /upsert
+        if (diasPayload.length > 1) {
+          const bulkBody = {
+            anio: diasPayload[0].anio,
+            mes: diasPayload[0].mes,
+            borrador_id: getSelectedBorradorId(),
+            agente_ids: [payload.agente_id],
+            dias: diasPayload.map(function (d) {
+              return d.fecha;
+            }),
+            turno_id: turnoId,
+            actividad_ids: actividadIds,
+            observaciones: obsEl.value.trim() || null,
+          };
+          const res = await fetch("/api/asignaciones/bulk", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + app.globalState.token,
+              "X-Asig-Client-Version": ASIG_FE_VERSION,
+            },
+            body: JSON.stringify(bulkBody),
+          });
+
+          let responseJson = null;
+          try {
+            responseJson = await res.json();
+          } catch (_) {
+            responseJson = null;
+          }
+
+          if (res.status === 409) {
+            showAlert("La celda fue modificada por otro usuario. Recargando cuadrante...", "warning");
+            await app.loadAsignacionesCuadrante();
+            return;
+          }
+
+          if (!res.ok || (responseJson && responseJson.ok === false)) {
+            throw new Error(
+              (responseJson && responseJson.message) ||
+                "No se pudo guardar la asignación masiva",
+            );
+          }
+
+          // Ojo aqui hemos tocado por si no funciona el bulk, revisar que el formato de respuesta es correcto y que se actualizan las celdas afectadas. Si va bien, eliminar el código de bulk y usar este formato para el upsert individual también, para unificar ambos caminos.
+          var bulkTurnoMeta = null;
+          var metaTurnos = (app.asignacionesState.meta || {}).turnos || [];
+          for (var ti = 0; ti < metaTurnos.length; ti++) {
+            if (Number(metaTurnos[ti].id_turno) === turnoId) {
+              bulkTurnoMeta = metaTurnos[ti];
+              break;
+            }
+          }
+          var bulkServicios = actividadIds.map(function (actId) {
+            var metaActs = (app.asignacionesState.meta || {}).actividades || [];
+            for (var ai = 0; ai < metaActs.length; ai++) {
+              if (Number(metaActs[ai].id_actividad) === actId) {
+                return {
+                  actividad_id: actId,
+                  actividad_codigo: metaActs[ai].codigo || "",
+                  actividad_nombre: metaActs[ai].nombre || "",
+                };
+              }
+            }
+            return {
+              actividad_id: actId,
+              actividad_codigo: "",
+              actividad_nombre: "#" + actId,
+            };
+          });
+
+          // Actualizar cada celda afectada
+          for (var di = 0; di < diasPayload.length; di++) {
+            updateCell({
+              agente_id: payload.agente_id,
+              fecha: String(diasPayload[di].fecha).slice(0, 10),
+              turno_id: turnoId,
+              turno_codigo: bulkTurnoMeta ? bulkTurnoMeta.codigo : "",
+              turno_color: bulkTurnoMeta ? bulkTurnoMeta.color : "#6c757d",
+              turno_nombre: bulkTurnoMeta ? bulkTurnoMeta.nombre : "",
+              observaciones: obsEl.value.trim() || null,
+              servicios: bulkServicios,
+            });
+          }
+
+          showAlert(
+            "Asignación guardada en borrador " +
+              ASIG_FE_VERSION +
+              " para " +
+              diasPayload.length +
+              " día(s)",
+            "success",
+          );
+        } else {
+          // ★ Un solo día: usar /upsert individual (rápido)
+          var d = diasPayload[0];
+          var body = {
+            anio: d.anio,
+            mes: d.mes,
+            borrador_id: getSelectedBorradorId(),
+            agente_id: payload.agente_id,
+            dia: d.dia,
+            fecha: d.fecha,
+            turno_id: turnoId,
+            actividad_ids: actividadIds,
+            observaciones: obsEl.value.trim() || null,
+            revision: payload.revision != null ? Number(payload.revision) : null,
+          };
+          var res = await fetch("/api/asignaciones/upsert", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + app.globalState.token,
+              "X-Asig-Client-Version": ASIG_FE_VERSION,
+            },
+            body: JSON.stringify(body),
+          });
+
+          var responseJson = null;
+          try {
+            responseJson = await res.json();
+          } catch (_) {
+            responseJson = null;
+          }
+
+          if (res.status === 409) {
+            showAlert("La celda fue modificada por otro usuario. Recargando cuadrante...", "warning");
+            await app.loadAsignacionesCuadrante();
+            return;
+          }
+
+          if (!res.ok || (responseJson && responseJson.ok === false)) {
+            var message =
+              responseJson && responseJson.message
+                ? responseJson.message
+                : "No se pudo guardar la asignación";
+            if (
+              responseJson &&
+              Array.isArray(responseJson.details) &&
+              responseJson.details.length
+            ) {
+              message +=
+                ": " +
+                (responseJson.details[0].message || "Error de validación");
+            }
+            throw new Error(message);
+          }
+
+          if (responseJson && responseJson.asignacion) {
+            updateCell(responseJson.asignacion);
+          }
+
+          showAlert(
+            "Asignación guardada en borrador " +
+              ASIG_FE_VERSION +
+              " para 1 día(s)",
+            "success",
+          );
+        }
+
+        // Cerrar el modal
+        const modalEl = document.getElementById("asigCellModal");
+        if (modalEl) {
+          const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+          modalInstance.hide();
+        }
+      } catch (e) {
+        showAlert(e.message, "danger");
+      }
+    };
+
+    const meta = app.asignacionesState.meta || {};
+    const turnos = meta.turnos || [];
+    const actividades = meta.actividades || [];
+    const p = getPeriodo();
+
+    if (contextEl) {
+      var fechaTxt =
+        payload.fecha ||
+        String(payload.anio) +
+          "-" +
+          String(payload.mes).padStart(2, "0") +
+          "-" +
+          String(payload.dia).padStart(2, "0");
+      contextEl.textContent =
+        "Agente: " +
+        (payload.agenteNombre || "#" + payload.agente_id) +
+        "  |  Fecha: " +
+        fechaTxt +
+        "  |  Período: " +
+        p.anio +
+        "/" +
+        String(p.mes).padStart(2, "0");
+    }
+
+    // Siempre usar el periodo de la cabecera del cuadrante
+    //Modal de Asignacion de Turnos y Diario de Actividades
+    let planningDays = [];
+
+    if (
+      app.asignacionesState &&
+      Array.isArray(app.asignacionesState.cuadranteDays)
+    ) {
+      planningDays = app.asignacionesState.cuadranteDays;
+    } else {
+      // Cogemos el periodo de la cabecera del cuadrante, no del payload, para evitar problemas si el usuario ha cambiado el periodo mientras tenía abierto el modal
+      planningDays = getPlanningWindow(p.anio, p.mes);
+    }
+    // Seleccionar el día actual si no hay días en payload
+    let diasSeleccionados = [];
+    if (Array.isArray(payload.dias) && payload.dias.length) {
+      diasSeleccionados = payload.dias.map(Number);
+    } else if (payload.dia) {
+      diasSeleccionados = [Number(payload.dia)];
+    }
+    diaEl.innerHTML = planningDays
+      .map(function (day) {
+        const selected = diasSeleccionados.includes(Number(day.dia))
+          ? " selected"
+          : "";
+        return `<option value="${day.dia}" data-date="${day.key}" data-anio="${day.anio}" data-mes="${day.mes}"${selected}>${day.label} ${day.labelDate}</option>`;
+      })
+      .join("");
+    // Si no hay ningún día seleccionado, seleccionar el primero por defecto
+    if (!diasSeleccionados.length && diaEl.options.length > 0) {
+      diaEl.options[0].selected = true;
+    }
+
+    // Mostrar los turnos como badges de color en el select
+    // Restaurar select clásico de turnos con opciones
+    turnoEl.innerHTML =
+      '<option value="">Seleccione turno...</option>' +
+      turnos
+        .map(function (t) {
+          const selected =
+            Number(t.id_turno) === Number(payload.turno_id) ? " selected" : "";
+          const label = (t.codigo || "") + " · " + (t.nombre || "");
+          return (
+            '<option value="' +
+            t.id_turno +
+            '"' +
+            selected +
+            ">" +
+            app.escapeHtml(label.trim()) +
+            "</option>"
+          );
+        })
+        .join("");
+
+    actividadesEl.innerHTML = actividades
+      .map(function (a) {
+        const id = Number(a.id_actividad);
+        const selected = (payload.actividad_ids || []).includes(id)
+          ? " selected"
+          : "";
+        const label = (a.codigo || "") + " · " + (a.nombre || "");
+        return (
+          '<option value="' +
+          id +
+          '"' +
+          selected +
+          ">" +
+          app.escapeHtml(label.trim()) +
+          "</option>"
+        );
+      })
+      .join("");
+
+    obsEl.value = payload.observaciones || "";
+
+    // Filtro de búsqueda en actividades
+    var filterActCell = document.getElementById("asigCellFilterActividades");
+    if (filterActCell) {
+      filterActCell.value = "";
+      attachSelectFilter(filterActCell, actividadesEl);
+    }
+
+    try {
+      bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    } catch (e) {
+      alert("Error al mostrar el modal: " + e.message);
+      console.error("[ASIG] Error al mostrar el modal:", e);
+    }
+  };
+  // Nueva funcion que cuenta los agentes con el cuadrante completo (sin días sin asignar) y la muestra en el resumen de meta
+  function countAgentesConCuadranteCompleto(data, anio, mes) {
+    if (!data || !anio || !mes) return 0;
+
+    var planningDays = getPlanningWindow(anio, mes);
+    var totalDays = planningDays.length;
+    if (!totalDays) return 0;
+
+    var dayKeys = new Set(
+      planningDays.map(function (d) {
+        return d.key;
+      }),
+    );
+    var isBorrador = !!(data.control && data.control.borrador_id && data.control.estado !== 'sin_borrador');
+    var sourceRows = isBorrador ? (data.borrador || []) : (data.definitivo || []);
+
+    var assignedByAgente = new Map();
+    sourceRows.forEach(function (r) {
+      var agenteId = normalizeAgenteId(r.agente_id);
+      var fecha = r.fecha
+        ? String(r.fecha).slice(0, 10)
+        : String(r.anio) +
+          "-" +
+          String(r.mes).padStart(2, "0") +
+          "-" +
+          String(r.dia).padStart(2, "0");
+
+      if (!dayKeys.has(fecha)) return;
+      if (!assignedByAgente.has(agenteId))
+        assignedByAgente.set(agenteId, new Set());
+      assignedByAgente.get(agenteId).add(fecha);
+    });
+
+    var agentesMeta =
+      (app.asignacionesState.meta && app.asignacionesState.meta.agentes) || [];
+    var agenteIds = agentesMeta.length
+      ? agentesMeta.map(function (a) {
+          return normalizeAgenteId(a.id_agente);
+        })
+      : Array.from(assignedByAgente.keys());
+
+    var completos = 0;
+    agenteIds.forEach(function (agenteId) {
+      var fechas = assignedByAgente.get(agenteId);
+      if (fechas && fechas.size === totalDays) completos += 1;
+    });
+
+    return completos;
+  }
+
+  function countAppliedTurnosYServicios(data, anio, mes) {
+    if (!data || !anio || !mes) {
+      return { turnosAplicados: 0, serviciosAplicados: 0 };
+    }
+
+    var planningDays = getPlanningWindow(anio, mes);
+    if (!planningDays.length) {
+      return { turnosAplicados: 0, serviciosAplicados: 0 };
+    }
+
+    var dayKeys = new Set(
+      planningDays.map(function (d) {
+        return d.key;
+      }),
+    );
+    var isBorrador = !!(data.control && data.control.borrador_id && data.control.estado !== 'sin_borrador');
+    var sourceRows = isBorrador ? (data.borrador || []) : (data.definitivo || []);
+    var serviciosByAsig = isBorrador
+      ? buildServiciosMap(data.borradorServicios, "asignacion_borrador_id")
+      : buildServiciosMap(data.definitivoServicios, "asignacion_id");
+
+    var usedTurnos = new Set();
+    var usedServicios = new Set();
+
+    sourceRows.forEach(function (r) {
+      var fecha = r.fecha
+        ? String(r.fecha).slice(0, 10)
+        : String(r.anio) +
+          "-" +
+          String(r.mes).padStart(2, "0") +
+          "-" +
+          String(r.dia).padStart(2, "0");
+
+      if (!dayKeys.has(fecha)) return;
+
+      var turnoId = Number(r.turno_id);
+      if (turnoId) usedTurnos.add(turnoId);
+
+      var servicios = serviciosByAsig.get(Number(r.id)) || [];
+      if (servicios.length) {
+        servicios.forEach(function (s) {
+          var id = Number(s.id);
+          if (id) usedServicios.add(id);
+        });
+        return;
+      }
+
+      (Array.isArray(r.actividad_ids) ? r.actividad_ids : []).forEach(
+        function (id) {
+          var n = Number(id);
+          if (n) usedServicios.add(n);
+        },
+      );
+
+      (Array.isArray(r.servicios) ? r.servicios : []).forEach(function (s) {
+        var n = Number(s && (s.actividad_id || s.id));
+        if (n) usedServicios.add(n);
+      });
+    });
+
+    return {
+      turnosAplicados: usedTurnos.size,
+      serviciosAplicados: usedServicios.size,
+    };
+  }
+
+  //Cambio para mostrar el número de agentes con cuadrante completo en el resumen de meta
+  function renderMetaResumen(meta, extras) {
+    const el = document.getElementById("asigMetaResumen");
+    if (!el) return;
+
+    const safe = function (n) {
+      return Number(n || 0);
+    };
+    const extra = extras || {};
+    const totalAgentes = safe(meta?.agentes?.length);
+    const agentesMarcados = safe(extra.agentesMarcados);
+    const cards = [
+      {
+        label: "Agentes / Marcados",
+        value: totalAgentes + " / " + agentesMarcados,
+      },
+      {
+        label: "Agentes con cuadrante completo",
+        value: safe(extra.agentesConCuadranteCompleto),
+      },
+      { label: "Turnos", value: safe(extra.turnosAplicados) },
+      { label: "Servicios", value: safe(extra.serviciosAplicados) },
+      { label: "Empleos", value: safe(meta?.empleos?.length) },
+      { label: "Pelotones", value: safe(meta?.pelotones?.length) },
+      { label: "Situaciones", value: safe(meta?.situaciones?.length) },
+    ];
+
+    el.innerHTML = cards
+      .map(function (c) {
+        return (
+          '<div class="col">' +
+          '<div class="border rounded p-1 bg-light">' +
+          '<div class="text-muted" style="font-size:.68rem;line-height:1.1">' +
+          app.escapeHtml(c.label) +
+          "</div>" +
+          '<div class="fw-semibold" style="font-size:.92rem;line-height:1.2">' +
+          app.escapeHtml(String(c.value)) +
+          "</div>" +
+          "</div>" +
+          "</div>"
+        );
+      })
+      .join("");
+  }
+
+  function refreshMetaResumenFromState() {
+    var meta = app.asignacionesState.meta || {};
+    var extras = {
+      agentesConCuadranteCompleto: 0,
+      turnosAplicados: 0,
+      serviciosAplicados: 0,
+      agentesMarcados: (app.asignacionesState.selectedAgenteIdsVista || [])
+        .length,
+    };
+
+    if (
+      app.asignacionesState.cuadrante &&
+      app.asignacionesState.anio &&
+      app.asignacionesState.mes
+    ) {
+      extras.agentesConCuadranteCompleto = countAgentesConCuadranteCompleto(
+        app.asignacionesState.cuadrante,
+        app.asignacionesState.anio,
+        app.asignacionesState.mes,
+      );
+      var applied = countAppliedTurnosYServicios(
+        app.asignacionesState.cuadrante,
+        app.asignacionesState.anio,
+        app.asignacionesState.mes,
+      );
+      extras.turnosAplicados = applied.turnosAplicados;
+      extras.serviciosAplicados = applied.serviciosAplicados;
+    }
+
+    renderMetaResumen(meta, extras);
+  }
+
+  function renderEstado(control) {
+    const el = document.getElementById("asignacionesEstadoPeriodo");
+    if (!el) return;
+
+    const estado =
+      control && control.estado ? String(control.estado) : "sin_borrador";
+    el.className = "badge border";
+
+    if (estado === "validado") {
+      el.classList.add("bg-success-subtle", "text-success-emphasis");
+    } else if (estado === "borrador" || estado === "pendiente_validacion") {
+      el.classList.add("bg-warning-subtle", "text-warning-emphasis");
+    } else {
+      el.classList.add("bg-light", "text-dark");
+    }
+
+    el.textContent = "Estado: " + estado;
+  }
+
+  // ── Renderizado del cuadrante con Tabulator (virtual DOM) ──────────────
+  // Render principal y unico del cuadrante (sin tabla HTML alternativa).
+  function renderGridTabulator(data, anio, mes) {
+    var container = document.getElementById("asigGridContainer");
+    if (!container) return;
+
+    // Destroy existing Tabulator instance before re-init
+    if (asigTabulator) {
+      asigTabulator.destroy();
+      asigTabulator = null;
+    }
+
+    // Clear inline styles so Tabulator manages its own height and overflow
+    container.removeAttribute("style");
+
+    var planningDays = getPlanningWindow(anio, mes);
+    app.asignacionesState.cuadranteDays = planningDays;
+
+    // isBorrador: hay borrador activo (aunque esté vacío) → no caer en definitivo
+    var isBorrador = !!(data.control && data.control.borrador_id && data.control.estado !== 'sin_borrador');
+    var sourceRows = isBorrador ? (data.borrador || []) : (data.definitivo || []);
+    var serviciosByAsig = isBorrador
+      ? buildServiciosMap(data.borradorServicios, "asignacion_borrador_id")
+      : buildServiciosMap(data.definitivoServicios, "asignacion_id");
+
+    var agentesMap = new Map();
+
+    // Build agents from meta
+    (
+      (app.asignacionesState.meta && app.asignacionesState.meta.agentes) ||
+      []
+    ).forEach(function (ag) {
+      var agenteId = normalizeAgenteId(ag.id_agente);
+      agentesMap.set(agenteId, {
+        agente_id: agenteId,
+        tip: ag.agente_tip || "",
+        nombre: agenteNombre(ag),
+        empleo_nombre: ag.empleo_nombre || "",
+        color_empleo: ag.color_empleo || ag.empleo_color || "#bdbdbd",
+        peloton_id: ag.peloton_id,
+        peloton_codigo: ag.peloton_codigo || "",
+        peloton_color: ag.peloton_color || "#888",
+        situacion_id: ag.situacion_id,
+        pei: !!(
+          ag.pei === true ||
+          ag.pei === 1 ||
+          ag.pei === "true" ||
+          ag.pei === "1"
+        ),
+        paef: !!(
+          ag.paef === true ||
+          ag.paef === 1 ||
+          ag.paef === "true" ||
+          ag.paef === "1"
+        ),
+        orden_gc: ag.orden_gc,
+        aptitudes: Array.isArray(ag.aptitudes)
+          ? ag.aptitudes
+          : typeof ag.aptitudes === "string"
+            ? ag.aptitudes
+                .split(",")
+                .map(function (s) {
+                  return s.trim();
+                })
+                .filter(Boolean)
+            : [],
+        situacion: ag.situacion_nombre || ag.situacion || "",
+        comentarios: ag.comentarios || "",
+      });
+    });
+
+    // Also ensure any agent that appears in sourceRows is in the map
+    sourceRows.forEach(function (r) {
+      var agenteId = normalizeAgenteId(r.agente_id);
+      if (!agentesMap.has(agenteId)) {
+        agentesMap.set(agenteId, {
+          agente_id: agenteId,
+          tip: r.agente_tip || "",
+          nombre: [r.agente_apellido1, r.agente_apellido2, r.agente_nombre]
+            .filter(Boolean)
+            .join(" "),
+          empleo_nombre: r.empleo_nombre || "",
+          color_empleo: r.color_empleo || r.empleo_color || "#bdbdbd",
+          peloton_id: r.peloton_id,
+          peloton_codigo: r.peloton_codigo || "",
+          peloton_color: r.peloton_color || "#888",
+          situacion_id: r.situacion_id,
+          pei: !!(
+            r.pei === true ||
+            r.pei === 1 ||
+            r.pei === "true" ||
+            r.pei === "1"
+          ),
+          paef: !!(
+            r.paef === true ||
+            r.paef === 1 ||
+            r.paef === "true" ||
+            r.paef === "1"
+          ),
+          orden_gc: r.orden_gc,
+          aptitudes: Array.isArray(r.aptitudes)
+            ? r.aptitudes
+            : typeof r.aptitudes === "string"
+              ? r.aptitudes
+                  .split(",")
+                  .map(function (s) {
+                    return s.trim();
+                  })
+                  .filter(Boolean)
+              : [],
+          situacion: r.situacion_nombre || "",
+          comentarios: r.comentarios || "",
+        });
+      }
+    });
+
+    // Build día data keyed by agente_id → dia field key
+    var diasData = {};
+    sourceRows.forEach(function (r) {
+      var agenteId = normalizeAgenteId(r.agente_id);
+      var servs = serviciosByAsig.get(Number(r.id)) || [];
+      var key = r.fecha
+        ? String(r.fecha).slice(0, 10)
+        : String(r.anio) +
+          "-" +
+          String(r.mes).padStart(2, "0") +
+          "-" +
+          String(r.dia).padStart(2, "0");
+      if (!diasData[agenteId]) diasData[agenteId] = {};
+      diasData[agenteId]["dia_" + key] = {
+        asignacionId: Number(r.id),
+        turnoLabel: getTurnoLabel(r),
+        turno_id: Number(r.turno_id),
+        turnoColor: r.turno_color || "#6c757d",
+        servicios: servs,
+        actividad_ids: servs.map(function (s) {
+          return Number(s.id);
+        }),
+        observaciones: r.observaciones || null,
+        revision: r.revision != null ? Number(r.revision) : null,
+      };
+    });
+
+    // Build flat Tabulator row array
+    var tabulatorData = [];
+    agentesMap.forEach(function (ag) {
+      var row = {
+        agente_id: ag.agente_id,
+        tip: ag.tip || "",
+        nombre: ag.nombre || "Agente #" + ag.agente_id,
+        empleo_nombre: ag.empleo_nombre,
+        color_empleo: ag.color_empleo,
+        peloton_codigo: ag.peloton_codigo,
+        peloton_color: ag.peloton_color,
+        situacion: ag.situacion,
+        pei: ag.pei,
+        paef: ag.paef,
+        orden_gc: ag.orden_gc,
+        aptitudes: ag.aptitudes,
+        comentarios: ag.comentarios,
+      };
+      var agtDias = diasData[ag.agente_id] || {};
+      planningDays.forEach(function (pd) {
+        row["dia_" + pd.key] = agtDias["dia_" + pd.key] || null;
+      });
+      tabulatorData.push(row);
+    });
+
+    var totalAgentes = tabulatorData.length;
+
+    // ── Fixed columns ──────────────────────────────────────────────────────
+    var fixedCols = [
+      {
+        title:
+          '<input type="checkbox" id="asigTabSelectAll" class="form-check-input" aria-label="Marcar todos los agentes visibles">',
+        titleFormatter: "html",
+        frozen: true,
+        headerSort: false,
+        hozAlign: "center",
+        minWidth: 42,
+        widthGrow: 0,
+        formatter: function (cell) {
+          var agenteId = Number(cell.getRow().getData().agente_id);
+          var arr = app.asignacionesState.selectedAgenteIdsVista || [];
+          var checked = arr.indexOf(agenteId) !== -1 ? " checked" : "";
+          return (
+            '<input type="checkbox" class="form-check-input asig-tab-row-check" data-agente-id="' +
+            agenteId +
+            '"' +
+            checked +
+            ' aria-label="Seleccionar agente">'
+          );
+        },
+      },
+      {
+        title: "TIP",
+        field: "tip",
+        frozen: true,
+        headerFilter: "input",
+        headerFilterPlaceholder: "Filtrar...",
+        minWidth: 60,
+        sorter: "string",
+      },
+      {
+        title: "Agente",
+        field: "nombre",
+        frozen: true,
+        headerFilter: "input",
+        headerFilterPlaceholder: "Filtrar...",
+        minWidth: 140,
+        sorter: "string",
+        formatter: function (cell) {
+          var d = cell.getRow().getData();
+          var html = '<div style="line-height:1.15;">';
+          html +=
+            '<div class="fw-semibold">' +
+            app.escapeHtml(d.nombre || "") +
+            "</div>";
+          var empleoSituacion = "";
+          if (d.empleo_nombre) {
+            empleoSituacion +=
+              '<span class="badge me-1" style="background:' +
+              app.escapeHtml(d.color_empleo || "#bdbdbd") +
+              ';color:#fff;font-size:.68em;white-space:normal;line-height:1.1;">' +
+              app.escapeHtml(d.empleo_nombre) +
+              "</span>";
+          }
+          if (d.situacion) {
+            empleoSituacion +=
+              '<span class="badge bg-secondary text-light me-1" style="font-size:.70em;line-height:1.1;">' +
+              app.escapeHtml(d.situacion) +
+              "</span>";
+          }
+          if (empleoSituacion) {
+            html += "<div>" + empleoSituacion + "</div>";
+          }
+          var extras = "";
+          if (Array.isArray(d.aptitudes) && d.aptitudes.length) {
+            extras += d.aptitudes
+              .map(function (ap) {
+                return (
+                  '<span class="badge bg-info text-dark me-1" style="font-size:.70em">' +
+                  app.escapeHtml(ap) +
+                  "</span>"
+                );
+              })
+              .join("");
+          }
+          if (d.comentarios && String(d.comentarios).trim().length > 0) {
+            extras +=
+              '<span class="ms-1 text-primary asig-comentario-icon" data-agente-id="' +
+              d.agente_id +
+              '" style="cursor:pointer;" title="Ver comentarios"><i class="bi bi-chat-dots-fill"></i></span>';
+          }
+          if (extras) {
+            html += "<div>" + extras + "</div>";
+          }
+          html += "</div>";
+          return html;
+        },
+      },
+      {
+        title: "Pelotón",
+        field: "peloton_codigo",
+        frozen: true,
+        headerFilter: "input",
+        headerFilterPlaceholder: "Filtrar...",
+        minWidth: 65,
+        sorter: "string",
+        formatter: function (cell) {
+          var d = cell.getRow().getData();
+          if (!d.peloton_codigo) return "-";
+          return (
+            '<span class="badge text-light" style="background:' +
+            app.escapeHtml(d.peloton_color || "#888") +
+            ';font-size:.95em">' +
+            app.escapeHtml(d.peloton_codigo) +
+            "</span>"
+          );
+        },
+      },
+      {
+        title: "PEI",
+        field: "pei",
+        frozen: true,
+        headerFilter: "tickCross",
+        headerFilterParams: { tristate: true },
+        headerFilterEmptyCheck: function (v) {
+          return v === null || v === undefined;
+        },
+        minWidth: 45,
+        hozAlign: "center",
+        formatter: "tickCross",
+        formatterParams: {
+          allowEmpty: true,
+          allowTruthy: true,
+          tickElement: '<i class="bi bi-check-circle-fill text-success"></i>',
+          crossElement: '<i class="bi bi-x-circle-fill text-danger"></i>',
+        },
+      },
+      {
+        title: "PAEF",
+        field: "paef",
+        frozen: true,
+        headerFilter: "tickCross",
+        headerFilterParams: { tristate: true },
+        headerFilterEmptyCheck: function (v) {
+          return v === null || v === undefined;
+        },
+        minWidth: 45,
+        hozAlign: "center",
+        formatter: "tickCross",
+        formatterParams: {
+          allowEmpty: true,
+          allowTruthy: true,
+          tickElement: '<i class="bi bi-check-circle-fill text-success"></i>',
+          crossElement: '<i class="bi bi-x-circle-fill text-danger"></i>',
+        },
+      },
+      {
+        title: "Orden",
+        field: "orden_gc",
+        frozen: true,
+        headerFilter: "input",
+        headerFilterPlaceholder: "Filtrar...",
+        minWidth: 50,
+        sorter: "number",
+      },
+    ];
+
+    // ── Dynamic day columns ────────────────────────────────────────────────
+    var dayCols = planningDays.map(function (pd) {
+      var isWeekend = pd.weekdayIndex >= 5;
+      var pdKey = pd.key; // captured for cellClick closure
+      return {
+        title:
+          pd.label +
+          '<br><span style="font-size:.85em">' +
+          pd.labelDate +
+          "</span>",
+        field: "dia_" + pd.key,
+        minWidth: 70,
+        hozAlign: "center",
+        headerSort: false,
+        cssClass: isWeekend ? "asig-weekend-col" : "",
+        titleFormatter: "html",
+        formatter: function (cell) {
+          var val = cell.getValue();
+          if (!val) return '<span class="text-muted">—</span>';
+          var serviciosTxt =
+            val.servicios && val.servicios.length
+              ? val.servicios
+                  .map(function (s) {
+                    return s.label;
+                  })
+                  .join(", ")
+              : "-";
+          var html = '<div class="d-flex flex-column gap-1">';
+          html +=
+            '<span class="badge" style="background:' +
+            app.escapeHtml(val.turnoColor || "#6c757d") +
+            ';color:#fff;font-size:.72rem">' +
+            app.escapeHtml(val.turnoLabel || "") +
+            "</span>";
+          var obsIconHtml = "";
+          if (
+            val.observaciones &&
+            String(val.observaciones).trim().length > 0
+          ) {
+            obsIconHtml =
+              '<span class="ms-1 text-primary asig-cell-comentario-icon" data-obs="' +
+              app.escapeHtml(val.observaciones) +
+              '" style="cursor:pointer;" title="Ver observación"><i class="bi bi-chat-dots-fill"></i></span>';
+          }
+          html +=
+            '<small class="text-muted" style="line-height:1.2">' +
+            app.escapeHtml(serviciosTxt) +
+            obsIconHtml +
+            "</small>";
+          html += "</div>";
+          return html;
+        },
+        cellClick: function (e, cell) {
+          // Skip if clicking the observaciones icon (handled by event delegation)
+          if (
+            e.target &&
+            e.target.closest &&
+            e.target.closest(".asig-cell-comentario-icon")
+          )
+            return;
+          var rowData = cell.getRow().getData();
+          var val = cell.getValue();
+          app.openAsignacionCellModal({
+            anio: pd.anio,
+            mes: pd.mes,
+            agente_id: rowData.agente_id,
+            agenteNombre: rowData.nombre,
+            dia: pd.dia,
+            fecha: pdKey,
+            turno_id: val ? val.turno_id : null,
+            actividad_ids: val ? val.actividad_ids || [] : [],
+            observaciones: val ? val.observaciones : null,
+            revision: val && val.revision != null ? Number(val.revision) : null,
+          });
+        },
+      };
+    });
+
+    // ── Initialize Tabulator ───────────────────────────────────────────────
+    asigTabulator = new Tabulator("#asigGridContainer", {
+      locale: "es-es",
+      langs: TABULATOR_LANGS,
+      layout: "fitDataFill",
+      height: "calc(100vh - 320px)",
+      virtualDom: true,
+      data: tabulatorData,
+      columnDefaults: { resizable: true, headerHozAlign: "center" },
+      columns: fixedCols.concat(dayCols),
+      placeholder: "No hay asignaciones para el período seleccionado.",
+    });
+
+    function syncTabSelectAll() {
+      var allCheckEl = document.getElementById("asigTabSelectAll");
+      if (!allCheckEl || !asigTabulator) return;
+      var activeRows = asigTabulator.getRows("active");
+      var total = activeRows.length;
+      var arr = app.asignacionesState.selectedAgenteIdsVista || [];
+      var counted = 0;
+      activeRows.forEach(function (r) {
+        if (arr.indexOf(Number(r.getData().agente_id)) !== -1) counted++;
+      });
+      allCheckEl.indeterminate = counted > 0 && counted < total;
+      allCheckEl.checked = total > 0 && counted === total;
+    }
+    // Store reference so the permanent delegation can always call the latest version
+    app.asignacionesState._syncTabSelectAll = syncTabSelectAll;
+
+    asigTabulator.on("dataFiltered", function (filters, rows) {
+      updateSearchSummary(rows.length, totalAgentes);
+      syncTabSelectAll();
+    });
+
+    // Bind the select-all header checkbox after Tabulator renders
+    setTimeout(function () {
+      var allCheckEl = document.getElementById("asigTabSelectAll");
+      if (allCheckEl && !allCheckEl.dataset.tabBound) {
+        allCheckEl.dataset.tabBound = "1";
+        allCheckEl.addEventListener("change", function () {
+          var activeRows = asigTabulator ? asigTabulator.getRows("active") : [];
+          var arr = app.asignacionesState.selectedAgenteIdsVista || [];
+          activeRows.forEach(function (r) {
+            var agenteId = Number(r.getData().agente_id);
+            var idx = arr.indexOf(agenteId);
+            if (allCheckEl.checked && idx === -1) {
+              arr.push(agenteId);
+            } else if (!allCheckEl.checked && idx !== -1) {
+              arr.splice(idx, 1);
+            }
+          });
+          app.asignacionesState.selectedAgenteIdsVista = arr;
+          // Update rendered checkboxes directly (virtual DOM – only rendered rows)
+          container
+            .querySelectorAll(".asig-tab-row-check")
+            .forEach(function (cb) {
+              cb.checked = allCheckEl.checked;
+            });
+          refreshMetaResumenFromState();
+        });
+      }
+      syncTabSelectAll();
+    }, 0);
+
+    // ── Event delegation for icon clicks inside Tabulator cells ───────────
+    // Only bind once per container element to avoid duplicate handlers
+    if (!container.dataset.asigTabDelegates) {
+      container.dataset.asigTabDelegates = "1";
+      container.addEventListener("click", function (e) {
+        // Row selection checkbox
+        var rowCheck =
+          e.target &&
+          e.target.classList &&
+          e.target.classList.contains("asig-tab-row-check")
+            ? e.target
+            : null;
+        if (rowCheck) {
+          var agenteId = Number(rowCheck.getAttribute("data-agente-id"));
+          var arr = app.asignacionesState.selectedAgenteIdsVista || [];
+          var idx = arr.indexOf(agenteId);
+          if (rowCheck.checked && idx === -1) {
+            arr.push(agenteId);
+          } else if (!rowCheck.checked && idx !== -1) {
+            arr.splice(idx, 1);
+          }
+          app.asignacionesState.selectedAgenteIdsVista = arr;
+          if (typeof app.asignacionesState._syncTabSelectAll === "function") {
+            app.asignacionesState._syncTabSelectAll();
+          }
+          refreshMetaResumenFromState();
+          return;
+        }
+        // Observaciones icon inside day cell
+        var obsIcon =
+          e.target && e.target.closest
+            ? e.target.closest(".asig-cell-comentario-icon")
+            : null;
+        if (obsIcon) {
+          e.stopPropagation();
+          var obs = obsIcon.getAttribute("data-obs");
+          if (!obs) return;
+          var modal = document.getElementById("asigCellComentarioModal");
+          if (!modal) {
+            modal = document.createElement("div");
+            modal.id = "asigCellComentarioModal";
+            modal.innerHTML =
+              '<div class="modal fade" tabindex="-1"><div class="modal-dialog"><div class="modal-content">' +
+              '<div class="modal-header"><h5 class="modal-title">Observación de la asignación</h5>' +
+              '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>' +
+              '<div class="modal-body"><div id="asigCellComentarioModalBody"></div></div>' +
+              '<div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button></div>' +
+              "</div></div></div>";
+            document.body.appendChild(modal);
+          }
+          document.getElementById("asigCellComentarioModalBody").textContent =
+            obs;
+          bootstrap.Modal.getOrCreateInstance(
+            modal.querySelector(".modal"),
+          ).show();
+          return;
+        }
+        // Comentarios icon inside agente cell
+        var comentarioIcon =
+          e.target && e.target.closest
+            ? e.target.closest(".asig-comentario-icon")
+            : null;
+        if (comentarioIcon) {
+          e.stopPropagation();
+          var agenteId = Number(comentarioIcon.getAttribute("data-agente-id"));
+          var agRow = null;
+          if (asigTabulator) {
+            var allRows = asigTabulator.getRows();
+            for (var ri = 0; ri < allRows.length; ri++) {
+              if (Number(allRows[ri].getData().agente_id) === agenteId) {
+                agRow = allRows[ri].getData();
+                break;
+              }
+            }
+          }
+          if (!agRow || !agRow.comentarios) return;
+          var cModal = document.getElementById("asigComentarioModal");
+          if (!cModal) {
+            cModal = document.createElement("div");
+            cModal.id = "asigComentarioModal";
+            cModal.innerHTML =
+              '<div class="modal fade" tabindex="-1"><div class="modal-dialog"><div class="modal-content">' +
+              '<div class="modal-header"><h5 class="modal-title">Comentarios del agente</h5>' +
+              '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>' +
+              '<div class="modal-body"><div id="asigComentarioModalBody"></div></div>' +
+              '<div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button></div>' +
+              "</div></div></div>";
+            document.body.appendChild(cModal);
+          }
+          document.getElementById("asigComentarioModalBody").textContent =
+            agRow.comentarios;
+          bootstrap.Modal.getOrCreateInstance(
+            cModal.querySelector(".modal"),
+          ).show();
+        }
+      });
+    }
+  }
+
+  app.loadAsignacionesMeta = async function loadAsignacionesMeta() {
+    const now = new Date();
+    const anioEl = document.getElementById("asigAnio");
+    const mesEl = document.getElementById("asigMes");
+
+    if (anioEl && !anioEl.value) anioEl.value = String(now.getFullYear());
+    if (mesEl && !mesEl.options.length) {
+      mesEl.innerHTML = MONTHS.map(function (m, idx) {
+        const val = idx + 1;
+        return '<option value="' + val + '">' + m + "</option>";
+      }).join("");
+      mesEl.value = String(now.getMonth() + 1);
+    }
+
+    try {
+      const res = await fetch("/api/asignaciones/meta", { headers: headers() });
+      if (!res.ok)
+        throw new Error("No se pudieron cargar metadatos de asignaciones");
+      const json = await res.json();
+      app.asignacionesState.meta = json;
+      if (typeof app.asignacionesState.searchTerm !== "string") {
+        app.asignacionesState.searchTerm = "";
+      }
+      //renderMetaResumen(json);
+      //Nueva llamada a renderizar resumen, con conteo de agentes con cuadrante completo (sin días sin asignar)
+      refreshMetaResumenFromState();
+      app.asignacionesState.borradorId = null;
+      await app.loadAsignacionesBorradores();
+      await app.loadAsignacionesCuadrante();
+    } catch (e) {
+      showAlert(e.message, "danger");
+    }
+  };
+
+  app.loadAsignacionesCuadrante = async function loadAsignacionesCuadrante(forceBorradorId) {
+    const periodo = getPeriodo();
+    if (!periodo.anio || !periodo.mes) {
+      showAlert("Seleccione año y mes válidos", "warning");
+      return;
+    }
+
+    app.asignacionesState.anio = periodo.anio;
+    app.asignacionesState.mes = periodo.mes;
+
+    let borradorId = forceBorradorId || getSelectedBorradorId();
+    app.asignacionesState.borradorId = borradorId;
+
+    const planningDays = getPlanningWindow(periodo.anio, periodo.mes);
+    const periodSet = new Set(
+      planningDays.map(function (d) {
+        return periodoKey(d.anio, d.mes);
+      }),
+    );
+    const periodList = Array.from(periodSet).map(function (k) {
+      const parts = k.split("-");
+      return { anio: Number(parts[0]), mes: Number(parts[1]), key: k };
+    });
+
+    const container = document.getElementById("asigGridContainer");
+    if (container) {
+      container.innerHTML =
+        '<div class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Cargando cuadrante...</div>';
+    }
+
+    try {
+      // Si no hay borrador seleccionado, intentar crear uno automáticamente antes de cargar
+        if (!borradorId) {
+          const currentBorradores = app.asignacionesState.borradores || [];
+          const canonico = currentBorradores.find(function (b) {
+            return b.estado === "validado" || b.estado === "modificado";
+          });
+
+          if (canonico) {
+            borradorId = canonico.id;
+            app.asignacionesState.borradorId = borradorId;
+            const borradorEl = document.getElementById("asigBorrador");
+            if (borradorEl) borradorEl.value = String(borradorId);
+          } else {
+            showAlert(
+              "No hay borrador canónico para este período. Cree uno manualmente.",
+              "warning",
+            );
+            return;
+          }
+        }
+
+      const responses = await Promise.all(
+        periodList.map(async function (p) {
+          const qs =
+            borradorId && p.anio === periodo.anio && p.mes === periodo.mes
+              ? "?borrador_id=" + encodeURIComponent(String(borradorId))
+              : "";
+          const res = await fetch(
+            "/api/asignaciones/cuadrante/" + p.anio + "/" + p.mes + qs,
+            { headers: headers() },
+          );
+          if (!res.ok)
+            throw new Error("No se pudo cargar el cuadrante de " + p.key);
+          const json = await res.json();
+          return { key: p.key, data: json };
+        }),
+      );
+
+      const selectedKey = periodoKey(periodo.anio, periodo.mes);
+      const selected = responses.find(function (r) {
+        return r.key === selectedKey;
+      });
+
+      const merged = {
+        control: selected ? selected.data.control || null : null,
+        borrador: [],
+        borradorServicios: [],
+        definitivo: [],
+        definitivoServicios: [],
+      };
+
+      responses.forEach(function (r) {
+        const d = r.data || {};
+        merged.borrador = merged.borrador.concat(d.borrador || []);
+        merged.borradorServicios = merged.borradorServicios.concat(
+          d.borradorServicios || [],
+        );
+        merged.definitivo = merged.definitivo.concat(d.definitivo || []);
+        merged.definitivoServicios = merged.definitivoServicios.concat(
+          d.definitivoServicios || [],
+        );
+      });
+
+      app.asignacionesState.control = merged.control;
+      app.asignacionesState.cuadrante = merged;
+      // El control se renderiza aparte porque no forma parte de los datos del grid, pero puede contener información relevante como bloqueos o permisos que afectan la interacción con el cuadrante
+      refreshMetaResumenFromState();
+      renderEstado(merged.control || null);
+      renderGridTabulator(merged, periodo.anio, periodo.mes);
+    } catch (e) {
+      showAlert(e.message, "danger");
+      if (container)
+        container.innerHTML =
+          '<div class="text-center text-danger py-4">Error al cargar cuadrante</div>';
+    }
+  };
+
+  app.setupAsignacionesEventListeners =
+    function setupAsignacionesEventListeners() {
+      const reloadBtn = document.getElementById("btnReloadAsignaciones");
+      if (!reloadBtn) return;
+
+      if (reloadBtn.dataset.bound === "1") return;
+      reloadBtn.dataset.bound = "1";
+
+      reloadBtn.addEventListener("click", async function () {
+        // Limpiar cache local antes de recargar
+        if (app.asignacionesState) {
+          app.asignacionesState.cuadrante = null;
+          app.asignacionesState.borradores = [];
+          app.asignacionesState.borradorId = null;
+          app.asignacionesState.control = null;
+        }
+        await app.loadAsignacionesBorradores();
+        await app.loadAsignacionesCuadrante();
+      });
+
+      const anioEl = document.getElementById("asigAnio");
+      const mesEl = document.getElementById("asigMes");
+      const borrSel = document.getElementById("asigBorrador");
+      const nuevoBorrBtn = document.getElementById("btnAsigNuevoBorrador");
+      const searchEl = document.getElementById("asigSearchAgente");
+
+      if (searchEl && searchEl.dataset.bound !== "1") {
+        searchEl.dataset.bound = "1";
+        searchEl.value = app.asignacionesState.searchTerm || "";
+        searchEl.addEventListener("input", function () {
+          app.asignacionesState.searchTerm = searchEl.value || "";
+          if (asigTabulator) {
+            var term = normalizeSearchText(searchEl.value || "");
+            if (!term) {
+              asigTabulator.clearFilter();
+            } else {
+              asigTabulator.setFilter(function (rowData) {
+                var searchable = [
+                  rowData.tip,
+                  rowData.nombre,
+                  rowData.empleo_nombre,
+                  rowData.peloton_codigo,
+                  String(rowData.orden_gc || ""),
+                  rowData.situacion,
+                  Array.isArray(rowData.aptitudes)
+                    ? rowData.aptitudes.join(" ")
+                    : rowData.aptitudes || "",
+                  rowData.comentarios,
+                ].join(" ");
+                var dayKeys = Object.keys(rowData).filter(function (k) {
+                  return k.indexOf("dia_") === 0;
+                });
+                dayKeys.forEach(function (k) {
+                  var d = rowData[k];
+                  if (d) {
+                    searchable +=
+                      " " +
+                      (d.turnoLabel || "") +
+                      " " +
+                      (d.servicios || [])
+                        .map(function (s) {
+                          return s.label || "";
+                        })
+                        .join(" ") +
+                      " " +
+                      (d.observaciones || "");
+                  }
+                });
+                return normalizeSearchText(searchable).indexOf(term) !== -1;
+              });
+            }
+          } else {
+            updateSearchSummary(0, 0);
+          }
+        });
+      }
+
+      const clearAllBtn = document.getElementById("asigClearAllFilters");
+      if (clearAllBtn && clearAllBtn.dataset.bound !== "1") {
+        clearAllBtn.dataset.bound = "1";
+        clearAllBtn.addEventListener("click", function () {
+          app.asignacionesState.searchTerm = "";
+          app.asignacionesState.columnFilters = {
+            tip: "",
+            agente: "",
+            peloton: "",
+            pei: "",
+            paef: "",
+            orden_gc: "",
+          };
+          app.asignacionesState.columnFilterFocus = null;
+          if (searchEl) searchEl.value = "";
+          if (asigTabulator) {
+            asigTabulator.clearHeaderFilter();
+            asigTabulator.clearFilter();
+          } else {
+            updateSearchSummary(0, 0);
+          }
+        });
+      }
+
+      if (anioEl && anioEl.dataset.bound !== "1") {
+        anioEl.dataset.bound = "1";
+        anioEl.addEventListener("change", async function () {
+          await app.loadAsignacionesBorradores();
+          app.loadAsignacionesCuadrante();
+        });
+      }
+      if (mesEl && mesEl.dataset.bound !== "1") {
+        mesEl.dataset.bound = "1";
+        mesEl.addEventListener("change", async function () {
+          await app.loadAsignacionesBorradores();
+          app.loadAsignacionesCuadrante();
+        });
+      }
+      if (borrSel && borrSel.dataset.bound !== "1") {
+        borrSel.dataset.bound = "1";
+        borrSel.addEventListener("change", function () {
+          app.asignacionesState.borradorId = getSelectedBorradorId();
+          updateObsBtnStyle();
+          app.loadAsignacionesCuadrante();
+        });
+      }
+      if (nuevoBorrBtn && nuevoBorrBtn.dataset.bound !== "1") {
+        nuevoBorrBtn.dataset.bound = "1";
+        nuevoBorrBtn.addEventListener("click", function () {
+          // Poblar el select "copiar desde" con los borradores actuales
+          const borradores = app.asignacionesState.borradores || [];
+          const copiaSel = document.getElementById("nuevoCopiaDesdeBorrador");
+          if (copiaSel) {
+            copiaSel.innerHTML =
+              '<option value="">— Empezar vacío —</option>' +
+              borradores
+                .map(function (b) {
+                  const tag = b.estado === "validado" ? " (validado)" : "";
+                  return (
+                    '<option value="' +
+                    b.id +
+                    '">' +
+                    app.escapeHtml(
+                      (b.nombre || "Borrador") + " v" + (b.version || 1) + tag,
+                    ) +
+                    "</option>"
+                  );
+                })
+                .join("");
+            copiaSel.selectedIndex = 0;
+          }
+          const modalEl = document.getElementById("modalNuevoBorrador");
+          if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        });
+      }
+
+      const confirmarBorrBtn = document.getElementById(
+        "btnConfirmarNuevoBorrador",
+      );
+      if (confirmarBorrBtn && confirmarBorrBtn.dataset.bound !== "1") {
+        confirmarBorrBtn.dataset.bound = "1";
+        confirmarBorrBtn.addEventListener("click", async function () {
+          const p = getPeriodo();
+          const copiaSel = document.getElementById("nuevoCopiaDesdeBorrador");
+          const obsEl = document.getElementById("nuevoObservacionesBorrador");
+          var nombre =
+            "Borrador " + p.anio + "-" + String(p.mes).padStart(2, "0");
+
+
+          const copia_de_id =
+            copiaSel && copiaSel.value ? Number(copiaSel.value) : null;
+          try {
+            const body = { anio: p.anio, mes: p.mes, nombre };
+            if (copia_de_id) body.copia_de_id = copia_de_id;
+            if (obsEl && obsEl.value.trim())
+              body.observaciones = obsEl.value.trim();
+            const res = await fetch("/api/asignaciones/borradores", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + app.globalState.token,
+              },
+              body: JSON.stringify(body),
+            });
+            const json = await res.json();
+            if (!res.ok || !json.ok)
+              throw new Error(
+                (json && json.message) || "No se pudo crear el borrador",
+              );
+            const modalEl = document.getElementById("modalNuevoBorrador");
+            if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+            if (obsEl) obsEl.value = "";
+            const newBorradorId = json.borrador && json.borrador.id;
+            // Forzar la selección del nuevo borrador ANTES de cargar el cuadrante
+            if (newBorradorId) {
+              app.asignacionesState.borradorId = newBorradorId;
+              const borrSel = document.getElementById("asigBorrador");
+              if (borrSel) borrSel.value = String(newBorradorId);
+            }
+            await app.loadAsignacionesBorradores(newBorradorId);
+            showAlert("Borrador creado: " + nombre, "success");
+            await app.loadAsignacionesCuadrante(newBorradorId);
+          } catch (e) {
+            showAlert(e.message, "danger");
+          }
+        });
+      }
+
+      const editObsBtn = document.getElementById(
+        "btnEditObservacionesBorrador",
+      );
+      if (editObsBtn && editObsBtn.dataset.bound !== "1") {
+        editObsBtn.dataset.bound = "1";
+        editObsBtn.addEventListener("click", function () {
+          const borradorId = getSelectedBorradorId();
+          if (!borradorId) {
+            showAlert("Seleccione un borrador primero", "warning");
+            return;
+          }
+          const borradores = app.asignacionesState.borradores || [];
+          const borrador = borradores.find(function (b) {
+            return Number(b.id) === Number(borradorId);
+          });
+          const titulo = borrador
+            ? borrador.nombre + " v" + (borrador.version || 1)
+            : "Borrador";
+          const tituloEl = document.getElementById("obsModalTitulo");
+          const textEl = document.getElementById("editObservacionesBorrador");
+          if (tituloEl) tituloEl.textContent = titulo;
+          if (textEl)
+            textEl.value =
+              borrador && borrador.observaciones ? borrador.observaciones : "";
+          const modalEl = document.getElementById("modalObservacionesBorrador");
+          if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        });
+      }
+
+      const guardarObsBtn = document.getElementById(
+        "btnGuardarObservacionesBorrador",
+      );
+      if (guardarObsBtn && guardarObsBtn.dataset.bound !== "1") {
+        guardarObsBtn.dataset.bound = "1";
+        guardarObsBtn.addEventListener("click", async function () {
+          const borradorId = getSelectedBorradorId();
+          if (!borradorId) return;
+          const textEl = document.getElementById("editObservacionesBorrador");
+          const observaciones = textEl ? textEl.value.trim() : "";
+          try {
+            const res = await fetch(
+              "/api/asignaciones/borradores/" + borradorId + "/observaciones",
+              {
+                method: "PATCH",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: "Bearer " + app.globalState.token,
+                },
+                body: JSON.stringify({ observaciones }),
+              },
+            );
+            const json = await res.json();
+            if (!res.ok || !json.ok)
+              throw new Error((json && json.message) || "Error al guardar");
+            // Actualizar en memoria local
+            const borradores = app.asignacionesState.borradores || [];
+            const b = borradores.find(function (b) {
+              return Number(b.id) === Number(borradorId);
+            });
+            if (b) b.observaciones = observaciones;
+            updateObsBtnStyle();
+            const modalEl = document.getElementById(
+              "modalObservacionesBorrador",
+            );
+            if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+            showAlert("Observaciones guardadas", "success");
+          } catch (e) {
+            showAlert(e.message, "danger");
+          }
+        });
+      }
+
+      const deleteBorradorBtn = document.getElementById(
+        "btnAsigDeleteBorrador",
+      );
+      if (deleteBorradorBtn && deleteBorradorBtn.dataset.bound !== "1") {
+        deleteBorradorBtn.dataset.bound = "1";
+        deleteBorradorBtn.addEventListener("click", function () {
+          const borradorId = getSelectedBorradorId();
+          if (!borradorId) {
+            showAlert("Debe seleccionar un borrador para eliminar", "warning");
+            return;
+          }
+
+          // Encontrar el nombre del borrador seleccionado
+          const borradores = app.asignacionesState.borradores || [];
+          const borrador = borradores.find(function (b) {
+            return Number(b.id) === Number(borradorId);
+          });
+          const nombre = borrador ? borrador.nombre || "Borrador" : "Borrador";
+
+          // Mostrar modal de confirmación
+          const modalEl = ensureConfirmBorradorModal();
+          const nombreEl = document.getElementById("asigConfirmBorradorNombre");
+          if (nombreEl) {
+            nombreEl.textContent = nombre;
+          }
+
+          // Limpiar manejador anterior del botón de confirmar
+          const btnConfirm = document.getElementById(
+            "btnConfirmDeleteBorrador",
+          );
+          if (btnConfirm) {
+            var newBtn = btnConfirm.cloneNode(true);
+            btnConfirm.parentNode.replaceChild(newBtn, btnConfirm);
+
+            // Agregar manejador al nuevo botón
+            document
+              .getElementById("btnConfirmDeleteBorrador")
+              .addEventListener("click", async function () {
+                try {
+                  const res = await fetch(
+                    "/api/asignaciones/borradores/" + borradorId,
+                    {
+                      method: "DELETE",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: "Bearer " + app.globalState.token,
+                      },
+                    },
+                  );
+
+                  const json = await res.json();
+                  if (!res.ok || !json.ok) {
+                    throw new Error(
+                      json.message || "Error al eliminar borrador",
+                    );
+                  }
+
+                  bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+                  await app.loadAsignacionesBorradores();
+                  await app.loadAsignacionesCuadrante();
+                  showAlert("Borrador eliminado correctamente", "success");
+                } catch (e) {
+                  showAlert(e.message, "danger");
+                }
+              });
+          }
+
+          bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        });
+      }
+
+      const bulkBtn = document.getElementById("btnAsigBulk");
+      if (bulkBtn && bulkBtn.dataset.bound !== "1") {
+        bulkBtn.dataset.bound = "1";
+        bulkBtn.addEventListener("click", function () {
+          const modalEl = ensureAsignacionesBulkModal();
+          const p = getPeriodo();
+          fillAgenteOptions(document.getElementById("asigBulkAgentes"), {
+            onlySelectedForBulk: true,
+            preselectAll: true,
+            hintEl: document.getElementById("asigBulkAgentesHint"),
+          });
+          fillTurnosOptions(document.getElementById("asigBulkTurno"));
+          fillActividadesOptions(
+            document.getElementById("asigBulkActividades"),
+          );
+          document.getElementById("asigBulkObservaciones").value = "";
+
+          // Poblar select de días con planning window
+          const diasEl = document.getElementById("asigBulkDias");
+          const planningDays = getPlanningWindow(p.anio, p.mes);
+          diasEl.innerHTML = planningDays
+            .map(function (day) {
+              return (
+                '<option value="' +
+                day.key +
+                '" data-dia="' +
+                day.dia +
+                '">' +
+                day.label +
+                " " +
+                day.labelDate +
+                "</option>"
+              );
+            })
+            .join("");
+
+          // Filtros de búsqueda
+          var filterAgBulk = document.getElementById("asigBulkFilterAgentes");
+          if (filterAgBulk) {
+            filterAgBulk.value = "";
+            attachSelectFilter(
+              filterAgBulk,
+              document.getElementById("asigBulkAgentes"),
+            );
+          }
+          var filterActBulk = document.getElementById(
+            "asigBulkFilterActividades",
+          );
+          if (filterActBulk) {
+            filterActBulk.value = "";
+            attachSelectFilter(
+              filterActBulk,
+              document.getElementById("asigBulkActividades"),
+            );
+          }
+
+          // Checkbox marcar todos agentes
+          const checkAllAgentes = document.getElementById(
+            "asigBulkCheckAllAgentes",
+          );
+          const agentesEl = document.getElementById("asigBulkAgentes");
+          const bulkWarnWrap = document.getElementById(
+            "asigBulkSelectionWarningWrap",
+          );
+          const saveBulkBtn = document.getElementById("btnSaveAsigBulk");
+          const selectedCountEl = document.getElementById(
+            "asigBulkSelectedCount",
+          );
+
+          function updateBulkApplyEnabledState() {
+            var selectedAgentsCount = Array.from(
+              agentesEl?.selectedOptions || [],
+            ).length;
+            var totalAgentsCount = Number(agentesEl?.options?.length || 0);
+            var hasSelectedAgents = selectedAgentsCount > 0;
+
+            if (saveBulkBtn) saveBulkBtn.disabled = !hasSelectedAgents;
+            if (bulkWarnWrap) {
+              bulkWarnWrap.classList.toggle("d-none", hasSelectedAgents);
+            }
+            if (selectedCountEl) {
+              selectedCountEl.textContent =
+                "Agentes seleccionados: " +
+                selectedAgentsCount +
+                " de " +
+                totalAgentsCount;
+            }
+          }
+
+          if (checkAllAgentes && agentesEl) {
+            checkAllAgentes.checked = agentesEl.options.length > 0;
+            checkAllAgentes.onclick = function () {
+              for (var i = 0; i < agentesEl.options.length; i++) {
+                agentesEl.options[i].selected = checkAllAgentes.checked;
+              }
+              updateBulkApplyEnabledState();
+            };
+
+            agentesEl.addEventListener("change", function () {
+              var selectedCount = Array.from(
+                agentesEl.selectedOptions || [],
+              ).length;
+              if (!agentesEl.options.length) {
+                checkAllAgentes.checked = false;
+                checkAllAgentes.indeterminate = false;
+              } else if (selectedCount === agentesEl.options.length) {
+                checkAllAgentes.checked = true;
+                checkAllAgentes.indeterminate = false;
+              } else if (selectedCount > 0) {
+                checkAllAgentes.checked = false;
+                checkAllAgentes.indeterminate = true;
+              } else {
+                checkAllAgentes.checked = false;
+                checkAllAgentes.indeterminate = false;
+              }
+              updateBulkApplyEnabledState();
+            });
+          }
+
+          updateBulkApplyEnabledState();
+
+          // Checkbox marcar todos días
+          const checkAllDias = document.getElementById("asigBulkCheckAllDias");
+          if (checkAllDias && diasEl) {
+            checkAllDias.checked = false;
+            checkAllDias.onclick = function () {
+              for (var i = 0; i < diasEl.options.length; i++) {
+                diasEl.options[i].selected = checkAllDias.checked;
+              }
+            };
+          }
+
+          resetBulkProgress();
+
+          document.getElementById("btnSaveAsigBulk").onclick =
+            async function () {
+              resetBulkProgress();
+
+              // ── Recoger datos del formulario ──
+              const periodo = getPeriodo();
+              const agenteIds = getSelectedNumbersFromSelect(
+                document.getElementById("asigBulkAgentes"),
+              );
+              const dias = Array.from(diasEl.selectedOptions)
+                .map(function (opt) {
+                  return opt.value;
+                })
+                .filter(Boolean);
+              const turnoId = Number(
+                document.getElementById("asigBulkTurno").value || 0,
+              );
+              const actividadIds = getSelectedNumbersFromSelect(
+                document.getElementById("asigBulkActividades"),
+              );
+              const observaciones =
+                document.getElementById("asigBulkObservaciones").value.trim() ||
+                null;
+              const saveBtn = document.getElementById("btnSaveAsigBulk");
+              const closeBtn = modalEl.querySelector(
+                '[data-bs-dismiss="modal"]',
+              );
+
+              // ── Validaciones ──
+              if (
+                !agenteIds.length ||
+                !dias.length ||
+                !turnoId ||
+                !actividadIds.length
+              ) {
+                showAlert(
+                  "Complete agentes, días, turno y actividades para asignación masiva",
+                  "warning",
+                );
+                return;
+              }
+
+              try {
+                // Bloquear botones durante el proceso
+                if (saveBtn) {
+                  saveBtn.disabled = true;
+                  saveBtn.innerHTML =
+                    '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Procesando...';
+                }
+                if (closeBtn) closeBtn.disabled = true;
+
+                // ── Fase 1: Enviar lotes al servidor (5 en paralelo) ──
+                var chunks = chunkItems(
+                  agenteIds,
+                  BULK_REQUEST_AGENT_CHUNK_SIZE,
+                );
+                var totalChunks = chunks.length;
+                var totalCells = agenteIds.length * dias.length;
+                var processedAgents = 0;
+                var totalApplied = 0;
+                var MAX_PARALLEL = 5;
+                var borradorId = getSelectedBorradorId();
+
+                updateBulkProgress(5, "Enviando " + totalChunks + " lotes...");
+
+                for (var ci = 0; ci < chunks.length; ci += MAX_PARALLEL) {
+                  var batch = chunks.slice(ci, ci + MAX_PARALLEL);
+
+                  // Lanzar hasta 5 lotes en paralelo
+                  var batchPromises = batch.map(function (chunk, batchIdx) {
+                    var loteNum = ci + batchIdx + 1;
+                    return fetch("/api/asignaciones/bulk", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: "Bearer " + app.globalState.token,
+                        "X-Asig-Client-Version": ASIG_FE_VERSION,
+                      },
+                      body: JSON.stringify({
+                        anio: periodo.anio,
+                        mes: periodo.mes,
+                        borrador_id: borradorId,
+                        agente_ids: chunk,
+                        dias: dias,
+                        turno_id: turnoId,
+                        actividad_ids: actividadIds,
+                        observaciones: observaciones,
+                      }),
+                    }).then(function (res) {
+                      return res.json().then(function (json) {
+                        return {
+                          res: res,
+                          json: json,
+                          lote: loteNum,
+                          chunk: chunk,
+                        };
+                      });
+                    });
+                  });
+
+                  // Esperar a que terminen los 5 del batch
+                  var batchResults = await Promise.all(batchPromises);
+
+                  // Verificar errores
+                  for (var bi = 0; bi < batchResults.length; bi++) {
+                    var br = batchResults[bi];
+                    if (br.res.status === 409) {
+                      showAlert("La celda fue modificada por otro usuario. Recargando cuadrante...", "warning");
+                      await app.loadAsignacionesCuadrante();
+                      return;
+                    }
+                    if (!br.res.ok || (br.json && br.json.ok === false)) {
+                      throw new Error(
+                        (br.json && br.json.message) ||
+                          "Error en lote " + br.lote,
+                      );
+                    }
+                    totalApplied += Number(
+                      br.json && br.json.count
+                        ? br.json.count
+                        : br.chunk.length * dias.length,
+                    );
+                  }
+
+                  // Actualizar barra de progreso (0-80% para envío)
+                  processedAgents += batch.reduce(function (sum, c) {
+                    return sum + c.length;
+                  }, 0);
+                  updateBulkProgress(
+                    5 + (processedAgents / agenteIds.length) * 75,
+                    "Lotes: " +
+                      Math.min(ci + MAX_PARALLEL, chunks.length) +
+                      "/" +
+                      totalChunks +
+                      " · " +
+                      totalApplied +
+                      " celdas",
+                  );
+                }
+
+                // ── Fase 2: Recargar cuadrante (80-100%) ──
+                updateBulkProgress(85, "Recargando cuadrante...");
+                await app.loadAsignacionesCuadrante();
+
+                // ── Finalizar ──
+                updateBulkProgress(
+                  100,
+                  "Completado: " + totalApplied + " celdas",
+                );
+                showAlert(
+                  "Asignación masiva aplicada en borrador: " +
+                    totalApplied +
+                    " celdas. El modal permanece abierto.",
+                  "success",
+                );
+                setTimeout(resetBulkProgress, 1200);
+              } catch (e) {
+                showAlert(e.message, "danger");
+              } finally {
+                // Restaurar botones siempre
+                if (saveBtn) {
+                  saveBtn.disabled = false;
+                  saveBtn.innerHTML =
+                    '<i class="bi bi-check2 me-1"></i>Aplicar';
+                }
+                if (closeBtn) closeBtn.disabled = false;
+              }
+            };
+
+          bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        });
+      }
+
+      const deleteBtn = document.getElementById("btnAsigDelete");
+      if (deleteBtn && deleteBtn.dataset.bound !== "1") {
+        deleteBtn.dataset.bound = "1";
+        deleteBtn.addEventListener("click", function () {
+          const modalEl = ensureAsignacionesDeleteModal();
+          const p = getPeriodo();
+          fillAgenteOptions(document.getElementById("asigDeleteAgentes"), {
+            onlySelectedForBulk: true,
+            preselectAll: true,
+            hintEl: document.getElementById("asigDeleteAgentesHint"),
+          });
+          renderDeleteDateOptions(p.anio, p.mes);
+
+          // Filtro de búsqueda en agentes
+          var filterAgDel = document.getElementById("asigDeleteFilterAgentes");
+          if (filterAgDel) {
+            filterAgDel.value = "";
+            attachSelectFilter(
+              filterAgDel,
+              document.getElementById("asigDeleteAgentes"),
+            );
+          }
+
+          // Checkbox marcar todos agentes
+          var checkAllAgDel = document.getElementById(
+            "asigDeleteCheckAllAgentes",
+          );
+          var agentesDelEl = document.getElementById("asigDeleteAgentes");
+          if (checkAllAgDel && agentesDelEl) {
+            checkAllAgDel.checked = false;
+            checkAllAgDel.onclick = function () {
+              for (var i = 0; i < agentesDelEl.options.length; i++) {
+                agentesDelEl.options[i].selected = checkAllAgDel.checked;
+              }
+            };
+          }
+
+          // Checkbox marcar todas las fechas
+          var checkAllFechasDel = document.getElementById(
+            "asigDeleteCheckAllFechas",
+          );
+          if (checkAllFechasDel) {
+            checkAllFechasDel.checked = false;
+            checkAllFechasDel.onclick = function () {
+              var checks = document.querySelectorAll(
+                "#asigDeleteDates .asig-delete-date-check",
+              );
+              checks.forEach(function (cb) {
+                cb.checked = checkAllFechasDel.checked;
+              });
+              // Trigger summary update
+              if (checks.length) checks[0].dispatchEvent(new Event("change"));
+            };
+          }
+
+          document.getElementById("btnRunAsigDelete").onclick =
+            async function () {
+              const agenteIds = getSelectedNumbersFromSelect(
+                document.getElementById("asigDeleteAgentes"),
+              );
+              const fechas = getSelectedDeleteDates();
+              const dias = fechas.map(function (fecha) {
+                return Number(String(fecha).slice(8, 10));
+              });
+              if (!agenteIds.length || !fechas.length) {
+                showAlert(
+                  "Seleccione agentes y fechas para eliminar",
+                  "warning",
+                );
+                return;
+              }
+
+              try {
+                const res = await fetch("/api/asignaciones/borrador", {
+                  method: "DELETE",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: "Bearer " + app.globalState.token,
+                  },
+                  body: JSON.stringify({
+                    anio: p.anio,
+                    mes: p.mes,
+                    borrador_id: getSelectedBorradorId(),
+                    agente_ids: agenteIds,
+                    dias: dias,
+                    fechas: fechas,
+                  }),
+                });
+                if (!res.ok) {
+                  const err = await res.json();
+                  throw new Error(err.message || "Error al eliminar borrador");
+                }
+                bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+                showAlert(
+                  "Borrador eliminado para selección indicada",
+                  "success",
+                );
+                await app.loadAsignacionesCuadrante();
+              } catch (e) {
+                showAlert(e.message, "danger");
+              }
+            };
+
+          bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        });
+      }
+
+      const copyBtn = document.getElementById("btnAsigCopy");
+      if (copyBtn && copyBtn.dataset.bound !== "1") {
+        copyBtn.dataset.bound = "1";
+        copyBtn.addEventListener("click", function () {
+          const modalEl = ensureAsignacionesCopyModal();
+          const p = getPeriodo();
+          fillAgenteOptions(document.getElementById("asigCopyAgentes"), {
+            preselectSelected: true,
+          });
+
+          var copyOrigenMesEl = document.getElementById("asigCopyOrigenMes");
+          var copyDestinoMesEl = document.getElementById("asigCopyDestinoMes");
+          var monthOptions = MONTHS.map(function (m) {
+            return (
+              '<option value="' +
+              app.escapeHtml(m) +
+              '">' +
+              app.escapeHtml(m) +
+              "</option>"
+            );
+          }).join("");
+          if (copyOrigenMesEl) copyOrigenMesEl.innerHTML = monthOptions;
+          if (copyDestinoMesEl) copyDestinoMesEl.innerHTML = monthOptions;
+
+          document.getElementById("asigCopyOrigenAnio").value = String(
+            p.anio || new Date().getFullYear(),
+          );
+          document.getElementById("asigCopyOrigenMes").value =
+            mesNumberToString(p.mes || new Date().getMonth() + 1);
+          document.getElementById("asigCopyDestinoAnio").value = String(
+            p.anio || new Date().getFullYear(),
+          );
+          document.getElementById("asigCopyDestinoMes").value =
+            mesNumberToString(p.mes || new Date().getMonth() + 1);
+
+          renderCopyDateOptions(p.anio, p.mes);
+
+          var checkAllFechasCopy = document.getElementById(
+            "asigCopyCheckAllFechas",
+          );
+          if (checkAllFechasCopy) {
+            checkAllFechasCopy.checked = false;
+            checkAllFechasCopy.onclick = function () {
+              var checks = document.querySelectorAll(
+                "#asigCopyDates .asig-copy-date-check",
+              );
+              checks.forEach(function (cb) {
+                cb.checked = checkAllFechasCopy.checked;
+              });
+              if (checks.length) checks[0].dispatchEvent(new Event("change"));
+            };
+          }
+
+          var origenAnioEl = document.getElementById("asigCopyOrigenAnio");
+          var origenMesEl = document.getElementById("asigCopyOrigenMes");
+          function rerenderCopyDatesFromOrigen() {
+            var oa = Number(origenAnioEl.value);
+            var om = mesStringToNumber(origenMesEl.value);
+            if (!oa || !om) return;
+            renderCopyDateOptions(oa, om);
+            if (checkAllFechasCopy) checkAllFechasCopy.checked = false;
+          }
+          if (origenAnioEl) origenAnioEl.onchange = rerenderCopyDatesFromOrigen;
+          if (origenMesEl) origenMesEl.onchange = rerenderCopyDatesFromOrigen;
+
+          document.getElementById("btnRunAsigCopy").onclick =
+            async function () {
+              var origenAnioNum = Number(
+                document.getElementById("asigCopyOrigenAnio").value,
+              );
+              var origenMesNum = mesStringToNumber(
+                document.getElementById("asigCopyOrigenMes").value,
+              );
+              var destinoAnioNum = Number(
+                document.getElementById("asigCopyDestinoAnio").value,
+              );
+              var destinoMesNum = mesStringToNumber(
+                document.getElementById("asigCopyDestinoMes").value,
+              );
+              var selectedFechas = getSelectedCopyDates();
+
+              // Mapeo posicional: misma posición en el cuadrante origen → misma posición en destino
+              // Semana 0 Lunes origen → Semana 0 Lunes destino, etc.
+              var origenWindow = getPlanningWindow(
+                origenAnioNum,
+                origenMesNum,
+              ).map(function (d) {
+                return d.key;
+              });
+              var destinoWindow = getPlanningWindow(
+                destinoAnioNum,
+                destinoMesNum,
+              ).map(function (d) {
+                return d.key;
+              });
+              var seen = {};
+              var pares = [];
+              selectedFechas.forEach(function (fecha) {
+                if (seen[fecha]) return;
+                seen[fecha] = true;
+                var idx = origenWindow.indexOf(fecha);
+                if (idx >= 0 && idx < destinoWindow.length) {
+                  pares.push({ from: fecha, to: destinoWindow[idx] });
+                }
+              });
+
+              const payload = {
+                origen_anio: origenAnioNum,
+                origen_mes: origenMesNum,
+                origen_borrador_id: getSelectedBorradorId(),
+                destino_anio: destinoAnioNum,
+                destino_mes: destinoMesNum,
+                destino_borrador_id: null,
+                agente_ids: getSelectedNumbersFromSelect(
+                  document.getElementById("asigCopyAgentes"),
+                ),
+                pares: pares,
+              };
+
+              if (
+                !payload.origen_anio ||
+                !payload.origen_mes ||
+                !payload.destino_anio ||
+                !payload.destino_mes
+              ) {
+                showAlert("Complete origen y destino válidos", "warning");
+                return;
+              }
+
+              if (!payload.agente_ids.length) {
+                showAlert(
+                  "Debe marcar al menos un agente en la tabla/lista para copiar",
+                  "warning",
+                );
+                return;
+              }
+              if (!payload.pares.length) {
+                showAlert(
+                  "Debe marcar al menos un día en el modal para copiar",
+                  "warning",
+                );
+                return;
+              }
+
+              try {
+                const res = await fetch("/api/asignaciones/copiar-mes", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: "Bearer " + app.globalState.token,
+                  },
+                  body: JSON.stringify(payload),
+                });
+                if (!res.ok) {
+                  const err = await res.json();
+                  throw new Error(err.message || "Error al copiar mes");
+                }
+
+                const data = await res.json();
+                bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+                showAlert("Mes copiado al borrador destino", "success");
+
+                const anioEl = document.getElementById("asigAnio");
+                const mesEl = document.getElementById("asigMes");
+                const borradorEl = document.getElementById("asigBorrador");
+                if (anioEl) anioEl.value = String(payload.destino_anio);
+                if (mesEl) mesEl.value = String(payload.destino_mes);
+                // Pre-cargar borradores del mes destino para que el select tenga la opción
+                await app.loadAsignacionesBorradores(data.destino_borrador_id);
+                if (borradorEl && data.destino_borrador_id)
+                  borradorEl.value = String(data.destino_borrador_id);
+                await app.loadAsignacionesCuadrante();
+              } catch (e) {
+                showAlert(e.message, "danger");
+              }
+            };
+
+          bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        });
+      }
+
+      const validateBtn = document.getElementById("btnAsigValidate");
+      if (validateBtn && validateBtn.dataset.bound !== "1") {
+        validateBtn.dataset.bound = "1";
+        validateBtn.addEventListener("click", async function () {
+          const p = getPeriodo();
+          if (
+            !window.confirm(
+              "¿Validar borrador de " +
+                p.anio +
+                "/" +
+                String(p.mes).padStart(2, "0") +
+                "? Esta acción reemplaza el definitivo del período.",
+            )
+          ) {
+            return;
+          }
+          try {
+            const res = await fetch("/api/asignaciones/validar", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + app.globalState.token,
+              },
+              body: JSON.stringify({
+                anio: p.anio,
+                mes: p.mes,
+                borrador_id: getSelectedBorradorId(),
+              }),
+            });
+            if (res.status === 409) {
+              showAlert("Otro usuario está validando este periodo. Recargue.", "warning");
+              return;
+            }
+            if (!res.ok) {
+              const err = await res.json();
+              throw new Error(err.message || "Error al validar borrador");
+            }
+            showAlert("Borrador validado correctamente", "success");
+            await app.loadAsignacionesCuadrante();
+          } catch (e) {
+            showAlert(e.message, "danger");
+          }
+        });
+      }
+
+      var btnHistorialAsig = document.getElementById("btnAsigHistorial");
+      if (btnHistorialAsig && btnHistorialAsig.dataset.bound !== "1") {
+        btnHistorialAsig.dataset.bound = "1";
+        btnHistorialAsig.addEventListener("click", function () {
+          openAsignacionesHistorialModal();
+        });
+      }
+
+      var btnHistorialAplicar = document.getElementById(
+        "btnAsigHistorialAplicarFiltros",
+      );
+      if (btnHistorialAplicar && btnHistorialAplicar.dataset.bound !== "1") {
+        btnHistorialAplicar.dataset.bound = "1";
+        btnHistorialAplicar.disabled = true;
+        btnHistorialAplicar.addEventListener("click", function () {
+          loadAsignacionesHistorial();
+        });
+      }
+
+      var btnHistorialLimpiar = document.getElementById(
+        "btnAsigHistorialLimpiarFiltros",
+      );
+      if (btnHistorialLimpiar && btnHistorialLimpiar.dataset.bound !== "1") {
+        btnHistorialLimpiar.dataset.bound = "1";
+        btnHistorialLimpiar.addEventListener("click", function () {
+          resetHistorialUiFilters();
+          var sourceLogs =
+            Array.isArray(app.asignacionesState.historialDateSourceLogs) &&
+            app.asignacionesState.historialDateSourceLogs.length
+              ? app.asignacionesState.historialDateSourceLogs
+              : [];
+          // Volver al estado inicial de apertura del modal
+          var contentEl = document.getElementById("asigHistorialContent");
+          if (contentEl) {
+            contentEl.innerHTML = '<div class="text-center text-muted py-4">Selecciona los filtros y pulsa <strong>Consultar</strong> para cargar el historial.</div>';
+          }
+          var pdfBtn = document.getElementById("btnAsigHistorialPdf");
+          if (pdfBtn) { pdfBtn.disabled = true; delete pdfBtn.dataset.query; }
+          populateHistorialUsers(sourceLogs);
+          populateHistorialDates(sourceLogs);
+          renderHistorialResumen(0, getHistorialFilters());
+        });
+      }
+
+      var historialActionEl = document.getElementById(
+        "asigHistorialFiltroAccion",
+      );
+      if (historialActionEl && historialActionEl.dataset.bound !== "1") {
+        historialActionEl.dataset.bound = "1";
+        historialActionEl.addEventListener("change", function () {
+          updateHistorialApplyButtonState();
+        });
+      }
+
+      var historialUserEl = document.getElementById(
+        "asigHistorialFiltroUsuario",
+      );
+      if (historialUserEl && historialUserEl.dataset.bound !== "1") {
+        historialUserEl.dataset.bound = "1";
+        historialUserEl.addEventListener("change", function () {
+          updateHistorialApplyButtonState();
+        });
+      }
+
+      var historialDateEl = document.getElementById(
+        "asigHistorialFiltroFechaCambio",
+      );
+      if (historialDateEl && historialDateEl.dataset.bound !== "1") {
+        historialDateEl.dataset.bound = "1";
+        historialDateEl.addEventListener("change", function () {
+          updateHistorialApplyButtonState();
+        });
+      }
+
+      var btnHistorialPdf = document.getElementById("btnAsigHistorialPdf");
+      if (btnHistorialPdf && btnHistorialPdf.dataset.bound !== "1") {
+        btnHistorialPdf.dataset.bound = "1";
+        btnHistorialPdf.addEventListener("click", async function () {
+          var query = btnHistorialPdf.dataset.query;
+          if (!query) return;
+          try {
+            btnHistorialPdf.disabled = true;
+            var res = await fetch("/api/asignaciones/historial/pdf?" + query, {
+              headers: headers(),
+            });
+            if (!res.ok) {
+              var err = await res.json().catch(function () {
+                return { message: "Error al exportar el historial a PDF" };
+              });
+              throw new Error(
+                err.message || "Error al exportar el historial a PDF",
+              );
+            }
+            var blob = await res.blob();
+            var url = URL.createObjectURL(blob);
+            var disposition = res.headers.get("Content-Disposition") || "";
+            var match = disposition.match(/filename="?([^";]+)"?/i);
+            var filename =
+              match && match[1] ? match[1] : "historial_cuadrante.pdf";
+            var link = document.createElement("a");
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+          } catch (error) {
+            showAlert(
+              error.message || "Error al exportar el historial a PDF",
+              "danger",
+            );
+          } finally {
+            btnHistorialPdf.disabled = !btnHistorialPdf.dataset.query;
+          }
+        });
+      }
+
+      // ── Export & Grouping buttons (Tabulator mode only) ──────────────────
+      var btnExcelAsig = document.getElementById("btnExportExcelAsig");
+      if (btnExcelAsig && btnExcelAsig.dataset.bound !== "1") {
+        btnExcelAsig.dataset.bound = "1";
+        btnExcelAsig.onclick = async function () {
+          try {
+            var periodo = getPeriodo();
+            if (!periodo.anio || !periodo.mes) {
+              showAlert(
+                "Selecciona año y mes para exportar el cuadrante.",
+                "warning",
+              );
+              return;
+            }
+
+            var borradorId = getSelectedBorradorId();
+            var params = new URLSearchParams({
+              anio: String(periodo.anio),
+              mes: String(periodo.mes),
+            });
+
+            if (borradorId) {
+              params.set("borrador_id", String(borradorId));
+              var borrador = (app.asignacionesState.borradores || []).find(
+                function (b) {
+                  return Number(b.id) === Number(borradorId);
+                },
+              );
+              if (borrador && borrador.nombre) {
+                params.set("nombre_borrador", borrador.nombre);
+              }
+            }
+
+            var res = await fetch(
+              "/api/asignaciones/exportar?" + params.toString(),
+              {
+                headers: headers(),
+              },
+            );
+
+            if (!res.ok) {
+              var err = await res.json().catch(function () {
+                return { error: "Error al exportar cuadrante" };
+              });
+              throw new Error(err.error || "Error al exportar cuadrante");
+            }
+
+            var blob = await res.blob();
+            var url = URL.createObjectURL(blob);
+            var disposition = res.headers.get("Content-Disposition") || "";
+            var match = disposition.match(/filename="?([^";]+)"?/i);
+            var filename = match && match[1] ? match[1] : "cuadrante.xlsx";
+
+            var link = document.createElement("a");
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+          } catch (error) {
+            showAlert(error.message || "Error al exportar cuadrante", "danger");
+          }
+        };
+      }
+
+      var btnPdfAsig = document.getElementById("btnExportPdfAsig");
+      if (btnPdfAsig && btnPdfAsig.dataset.bound !== "1") {
+        btnPdfAsig.dataset.bound = "1";
+        btnPdfAsig.onclick = function () {
+          if (asigTabulator)
+            asigTabulator.download("pdf", "cuadrante.pdf", {
+              orientation: "landscape",
+              title: "Cuadrante de Asignaciones",
+              autoTable: { styles: { fontSize: 6 } },
+            });
+        };
+      }
+
+      var btnGroupPeloton = document.getElementById("btnGroupByPeloton");
+      if (btnGroupPeloton && btnGroupPeloton.dataset.bound !== "1") {
+        btnGroupPeloton.dataset.bound = "1";
+        btnGroupPeloton.onclick = function () {
+          if (asigTabulator) asigTabulator.setGroupBy("peloton_codigo");
+        };
+      }
+
+      var btnGroupEmpleo = document.getElementById("btnGroupByEmpleo");
+      if (btnGroupEmpleo && btnGroupEmpleo.dataset.bound !== "1") {
+        btnGroupEmpleo.dataset.bound = "1";
+        btnGroupEmpleo.onclick = function () {
+          if (asigTabulator) asigTabulator.setGroupBy("empleo_nombre");
+        };
+      }
+
+      var btnGroupClear = document.getElementById("btnGroupClear");
+      if (btnGroupClear && btnGroupClear.dataset.bound !== "1") {
+        btnGroupClear.dataset.bound = "1";
+        btnGroupClear.onclick = function () {
+          if (asigTabulator) asigTabulator.setGroupBy(false);
+        };
+      }
+    };
+})();

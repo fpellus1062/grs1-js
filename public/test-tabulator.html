@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Tabulator Carga de Datos CSV - GRS1</title>
+    <link rel="icon" href="data:," />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"
+      rel="stylesheet"
+    />
+    <link href="styles.css" rel="stylesheet" />
+    <link
+      href="https://cdn.jsdelivr.net/npm/tabulator-tables@6.4.0/dist/css/tabulator_bootstrap5.min.css"
+      rel="stylesheet"
+    />
+    <link href="dashboard.css?v=20260415c" rel="stylesheet" />
+  </head>
+  <body>
+    <main class="container-fluid mt-4">
+      <div id="agentesSection">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="mb-0 fs-5"></h2>
+          <a
+            class="btn btn-outline-secondary btn-sm px-2 py-1"
+            href="/dashboard.html"
+          >
+            <i class="bi bi-house"></i> Dashboard
+          </a>
+        </div>
+
+        <div class="card shadow-sm">
+          <div
+            class="card-header py-1 px-2 d-flex justify-content-between align-items-center"
+          >
+            <div class="d-flex align-items-center gap-2">
+              <h4 class="mb-0">Listado de Prueba CSV</h4>
+              <span id="userRoleBadgeAgentes" class="badge bg-secondary"
+                >CSV</span
+              >
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <small class="text-dark-emphasis opacity-75">
+                Total: <strong id="totalRecordsAgente">0</strong> | Filtrados:
+                <strong id="filteredRecordsAgente">0</strong> | Ocultos:
+                <strong id="shownRecordsAgente">0</strong>
+              </small>
+              <div class="btn-group btn-group-sm" id="agentesQuickFilterEstado">
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary dropdown-toggle"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false"
+                >
+                  <i class="bi bi-funnel"></i> Estado:
+                  <span id="agentesEstadoLabel">Todos</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li>
+                    <a class="dropdown-item active" href="#" data-estado="todos"
+                      >Todos</a
+                    >
+                  </li>
+                  <li>
+                    <a class="dropdown-item" href="#" data-estado="activos"
+                      >Activos</a
+                    >
+                  </li>
+                  <li>
+                    <a class="dropdown-item" href="#" data-estado="baja"
+                      >De baja</a
+                    >
+                  </li>
+                </ul>
+              </div>
+              <button
+                class="btn btn-outline-secondary btn-sm"
+                id="btnAgenteAsignacionesDetalle"
+                type="button"
+                title="Recargar CSV base"
+              >
+                <i class="bi bi-arrow-repeat"></i> CSV base
+              </button>
+              <div class="dropdown">
+                <button
+                  class="btn btn-outline-secondary btn-sm dropdown-toggle"
+                  type="button"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false"
+                >
+                  <i class="bi bi-download"></i> Exportar
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li>
+                    <button
+                      class="dropdown-item"
+                      id="btnExportExcelAgente"
+                      type="button"
+                    >
+                      <i class="bi bi-file-earmark-excel me-2"></i>CSV base
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      class="dropdown-item"
+                      id="btnExportPdfAgente"
+                      type="button"
+                    >
+                      <i class="bi bi-file-earmark-arrow-down me-2"></i
+                      >Descargar visible
+                    </button>
+                  </li>
+                </ul>
+              </div>
+              <label
+                class="btn btn-primary btn-sm mb-0"
+                id="btnAgregarNuevoAgente"
+                for="csvInput"
+                title="Importar CSV"
+              >
+                <i class="bi bi-upload"></i> Importar CSV
+              </label>
+              <input
+                id="csvInput"
+                type="file"
+                accept=".csv,text/csv"
+                class="d-none"
+              />
+            </div>
+          </div>
+
+          <div
+            class="save-changes-section pending-changes-idle"
+            id="saveChangesSectionAgente"
+          >
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <i class="bi bi-pencil-square me-1"></i
+                ><strong>Cambios pendientes:</strong>
+                <span id="pendingChangesCountAgente">0 fila(s) cargadas</span>
+              </div>
+              <div>
+                <button
+                  class="btn btn-success btn-sm me-2"
+                  id="btnSaveAllChangesAgente"
+                  type="button"
+                >
+                  <i class="bi bi-check-circle"></i> Recargar CSV
+                </button>
+                <button
+                  class="btn btn-outline-secondary btn-sm"
+                  id="btnDiscardChangesAgente"
+                  type="button"
+                >
+                  <i class="bi bi-x-circle"></i> Limpiar filtros
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div id="alertContainerAgente" class="px-3 pt-2"></div>
+          <div class="px-3 pt-2 pb-1">
+            <small id="estadoCarga" class="text-muted"></small>
+          </div>
+
+          <div class="card-body p-0">
+            <div
+              id="tabulatorAgentes"
+              class="table-responsive"
+              style="max-height: calc(100vh - 330px); overflow: auto"
+            ></div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/vendor/luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6.4.0/dist/js/tabulator.min.js"></script>
+    <script>
+      (function () {
+        var CSV_URL = '/data/tabulator-test.csv';
+        var table = null;
+        var quickFilterEstado = 'todos';
+
+        function esc(value) {
+          return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+        }
+
+        function parseBoolean(v) {
+          var t = String(v == null ? '' : v)
+            .trim()
+            .toLowerCase();
+          return ['1', 'true', 'si', 'sí', 'y', 'yes'].indexOf(t) >= 0;
+        }
+
+        function splitCsvLine(line, delimiter) {
+          var out = [];
+          var value = '';
+          var inQuotes = false;
+
+          for (var i = 0; i < line.length; i += 1) {
+            var ch = line[i];
+            var next = line[i + 1];
+
+            if (ch === '"') {
+              if (inQuotes && next === '"') {
+                value += '"';
+                i += 1;
+              } else {
+                inQuotes = !inQuotes;
+              }
+              continue;
+            }
+
+            if (!inQuotes && ch === delimiter) {
+              out.push(value);
+              value = '';
+              continue;
+            }
+
+            value += ch;
+          }
+
+          out.push(value);
+          return out;
+        }
+
+        function detectDelimiter(text) {
+          var sample = (text || '').split(/\r?\n/).slice(0, 4).join('\n');
+          var commas = (sample.match(/,/g) || []).length;
+          var semicolons = (sample.match(/;/g) || []).length;
+          return semicolons > commas ? ';' : ',';
+        }
+
+        function parseCsv(text) {
+          var cleanText = String(text || '').replace(/^\uFEFF/, '');
+          var delimiter = detectDelimiter(cleanText);
+          var lines = cleanText.split(/\r?\n/).filter(function (line) {
+            return String(line || '').trim() !== '';
+          });
+
+          if (!lines.length) return [];
+
+          var headers = splitCsvLine(lines[0], delimiter).map(function (h) {
+            return String(h || '')
+              .trim()
+              .toLowerCase();
+          });
+
+          var indexByHeader = {};
+          headers.forEach(function (h, idx) {
+            indexByHeader[h] = idx;
+          });
+
+          function readCell(cells, names) {
+            for (var i = 0; i < names.length; i += 1) {
+              var key = names[i];
+              if (Object.prototype.hasOwnProperty.call(indexByHeader, key)) {
+                var val = cells[indexByHeader[key]];
+                return val == null ? '' : String(val).trim();
+              }
+            }
+            return '';
+          }
+
+          return lines.slice(1).map(function (line, idx) {
+            var cells = splitCsvLine(line, delimiter);
+            return {
+              id: Number(readCell(cells, ['id', 'id_agente'])) || idx + 1,
+              tip: readCell(cells, ['tip']),
+              nombre: readCell(cells, ['nombre']),
+              apellido_1: readCell(cells, ['apellido_1', 'apellido1']),
+              apellido_2: readCell(cells, ['apellido_2', 'apellido2']),
+              email: readCell(cells, ['email']),
+              nif: readCell(cells, ['nif']),
+              telefono: readCell(cells, ['telefono', 'teléfono']),
+              peloton_id: readCell(cells, ['peloton_id']),
+              empleo_id: readCell(cells, ['empleo_id']),
+              orden_gc: readCell(cells, ['orden_gc']),
+              fecha_ant_empleo: readCell(cells, ['fecha_ant_empleo']),
+              fecha_baja: readCell(cells, ['fecha_baja']),
+              domicilio: readCell(cells, ['domicilio']),
+              codigo_postal: readCell(cells, ['codigo_postal', 'cp']),
+              poblacion: readCell(cells, ['poblacion', 'población']),
+              provincia: readCell(cells, ['provincia']),
+              pei: parseBoolean(readCell(cells, ['pei'])),
+              paef: parseBoolean(readCell(cells, ['paef'])),
+              aptitudes: readCell(cells, ['aptitudes']),
+              situacion_id: readCell(cells, ['situacion_id']),
+              comentarios: readCell(cells, ['comentarios']),
+            };
+          });
+        }
+
+        function dateFormatter(cell) {
+          var val = cell.getValue();
+          if (!val) return '';
+          var dt = window.luxon && window.luxon.DateTime.fromISO(String(val));
+          return dt && dt.isValid
+            ? dt.setLocale('es').toFormat('dd/MM/yyyy')
+            : esc(val);
+        }
+
+        function fechaBajaFormatter(cell) {
+          var val = cell.getValue();
+          if (!val) {
+            return '<span class="badge bg-success-subtle text-success border border-success-subtle">Activa</span>';
+          }
+          var dt =
+            window.luxon &&
+            window.luxon.DateTime.fromISO(String(val), { setZone: true });
+          if (dt && dt.isValid) {
+            return (
+              '<span class="badge bg-danger-subtle text-danger border border-danger-subtle">' +
+              esc(dt.setLocale('es').toFormat('dd/MM/yyyy HH:mm')) +
+              '</span>'
+            );
+          }
+          return esc(val);
+        }
+
+        function boolFormatter(cell) {
+          return cell.getValue() ? 'Si' : 'No';
+        }
+
+        function buildColumns() {
+          return [
+            {
+              title: 'ID',
+              field: 'id',
+              width: 70,
+              sorter: 'number',
+              frozen: true,
+            },
+            { title: 'TIP', field: 'tip', headerFilter: 'input', frozen: true },
+            {
+              title: 'Nombre',
+              field: 'nombre',
+              headerFilter: 'input',
+              frozen: true,
+            },
+            {
+              title: 'Apellido 1',
+              field: 'apellido_1',
+              headerFilter: 'input',
+              frozen: true,
+            },
+            {
+              title: 'Apellido 2',
+              field: 'apellido_2',
+              headerFilter: 'input',
+              frozen: true,
+            },
+            { title: 'Email', field: 'email', headerFilter: 'input' },
+            { title: 'NIF', field: 'nif', headerFilter: 'input' },
+            { title: 'Telefono', field: 'telefono', headerFilter: 'input' },
+            { title: 'Peloton', field: 'peloton_id', headerFilter: 'input' },
+            { title: 'Empleo', field: 'empleo_id', headerFilter: 'input' },
+            { title: 'Orden', field: 'orden_gc', headerFilter: 'input' },
+            {
+              title: 'Ant. Empleo',
+              field: 'fecha_ant_empleo',
+              headerFilter: 'input',
+              formatter: dateFormatter,
+            },
+            { title: 'Domicilio', field: 'domicilio', headerFilter: 'input' },
+            { title: 'C.P.', field: 'codigo_postal', headerFilter: 'input' },
+            { title: 'Poblacion', field: 'poblacion', headerFilter: 'input' },
+            { title: 'Provincia', field: 'provincia', headerFilter: 'input' },
+            {
+              title: 'PEI',
+              field: 'pei',
+              formatter: boolFormatter,
+              headerFilter: 'input',
+            },
+            {
+              title: 'PAEF',
+              field: 'paef',
+              formatter: boolFormatter,
+              headerFilter: 'input',
+            },
+            { title: 'Aptitudes', field: 'aptitudes', headerFilter: 'input' },
+            {
+              title: 'Situacion',
+              field: 'situacion_id',
+              headerFilter: 'input',
+            },
+            {
+              title: 'Comentarios',
+              field: 'comentarios',
+              headerFilter: 'input',
+            },
+            {
+              title: 'Fecha Baja',
+              field: 'fecha_baja',
+              width: 154,
+              headerFilter: 'input',
+              formatter: fechaBajaFormatter,
+            },
+          ];
+        }
+
+        function setStatus(text, isError) {
+          var el = document.getElementById('estadoCarga');
+          if (!el) return;
+          el.textContent = text || '';
+          el.classList.toggle('text-danger', !!isError);
+        }
+
+        function setAlert(text, type) {
+          var el = document.getElementById('alertContainerAgente');
+          if (!el) return;
+          if (!text) {
+            el.innerHTML = '';
+            return;
+          }
+          el.innerHTML =
+            '<div class="alert alert-' +
+            (type || 'info') +
+            ' py-2 px-3 mb-0" role="alert" style="font-size:.82rem">' +
+            text +
+            '</div>';
+        }
+
+        function updateCounters() {
+          if (!table) return;
+          var total = (table.getData() || []).length;
+          var filtered = (table.getData('active') || []).length;
+          var hidden = total - filtered;
+          var totalEl = document.getElementById('totalRecordsAgente');
+          var filteredEl = document.getElementById('filteredRecordsAgente');
+          var hiddenEl = document.getElementById('shownRecordsAgente');
+          if (totalEl) totalEl.textContent = String(total);
+          if (filteredEl) filteredEl.textContent = String(filtered);
+          if (hiddenEl) hiddenEl.textContent = String(hidden);
+        }
+
+        function syncPendingInfo(dataLength) {
+          var el = document.getElementById('pendingChangesCountAgente');
+          if (!el) return;
+          el.textContent = String(dataLength || 0) + ' fila(s) cargadas';
+        }
+
+        function applyEstadoFilter() {
+          if (!table) return;
+          table.clearFilter(true);
+          if (quickFilterEstado === 'todos') {
+            updateCounters();
+            return;
+          }
+          table.setFilter(function (rowData) {
+            var hasFechaBaja = !!(rowData && rowData.fecha_baja);
+            if (quickFilterEstado === 'activos') return !hasFechaBaja;
+            if (quickFilterEstado === 'baja') return hasFechaBaja;
+            return true;
+          });
+          updateCounters();
+        }
+
+        function downloadVisibleCsv() {
+          if (!table) return;
+          table.download('csv', 'test-tabulator-visible.csv', { bom: true });
+        }
+
+        function initTable(data) {
+          if (!table) {
+            table = new Tabulator('#tabulatorAgentes', {
+              data: data,
+              locale: 'es-es',
+              height: 'calc(100vh - 300px)',
+              layout: 'fitData',
+              pagination: true,
+              paginationSize: 100,
+              paginationSizeSelector: [10, 25, 50, 100, true],
+              placeholder: 'No hay datos cargados',
+              columnDefaults: {
+                resizable: true,
+                headerFilterPlaceholder: 'Filtrar...',
+              },
+              columns: buildColumns(),
+            });
+            table.on('dataFiltered', updateCounters);
+            table.on('dataLoaded', updateCounters);
+            table.on('renderComplete', updateCounters);
+            updateCounters();
+            applyEstadoFilter();
+            syncPendingInfo(data.length);
+            return;
+          }
+
+          table.replaceData(data);
+          applyEstadoFilter();
+          updateCounters();
+          syncPendingInfo(data.length);
+        }
+
+        async function loadBaseCsv() {
+          try {
+            setAlert('', 'info');
+            setStatus('Cargando CSV base...');
+            var res = await fetch(CSV_URL, { cache: 'no-store' });
+            if (!res.ok) throw new Error('No se pudo cargar ' + CSV_URL);
+            var text = await res.text();
+            var data = parseCsv(text);
+            initTable(data);
+            setStatus('CSV base cargado: ' + data.length + ' filas');
+          } catch (err) {
+            setAlert(err.message || 'Error al cargar CSV', 'danger');
+            setStatus(err.message || 'Error al cargar CSV', true);
+          }
+        }
+
+        async function loadCsvFile(file) {
+          if (!file) return;
+          try {
+            setAlert('', 'info');
+            setStatus('Leyendo archivo: ' + file.name + ' ...');
+            var text = await file.text();
+            var data = parseCsv(text);
+            initTable(data);
+            setStatus('Archivo cargado: ' + data.length + ' filas');
+          } catch (err) {
+            setAlert(err.message || 'Error al leer archivo CSV', 'danger');
+            setStatus(err.message || 'Error al leer archivo CSV', true);
+          }
+        }
+
+        document
+          .getElementById('btnAgenteAsignacionesDetalle')
+          .addEventListener('click', loadBaseCsv);
+
+        document
+          .getElementById('btnSaveAllChangesAgente')
+          .addEventListener('click', loadBaseCsv);
+
+        document
+          .getElementById('btnDiscardChangesAgente')
+          .addEventListener('click', function () {
+            if (!table) return;
+            quickFilterEstado = 'todos';
+            document.getElementById('agentesEstadoLabel').textContent = 'Todos';
+            document
+              .querySelectorAll('#agentesQuickFilterEstado .dropdown-item')
+              .forEach(function (item) {
+                item.classList.toggle(
+                  'active',
+                  item.getAttribute('data-estado') === 'todos'
+                );
+              });
+            table.clearHeaderFilter();
+            applyEstadoFilter();
+            setStatus('Filtros limpiados');
+          });
+
+        document
+          .getElementById('btnExportExcelAgente')
+          .addEventListener('click', loadBaseCsv);
+
+        document
+          .getElementById('btnExportPdfAgente')
+          .addEventListener('click', downloadVisibleCsv);
+
+        document
+          .getElementById('csvInput')
+          .addEventListener('change', function (e) {
+            var file =
+              e.target.files && e.target.files[0] ? e.target.files[0] : null;
+            loadCsvFile(file);
+            e.target.value = '';
+          });
+
+        document
+          .querySelectorAll('#agentesQuickFilterEstado .dropdown-item')
+          .forEach(function (item) {
+            item.addEventListener('click', function (e) {
+              e.preventDefault();
+              quickFilterEstado = item.getAttribute('data-estado') || 'todos';
+              document.getElementById('agentesEstadoLabel').textContent =
+                item.textContent.trim();
+              document
+                .querySelectorAll('#agentesQuickFilterEstado .dropdown-item')
+                .forEach(function (link) {
+                  link.classList.toggle('active', link === item);
+                });
+              applyEstadoFilter();
+            });
+          });
+
+        loadBaseCsv();
+      })();
+    </script>
+  </body>
+</html>

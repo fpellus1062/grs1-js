@@ -1,0 +1,112 @@
+<div class="d-flex align-items-center gap-2 border-bottom border-3 border-warning pb-2 mb-4">
+    <h1 class="text-warning m-0">
+        <i class="bi bi-calendar-event"></i>
+        Gestión de Calendarios y Festivos
+    </h1>
+</div>
+
+<div class="row g-4">
+
+    <!-- Calendarios -->
+    <div class="col-12 col-lg-5">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-primary bg-opacity-10 border-0 rounded-top-4 py-3">
+                <h5 class="mb-0 fw-bold text-primary">
+                    <i class="bi bi-collection me-2"></i>
+                    Calendarios Disponibles
+                </h5>
+            </div>
+
+            <div class="card-body">
+
+                <p class="text-muted">
+                    En esta sección se muestran todos los calendarios disponibles en el sistema.
+                    Cada uno representa un conjunto de festivos aplicables a un ámbito concreto.
+                </p>
+
+                <ul class="small">
+                    <li><strong>Nacional:</strong> Festivos comunes a todo el país.</li>
+                    <li><strong>Autonómico:</strong> Festivos propios de la comunidad autónoma.</li>
+                    <li><strong>Provincial:</strong> Festivos específicos de la provincia.</li>
+                    <li><strong>Local:</strong> Festivos del municipio o localidad.</li>
+                    <li><strong>Personalizados:</strong> Calendarios creados por la unidad (ej.: GRS1, GRS2).</li>
+                </ul>
+                <p class="text-muted">
+                    En esta tarjeta en la parte superior izquierda podemos dar de alta los calendarios que necesitemos.
+                    En cada elemento de la lista de calendarios, podemos editar o eliminar el calendario.
+                </p>
+                <p class="text-muted mb-0">
+                    Al seleccionar un calendario, se muestran sus festivos en la tabla de la derecha.
+                    Los calendarios activos se indican claramente.
+                </p>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Festivos del calendario -->
+    <div class="col-12 col-lg-7">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-success bg-opacity-10 border-0 rounded-top-4 py-3">
+                <h5 class="mb-0 fw-bold text-success">
+                    <i class="bi bi-calendar-week me-2"></i>
+                    Festivos del Calendario Seleccionado
+                </h5>
+            </div>
+
+            <div class="card-body">
+
+                <p class="text-muted">
+                    La tabla muestra todos los festivos pertenecientes al calendario seleccionado.
+                    Cada festivo incluye información detallada sobre su fecha, nombre y recurrencia.
+                </p>
+
+                <ul class="small">
+                    <li><strong>ID:</strong> Identificador interno del festivo.</li>
+                    <li><strong>Fecha:</strong> Día exacto del festivo, incluyendo el día de la semana.</li>
+                    <li><strong>Nombre:</strong> Nombre oficial del festivo.</li>
+                    <li><strong>Descripción:</strong> Información adicional o motivo del festivo.</li>
+                    <li><strong>Recurrente:</strong> Indica si se repite cada año automáticamente. Estas fechas, no se deben dar de alta nuevamente. El sistema las incorpora a los cuadrantes automáticamente en años sucesivos.   </li>
+                </ul>
+
+                <p class="text-muted mb-0">
+                    Desde esta tabla puedes <strong>editar</strong> o <strong>eliminar</strong> festivos,
+                    así como añadir nuevos, conel botón al efecto en la parte superior izquierda de la tarjeta.
+                </p>
+
+            </div>
+        </div>
+    </div>
+    <!-- Notas Importantes -->
+    <div class="col-autom-12 col-lg-12">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-danger bg-opacity-10 border-0 rounded-top-4 py-3">
+                <h5 class="mb-0 fw-bold text-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Notas Importantes
+                </h5>
+            </div>
+    
+            <div class="card-body">
+    
+                <p class="text-muted">
+                    Aquí se muestran notas importantes relacionadas con la configuración de los calendarios.
+                    Asegúrate de revisar esta información antes de realizar cambios en los calendarios.
+                </p>
+                <p><strong>Importante:</strong></p>
+                <ul class="text-muted">
+                    <li class="text-danger-emphasis">
+                        Los calendarios, con nombre de agrupación GRS1, GRS2, GRSn, una vez dados de alta no se podrán eliminar.
+                    </li>
+                    <li class="text-danger-emphasis">
+                        Recuerda añadir las fechas mòviles de festivos personalizados, según las necesidades de tu unidad o población.
+                    </li>
+                    <li class="text-danger-emphasis">
+                        Recuerda. Los festivos recurrentes se incorporan automáticamente a los cuadrantes de años sucesivos, no es necesario darlos de alta cada año.
+                    </li>
+
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>

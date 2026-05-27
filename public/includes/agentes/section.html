@@ -1,0 +1,458 @@
+<div class="card shadow-sm mb-2">
+  <!-- Notion-style compact toolbar -->
+  <div class="d-flex align-items-center gap-2 px-3 py-2 border-bottom bg-white">
+    <i class="bi bi-people text-secondary" style="font-size: 0.95rem"></i>
+    <span class="fw-semibold text-dark" style="font-size: 0.875rem"
+      >Agentes</span
+    >
+    <button class="btn btn-link p-0 ms-1" type="button" data-help-context="agentes-form-ficha-help" data-bs-toggle="modal" data-bs-target="#helpModal" title="Ficha del Agente">
+      <i class="bi bi-question-circle text-secondary" style="font-size: 0.95rem"></i>
+    </button>
+    <span class="vr mx-1 opacity-25"></span>
+    <span class="text-muted" style="font-size: 0.75rem">
+      <strong id="totalRecordsAgente">0</strong> total &middot;
+      <strong id="filteredRecordsAgente">0</strong> filtrados &middot;
+      <strong id="shownRecordsAgente">0</strong> ocultos
+    </span>
+    <div class="ms-auto d-flex align-items-center gap-1">
+      <!-- Filtro por estado -->
+      <div class="dropdown" id="agentesQuickFilterEstado">
+        <button
+          type="button"
+          class="btn btn-outline-secondary btn-sm py-1 px-2 dropdown-toggle"
+          data-bs-toggle="dropdown"
+          aria-expanded="false"
+          style="font-size: 0.78rem"
+        >
+          <i class="bi bi-funnel"></i>
+          <span id="agentesEstadoLabel">Todos</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li>
+            <a class="dropdown-item active" href="#" data-estado="todos"
+              >Todos</a
+            >
+          </li>
+          <li>
+            <a class="dropdown-item" href="#" data-estado="activos">Activos</a>
+          </li>
+          <li>
+            <a class="dropdown-item" href="#" data-estado="baja">De baja</a>
+          </li>
+        </ul>
+      </div>
+      <!-- Nuevo agente -->
+      <button
+        class="btn btn-primary btn-sm py-1 px-2"
+        id="btnAgregarNuevoAgente"
+        title="Crear nuevo agente"
+        type="button"
+        style="font-size: 0.78rem"
+      >
+        <i class="bi bi-person-plus"></i> Nuevo
+      </button>
+      <!-- Iconos: Cuadrante + Recargar -->
+      <div class="btn-group btn-group-sm">
+        <button
+          class="btn btn-outline-secondary py-1 px-2"
+          id="btnAgenteAsignacionesDetalle"
+          title="Cuadrante del agente seleccionado"
+          type="button"
+        >
+          <i class="bi bi-calendar3-week"></i>
+        </button>
+        <button
+          class="btn btn-outline-secondary py-1 px-2"
+          id="btnRecargarAgentesApi"
+          type="button"
+          title="Recargar desde API de agentes"
+        >
+          <i class="bi bi-arrow-repeat"></i>
+        </button>
+      </div>
+      <!-- Exportar -->
+      <div class="dropdown">
+        <button
+          class="btn btn-outline-secondary btn-sm dropdown-toggle py-1 px-2"
+          type="button"
+          data-bs-toggle="dropdown"
+          aria-expanded="false"
+          title="Exportar"
+          style="font-size: 0.78rem"
+        >
+          <i class="bi bi-download"></i>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li>
+            <button
+              class="dropdown-item"
+              id="btnExportExcelAgente"
+              type="button"
+            >
+              <i class="bi bi-file-earmark-excel me-2"></i>Excel
+            </button>
+          </li>
+          <li>
+            <button class="dropdown-item" id="btnExportPdfAgente" type="button">
+              <i class="bi bi-file-earmark-pdf me-2"></i>PDF
+            </button>
+          </li>
+        </ul>
+      </div>
+      <!-- Volver al Dashboard -->
+      <button
+        class="btn btn-outline-secondary btn-sm py-1 px-2"
+        data-section-trigger="dashboard"
+        type="button"
+        title="Ir al Dashboard"
+      >
+        <i class="bi bi-house"></i>
+      </button>
+    </div>
+  </div>
+
+  <div
+    class="save-changes-section pending-changes-idle"
+    id="saveChangesSectionAgente"
+  >
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <i class="bi bi-pencil-square me-1"></i
+        ><strong>Cambios pendientes:</strong>
+        <span id="pendingChangesCountAgente">0</span>
+      </div>
+      <div>
+        <button
+          class="btn btn-success btn-sm me-2"
+          id="btnSaveAllChangesAgente"
+          type="button"
+        >
+          <i class="bi bi-check-circle"></i> Guardar cambios
+        </button>
+        <button
+          class="btn btn-outline-secondary btn-sm"
+          id="btnDiscardChangesAgente"
+          type="button"
+        >
+          <i class="bi bi-x-circle"></i> Descartar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="alertContainerAgente" class="px-2 pt-1"></div>
+  <div id="estadoCargaAgente" class="d-none"></div>
+
+  <div class="card-body p-0">
+    <div
+      id="tabulatorAgentes"
+      class="table-responsive"
+      style="max-height: calc(100vh - 330px); overflow: auto"
+    ></div>
+  </div>
+
+  <style>
+    .modal-fullheight .modal-content {
+      height: calc(100vh - 3.5rem);
+      max-height: calc(100vh - 3.5rem);
+    }
+
+    .modal-fullheight .modal-body {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .agente-asignaciones-detalle-grid-container {
+      flex: 1 1 0;
+      min-height: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .agente-asig-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 0.75rem;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+      flex-shrink: 0;
+    }
+
+    .agente-asig-card-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.75rem;
+    }
+
+    .agente-asig-card-item {
+      border: 1px solid #e5e7eb;
+      border-radius: 0.5rem;
+      background: #fff;
+      padding: 0.4rem 0.6rem;
+    }
+
+    .agente-asig-card-label {
+      display: block;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #64748b;
+      margin-bottom: 0.2rem;
+    }
+
+    .agente-asig-card-value {
+      display: block;
+      color: #0f172a;
+      font-weight: 600;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+
+    .agente-asig-calendar {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      grid-template-rows: auto;
+      grid-auto-rows: minmax(0, 1fr);
+      gap: 0.3rem;
+      flex: 1 1 0;
+      min-height: 0;
+    }
+
+    .agente-asig-calendar-head {
+      text-align: center;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #475569;
+      letter-spacing: 0.03em;
+      padding: 0.15rem 0;
+      align-self: center;
+    }
+
+    .agente-asig-calendar-cell {
+      min-height: 0;
+      border: 1px solid #dbe2ea;
+      border-radius: 0.5rem;
+      background: #fff;
+      padding: 0.25rem 0.3rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      overflow: hidden;
+    }
+
+    .agente-asig-calendar-cell.is-empty {
+      background: transparent;
+      border-style: dashed;
+      border-color: #e5e7eb;
+    }
+
+    .agente-asig-calendar-cell.is-traspaso {
+      background: #f8fafc;
+    }
+
+    .agente-asig-calendar-cell.is-festivo {
+      border-color: #fecaca;
+      background: #fff7f7;
+    }
+
+    .agente-asig-calendar-cell.is-weekend {
+      background: #fffdf5;
+    }
+
+    .agente-asig-calendar-day {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.4rem;
+    }
+
+    .agente-asig-calendar-daynum {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #0f172a;
+      line-height: 1;
+    }
+
+    .agente-asig-calendar-daymeta {
+      text-align: right;
+      font-size: 0.58rem;
+      color: #64748b;
+      line-height: 1.1;
+    }
+
+    .agente-asig-calendar-services {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+      overflow: hidden;
+    }
+
+    .agente-asig-service {
+      border-radius: 0.4rem;
+      padding: 0.2rem 0.35rem;
+      font-size: 0.62rem;
+      line-height: 1.15;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    }
+
+    .agente-asig-service-group {
+      display: block;
+      font-size: 0.55rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      opacity: 0.9;
+      margin-bottom: 0.06rem;
+    }
+
+    .agente-asig-service-label {
+      display: block;
+      font-weight: 600;
+      font-size: 0.62rem;
+    }
+
+    .agente-asig-calendar-obs {
+      margin-top: auto;
+      padding-top: 0.1rem;
+      font-size: 0.58rem;
+      color: #0f4c81;
+      border-top: 1px dashed #dbe2ea;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .agente-asig-calendar-empty {
+      color: #94a3b8;
+      font-size: 0.6rem;
+      margin-top: 0.1rem;
+    }
+
+    .agente-asig-fuente-select {
+      min-width: 150px;
+    }
+
+    .agente-asig-borrador-select {
+      min-width: 250px;
+    }
+
+    .agente-asig-anio-value {
+      min-width: 90px;
+    }
+
+    .agente-asig-mes-select {
+      min-width: 150px;
+    }
+
+    @media (max-width: 991px) {
+      .agente-asig-card-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .agente-asig-calendar {
+        min-width: 760px;
+      }
+
+      .agente-asignaciones-detalle-grid-container {
+        overflow-x: auto;
+      }
+    }
+
+    @media (max-width: 575px) {
+      .agente-asig-card-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+  </style>
+
+  <div
+    class="modal fade"
+    id="modalAgenteAsignacionesDetalle"
+    tabindex="-1"
+    aria-labelledby="modalAgenteAsignacionesDetalleLabel"
+    aria-hidden="true"
+  >
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-fullheight">
+      <div class="modal-content modal-notion">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title" id="modalAgenteAsignacionesDetalleLabel">
+              <i class="bi bi-calendar3-week me-2"></i>Cuadrante del agente
+            </h5>
+            <div
+              id="agenteAsignacionesDetalleSubtitulo"
+              class="small text-white-50 mt-1"
+            ></div>
+          </div>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Cerrar"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+            <div>
+              <label class="form-label fw-semibold mb-1 small">Fuente</label>
+              <select
+                id="agenteAsigDetalleFuente"
+                class="form-select form-select-sm agente-asig-fuente-select"
+                title="Fuente de datos"
+              >
+                <option value="borrador">Borrador</option>
+                <option value="definitivo">Definitivo</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label fw-semibold mb-1 small">Año</label>
+              <select
+                id="agenteAsigDetalleAnio"
+                class="form-select form-select-sm agente-asig-anio-value"
+                title="Año"
+              ></select>
+            </div>
+            <div>
+              <label class="form-label fw-semibold mb-1 small">Mes</label>
+              <select
+                id="agenteAsigDetalleMes"
+                class="form-select form-select-sm agente-asig-mes-select"
+                title="Mes"
+              ></select>
+            </div>
+            <div id="agenteAsigDetalleBorradorWrap">
+              <label class="form-label fw-semibold mb-1 small">Borrador</label>
+              <select
+                id="agenteAsigDetalleBorrador"
+                class="form-select form-select-sm agente-asig-borrador-select"
+                title="Borrador"
+              >
+                <option value="">Cargando borradores...</option>
+              </select>
+            </div>
+          </div>
+          <div
+            id="agenteAsignacionesDetalleGridContainer"
+            class="table-responsive agente-asignaciones-detalle-grid-container"
+          >
+            <div class="text-center text-muted py-4">
+              Seleccione un único agente para visualizar su cuadrante.
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            data-bs-dismiss="modal"
+          >
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,209 @@
+<div class="d-flex align-items-center gap-2 border-bottom border-3 border-warning pb-2 mb-4">
+    <h1 class="text-warning m-0">
+        <i class="bi bi-gear-wide-connected"></i>
+        Módulo Sistema · Ayuda General
+    </h1>
+</div>
+
+<div class="row g-4">
+
+    <!-- ARS / Unidades -->
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-primary bg-opacity-10 border-0 py-3">
+                <h5 class="mb-0 fw-bold text-primary">
+                    <i class="bi bi-building me-2"></i>
+                    Gestión de ARS / Unidades
+                </h5>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted">
+                    Esta pantalla permite gestionar las <strong>Unidades</strong> del sistema: ARS, GRS y otras unidades
+                    operativas.
+                </p>
+
+                <ul class="small">
+                    <li><strong>Unidad:</strong> Código identificativo (ARS, GRS1, GRS2…)</li>
+                    <li><strong>Domicilio / Población / Provincia:</strong> Datos administrativos.</li>
+                    <li><strong>Teléfono / Email:</strong> Datos de contacto.</li>
+                    <li><strong>Oficial al Mando:</strong> Responsable de la unidad.</li>
+                    <li><strong>Color:</strong> Color asignado para informes y cuadrantes.</li>
+                </ul>
+
+                <h6 class="fw-bold text-primary mt-3">Acciones</h6>
+                <ul class="small mb-0">
+                    <li><strong>Nuevo:</strong> Añade una unidad.</li>
+                    <li><strong>Editar:</strong> Modifica cualquier celda directamente.</li>
+                    <li><strong>Eliminar:</strong> Borra una unidad si no está en uso.</li>
+                    <li><strong>Guardar / Descartar:</strong> Aplica o revierte los cambios.</li>
+                    <li><strong>Exportar:</strong> Descarga la tabla.</li>
+                </ul>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Usuarios -->
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-success bg-opacity-10 border-0 py-3">
+                <h5 class="mb-0 fw-bold text-success">
+                    <i class="bi bi-people me-2"></i>
+                    Gestión de Usuarios
+                </h5>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted">
+                    Permite administrar los usuarios del sistema, sus roles, estado y accesos.
+                </p>
+
+                <ul class="small">
+                    <li><strong>TIP:</strong> Identificador del usuario.</li>
+                    <li><strong>ID:</strong> Identificador interno.</li>
+                    <li><strong>Nombre / Email:</strong> Datos personales.</li>
+                    <li><strong>Rol:</strong> admin, supervisor, operador, consulta.</li>
+                    <li><strong>ARS:</strong> Unidades a las que pertenece.</li>
+                    <li><strong>Estado:</strong> Activo / Inactivo.</li>
+                    <li><strong>Intentos / Bloqueado Hasta:</strong> Control de seguridad.</li>
+                    <li><strong>Último Login / Cambio Password:</strong> Auditoría básica.</li>
+                </ul>
+
+                <h6 class="fw-bold text-success mt-3">Acciones</h6>
+                <ul class="small mb-0">
+                    <li><strong>Nuevo:</strong> Crear usuario.</li>
+                    <li><strong>Editar:</strong> Modificar datos directamente.</li>
+                    <li><strong>Bloqueo:</strong> Control automático por intentos.</li>
+                    <li><strong>Guardar / Descartar:</strong> Confirmar o revertir cambios.</li>
+                    <li><strong>Exportar:</strong> Descargar listado.</li>
+                </ul>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Auditoría de Login -->
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-warning bg-opacity-10 border-0 py-3">
+                <h5 class="mb-0 fw-bold text-warning">
+                    <i class="bi bi-shield-check me-2"></i>
+                    Auditoría de Login
+                </h5>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted">
+                    Muestra todos los accesos al sistema, permitiendo filtrar por usuario, email, IP o fecha.
+                </p>
+
+                <ul class="small mb-0">
+                    <li><strong>Fecha / Hora:</strong> Momento exacto del acceso.</li>
+                    <li><strong>Usuario / Email:</strong> Identificación del usuario.</li>
+                    <li><strong>Resultado:</strong> OK / Error.</li>
+                    <li><strong>IP:</strong> Dirección desde la que se accedió.</li>
+                    <li><strong>User-Agent:</strong> Navegador y sistema operativo.</li>
+                    <li><strong>Exportar:</strong> Descargar informe.</li>
+                </ul>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Roles -->
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-info bg-opacity-10 border-0 py-3">
+                <h5 class="mb-0 fw-bold text-info">
+                    <i class="bi bi-person-badge me-2"></i>
+                    Gestión de Roles
+                </h5>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted">
+                    Define los roles del sistema y si son de sistema o personalizables.
+                </p>
+
+                <ul class="small">
+                    <li><strong>ID / Nombre:</strong> Identificación del rol.</li>
+                    <li><strong>Observaciones:</strong> Información adicional.</li>
+                    <li><strong>Sistema:</strong> Indica si es un rol interno no editable.</li>
+                    <li><strong>Activo:</strong> Permite activar o desactivar roles.</li>
+                </ul>
+
+                <h6 class="fw-bold text-info mt-3">Acciones</h6>
+                <ul class="small mb-0">
+                    <li><strong>Nuevo:</strong> Crear rol.</li>
+                    <li><strong>Editar:</strong> Modificar nombre u observaciones.</li>
+                    <li><strong>Guardar / Descartar:</strong> Confirmar o revertir cambios.</li>
+                </ul>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Permisos -->
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-danger bg-opacity-10 border-0 py-3">
+                <h5 class="mb-0 fw-bold text-danger">
+                    <i class="bi bi-lock me-2"></i>
+                    Gestión de Permisos
+                </h5>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted">
+                    Aquí se gestionan los permisos individuales: qué acciones puede realizar cada rol sobre cada
+                    recurso.
+                </p>
+
+                <ul class="small">
+                    <li><strong>Recurso:</strong> Módulo del sistema.</li>
+                    <li><strong>Acción:</strong> crear, editar, eliminar, leer, validar, copiar…</li>
+                    <li><strong>Clave:</strong> Identificador técnico del permiso.</li>
+                    <li><strong>Descripción:</strong> Explicación del permiso.</li>
+                </ul>
+
+                <h6 class="fw-bold text-danger mt-3">Acciones</h6>
+                <ul class="small mb-0">
+                    <li><strong>Nuevo:</strong> Crear permiso.</li>
+                    <li><strong>Editar:</strong> Modificar cualquier campo.</li>
+                    <li><strong>Eliminar:</strong> Borrar permisos no usados.</li>
+                    <li><strong>Guardar / Descartar:</strong> Confirmar o revertir cambios.</li>
+                </ul>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Matriz de Permisos -->
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-secondary bg-opacity-10 border-0 py-3">
+                <h5 class="mb-0 fw-bold text-secondary">
+                    <i class="bi bi-grid-3x3-gap me-2"></i>
+                    Matriz de Permisos
+                </h5>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted">
+                    Vista global que muestra qué acciones puede realizar cada rol sobre cada recurso.
+                </p>
+
+                <ul class="small mb-0">
+                    <li><strong>Columnas:</strong> Roles del sistema.</li>
+                    <li><strong>Filas:</strong> Recursos y acciones.</li>
+                    <li><strong>Casillas:</strong> Permiso otorgado (☒) o no otorgado (☐).</li>
+                    <li><strong>Actualizar:</strong> Guarda los cambios realizados.</li>
+                    <li><strong>Exportar:</strong> Descarga la matriz completa.</li>
+                </ul>
+
+            </div>
+        </div>
+    </div>
+
+</div>

@@ -1,0 +1,24 @@
+{
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2021": true
+  },
+  "extends": ["eslint:recommended", "standard", "plugin:prettier/recommended"],
+  "plugins": ["prettier", "html"],
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "module"
+  },
+  "rules": {
+    "prettier/prettier": "error",
+    "no-unused-vars": "warn",
+    "no-undef": "error"
+  },
+  "semi": true,
+  "singleQuote": true,
+  "tabWidth": 2,
+  "trailingComma": "es5",
+  "printWidth": 80,
+  "endOfLine": "lf"
+}

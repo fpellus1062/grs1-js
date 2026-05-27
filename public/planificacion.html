@@ -1,0 +1,42 @@
+<!-- Inserta este bloque encima del grid principal -->
+<div style="display:flex; gap:16px;">
+  <div style="width: 420px; border:1px solid #ddd; padding:8px;">
+    <h3>Agentes (filtrar y seleccionar)</h3>
+
+    <input id="agentSearch" placeholder="Buscar por nombre, email, nif, tip..." style="width:100%;" />
+    <button id="btnSearchAgents">Buscar</button>
+
+    <div style="margin-top:8px;">
+      <label>Semana
+        <select id="selSemana">
+          <option value="1">Semana 1</option>
+          <option value="2">Semana 2</option>
+          <option value="3">Semana 3</option>
+          <option value="4">Semana 4</option>
+        </select>
+      </label>
+      <label>Actividad
+        <select id="selActividadSemana"></select>
+      </label>
+      <button id="btnApplyWeek">Aplicar a semana</button>
+    </div>
+
+    <div style="margin-top:8px; max-height:420px; overflow:auto;">
+      <table style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Nombre</th>
+            <th>Email</th>
+          </tr>
+        </thead>
+        <tbody id="agentsTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div style="flex:1;">
+    <h3>Grid principal (28 días)</h3>
+    <div id="grid"></div>
+  </div>
+</div>

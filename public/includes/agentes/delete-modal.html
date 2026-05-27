@@ -1,0 +1,42 @@
+<div class="modal fade" id="confirmAgenteDeleteModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content modal-notion">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="confirmAgenteDeleteTitle">
+          Confirmar baja
+        </h5>
+        <button
+          type="button"
+          class="btn-close btn-close-white"
+          data-bs-dismiss="modal"
+          aria-label="Cerrar"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <p id="confirmAgenteDeleteText">
+          ¿Está seguro de que desea dar de baja al agente
+          <strong id="deleteAgenteNombre">-</strong>?
+        </p>
+        <p class="text-muted text-danger" id="confirmAgenteDeleteHint">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <small>
+            Se registrará fecha_baja y el agente quedará inactivo en cuadrantes
+            activos.
+          </small>
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="btn btn-danger"
+          id="confirmAgenteDeleteBtn"
+        >
+          Dar de baja
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

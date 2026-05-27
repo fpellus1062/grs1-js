@@ -1,0 +1,235 @@
+<div class="modal fade" id="agenteModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content modal-notion">
+      <div class="modal-header">
+        <h5 class="modal-title" id="agenteModalTitle">Agregar Nuevo Agente</h5>
+  
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="agenteForm" novalidate>
+          <!-- ── Identidad ─────────────────────────────────── -->
+          <div class="notion-section-title">Identidad <</div>
+          <div class="row">
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label for="agenteNombre" class="form-label">Nombre *</label>
+                <input type="text" class="form-control" id="agenteNombre" required minlength="2" maxlength="100"
+                  placeholder="Nombre" />
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label for="agenteApellido1" class="form-label">Apellido 1 *</label>
+                <input type="text" class="form-control" id="agenteApellido1" required minlength="2" maxlength="100"
+                  placeholder="Primer apellido" />
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label for="agenteApellido2" class="form-label">Apellido 2</label>
+                <input type="text" class="form-control" id="agenteApellido2" maxlength="100"
+                  placeholder="Segundo apellido" />
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label for="agenteNif" class="form-label">NIF / NIE *</label>
+                <input type="text" class="form-control" id="agenteNif" required maxlength="20"
+                  pattern="[XYZxyz]?[0-9]{7,8}[A-Za-z]" placeholder="12345678A" />
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label for="agenteEmail" class="form-label">Email *</label>
+                <input type="email" class="form-control" id="agenteEmail" required maxlength="255"
+                  placeholder="correo@ejemplo.com" />
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label for="agenteTelefono" class="form-label">Teléfono *</label>
+                <input type="tel" class="form-control" id="agenteTelefono" required maxlength="20"
+                  pattern="[0-9\s\-\+\(\)]+" placeholder="600 123 456" />
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Destino ───────────────────────────────────── -->
+          <div class="notion-section-title">Otra Información</div>
+          <div class="row">
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Pelotón</label>
+                <div class="dropdown notion-badge-dropdown">
+                  <input type="hidden" id="agentePelotonId" />
+                  <button class="form-select text-start d-flex align-items-center" type="button" id="btnDropdownPeloton"
+                    data-bs-toggle="dropdown" aria-expanded="false">
+                    <span class="text-muted">-- Sin pelotón --</span>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-scroll" id="menuPeloton"></ul>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Empleo</label>
+                <div class="dropdown notion-badge-dropdown">
+                  <input type="hidden" id="agenteEmpleoId" />
+                  <button class="form-select text-start d-flex align-items-center" type="button" id="btnDropdownEmpleo"
+                    data-bs-toggle="dropdown" aria-expanded="false">
+                    <span class="text-muted">-- Sin empleo --</span>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-scroll" id="menuEmpleo"></ul>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Situación</label>
+
+                <div class="dropdown notion-badge-dropdown">
+                  <input type="hidden" id="agenteSituacionId" />
+                  <button class="form-select text-start d-flex align-items-center" type="button"
+                    id="btnDropdownSituacion" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span class="text-muted">-- Sin situación --</span>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-scroll" id="menuSituacion"></ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-3">
+              <div class="mb-3">
+                <label for="agenteOrdenGc" class="form-label">Orden</label>
+                <input type="number" class="form-control" id="agenteOrdenGc" step="1" placeholder="0" />
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="mb-3">
+                <label for="agenteTip" class="form-label d-flex align-items-center gap-1">
+                  TIP
+                </label>
+
+                <input type="text" class="form-control" id="agenteTip" maxlength="7" pattern="[A-Z][0-9]{5}[A-Z]"
+                  placeholder="A99999A" />
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="agenteAptitudes" class="form-label">Aptitudes</label>
+                <input type="text" class="form-control" id="agenteAptitudes" maxlength="255"
+                  placeholder="A123 @ AB45 @ ABCD @" pattern="[A-Za-z0-9]{1,6} #( [A-Za-z0-9]{1,6} #)*" />
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label for="agenteFechaAntEmpleo" class="form-label">Fecha Nombramiento
+</label>
+
+                <input type="date" class="form-control" id="agenteFechaAntEmpleo" required />
+
+              </div>
+            </div>
+          </div>
+
+          <div class="notion-section-title">Avatar</div>
+          <div class="row align-items-center g-3 mb-2">
+            <div class="col-md-3 d-flex justify-content-center">
+              <div class="text-center">
+                <div style="position:relative;width:96px;height:96px;">
+                  <img
+                    id="agenteAvatarPreview"
+                    src=""
+                    alt="Avatar agente"
+                    class="rounded-circle border d-none"
+                    style="position:absolute;inset:0;width:96px;height:96px;object-fit:cover;"
+                  />
+                  <div
+                    id="agenteAvatarPlaceholder"
+                    class="rounded-circle border d-inline-flex align-items-center justify-content-center text-muted"
+                    style="position:absolute;inset:0;width:96px;height:96px;font-size:.74rem;background:#f8f9fa;"
+                  >
+                    Sin avatar
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-9">
+              <div class="mb-2">
+                <label for="agenteAvatarFile" class="form-label">Archivo de avatar</label>
+                <input
+                  type="file"
+                  class="form-control"
+                  id="agenteAvatarFile"
+                  accept="image/*"
+                />
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btnAgenteAvatarClear">
+                  Limpiar imagen seleccionada
+                </button>
+                <small class="text-muted">
+                  Se recorta y convierte a 256x256 WebP con nombre TIP.webp
+                </small>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Dirección ─────────────────────────────────── -->
+          <div class="notion-section-title">Dirección</div>
+          <div class="row">
+            <div class="col-md-12">
+              <div class="mb-3">
+                <label for="agenteDomicilio" class="form-label">Domicilio *</label>
+                <input type="text" class="form-control" id="agenteDomicilio" required maxlength="255"
+                  placeholder="Calle, número, piso..." />
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-5">
+              <div class="mb-3">
+                <label for="agentePoblacion" class="form-label">Población *</label>
+                <input type="text" class="form-control" id="agentePoblacion" required maxlength="150"
+                  placeholder="Nombre de la población" />
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="mb-3">
+                <label for="agenteCodigoPostal" class="form-label">Código Postal *</label>
+                <input type="text" class="form-control" id="agenteCodigoPostal" required maxlength="5"
+                  placeholder="28001" pattern="[0-9]{5}" />
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label for="agenteProvincia" class="form-label">Provincia *</label>
+                <select class="form-select" id="agenteProvincia" required>
+                  <option value="">-- Sin provincia --</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Cancelar
+        </button>
+        <button type="button" class="btn btn-primary" id="btnSaveAgente">
+          Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

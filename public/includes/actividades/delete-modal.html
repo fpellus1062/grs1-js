@@ -1,0 +1,40 @@
+<div class="modal fade" id="confirmActividadDeleteModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content modal-notion">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="confirmActividadDeleteTitle">
+          Confirmar baja
+        </h5>
+        <button
+          type="button"
+          class="btn-close btn-close-white"
+          data-bs-dismiss="modal"
+          aria-label="Cerrar"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <p id="confirmActividadDeleteText">
+          ¿Está seguro de que desea dar de baja el servicio
+          <strong id="deleteActividadNombre">-</strong>?
+        </p>
+        <p class="text-muted">
+          <small id="confirmActividadDeleteHint"
+            >Se marcará fecha_baja con la fecha/hora actual.</small
+          >
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="btn btn-danger"
+          id="confirmActividadDeleteBtn"
+        >
+          Dar de baja
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

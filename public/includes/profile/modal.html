@@ -1,0 +1,56 @@
+<div class="modal fade" id="profileModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content modal-notion">
+      <div class="modal-header">
+        <h5 class="modal-title">Mi Perfil</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="profileForm" novalidate>
+
+          <!-- ── Datos ─────────────────────────────────── -->
+          <div class="notion-section-title">Datos de cuenta</div>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="profileNombre" class="form-label">Nombre *</label>
+                <input type="text" class="form-control" id="profileNombre" required minlength="2" maxlength="100">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-control" id="profileEmail" disabled readonly title="Email">
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Rol</label>
+                <input type="text" class="form-control" id="profileRole" disabled readonly title="Rol">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Último acceso</label>
+                <input type="text" class="form-control" id="profileUltimoLogin" disabled readonly title="Último acceso">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Cuenta creada</label>
+                <input type="text" class="form-control" id="profileCreatedAt" disabled readonly title="Fecha de creación">
+              </div>
+            </div>
+          </div>
+
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnSaveProfile">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>

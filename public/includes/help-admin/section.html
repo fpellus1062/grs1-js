@@ -1,0 +1,91 @@
+<div class="card shadow-sm mb-2">
+  <!-- Notion-style compact toolbar -->
+  <div
+    class="d-flex align-items-center gap-2 px-3 py-2 border-bottom bg-white flex-wrap"
+  >
+    <i
+      class="bi bi-question-circle text-secondary"
+      style="font-size: 0.95rem"
+    ></i>
+    <span class="fw-semibold text-dark" style="font-size: 0.875rem"
+      >Gestión de Ayuda</span
+    >
+    <span class="vr mx-1 opacity-25"></span>
+    <span class="text-muted" style="font-size: 0.75rem">
+      <strong id="helpAdminTotal">0</strong> items
+    </span>
+    <!-- Filtro tipo -->
+    <select
+      id="helpAdminFilterType"
+      class="form-select form-select-sm ms-1"
+      style="width: auto; font-size: 0.78rem"
+    >
+      <option value="">Todos los tipos</option>
+      <option value="modal">modal</option>
+      <option value="tooltip">tooltip</option>
+    </select>
+    <!-- Filtro contexto -->
+    <input
+      id="helpAdminFilterContext"
+      type="search"
+      class="form-control form-control-sm"
+      placeholder="Filtrar contexto…"
+      style="width: 160px; font-size: 0.78rem"
+    />
+    <div class="ms-auto d-flex align-items-center gap-1">
+      <button
+        id="helpAdminBtnNuevo"
+        class="btn btn-primary btn-sm py-1 px-2"
+        type="button"
+        style="font-size: 0.78rem"
+      >
+        <i class="bi bi-plus-circle"></i> Nuevo
+      </button>
+      <button
+        id="helpAdminBtnReload"
+        class="btn btn-outline-secondary btn-sm py-1 px-2"
+        type="button"
+        title="Recargar"
+      >
+        <i class="bi bi-arrow-clockwise"></i>
+      </button>
+      <button
+        class="btn btn-outline-secondary btn-sm py-1 px-2"
+        data-section-trigger="dashboard"
+        type="button"
+        title="Ir al Dashboard"
+      >
+        <i class="bi bi-house"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabla -->
+  <div class="card-body p-0">
+    <div id="helpAdminAlertZone" class="px-3 pt-2"></div>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0" style="font-size: 0.82rem">
+        <thead class="table-light">
+          <tr>
+            <th style="width: 40px">#</th>
+            <th>Título</th>
+            <th>Contexto</th>
+            <th style="width: 80px">Tipo</th>
+            <th style="width: 90px" class="text-end pe-3">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="helpAdminTableBody">
+          <tr>
+            <td colspan="5" class="text-center text-muted py-4">
+              <div
+                class="spinner-border spinner-border-sm me-2"
+                role="status"
+              ></div>
+              Cargando…
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

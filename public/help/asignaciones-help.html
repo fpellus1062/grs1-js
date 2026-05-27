@@ -1,0 +1,325 @@
+<div class="d-flex align-items-center gap-2 border-bottom border-3 border-warning pb-2 mb-4">
+    <h1 class="text-warning m-0">
+        <i class="bi bi-calendar4-range"></i>
+        Asignación de Servicios
+    </h1>
+</div>
+
+<div class="row g-4">
+
+    <!-- Vista general -->
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-primary bg-opacity-10 border-0 rounded-top-4 py-3">
+                <h5 class="mb-0 fw-bold text-primary">
+                    <i class="bi bi-eye me-2"></i>
+                    Vista general
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Planifica y asigna servicios a los agentes dentro del cuadrante del mes SIGO,
+                    controlando disponibilidad y carga operativa.
+                </p>
+
+                <ul class="small">
+                    <li>Listado de agentes con empleo, aptitudes y estado.</li>
+                    <li>Columnas con pelotón, certificados y días de devengo.</li>
+                    <li>Vista del mes SIGO con días del cuadrante y festivos destacados.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cómo asignar -->
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-success bg-opacity-10 border-0 rounded-top-4 py-3">
+                <h5 class="mb-0 fw-bold text-success">
+                    <i class="bi bi-hand-index-thumb me-2"></i>
+                    Cómo asignar
+                </h5>
+            </div>
+            <div class="card-body">
+
+                <h6 class="fw-bold text-success">Asignación individual</h6>
+                <ol class="small mb-3">
+                    <li>Busca o filtra el agente.</li>
+                    <li>Selecciona el día.</li>
+                    <li>Haz clic en la celda.</li>
+                    <li>Elige el servicio.</li>
+                </ol>
+
+                <h6 class="fw-bold text-success">Asignación masiva</h6>
+                <ol class="small">
+                    <li>Filtra por pelotón, empleo o aptitud.</li>
+                    <li>Selecciona los agentes (checkbox o Ctrl+click).</li>
+                    <li>Selecciona el día o rango de días.</li>
+                </ol>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Herramientas -->
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-info bg-opacity-10 border-0 rounded-top-4 py-3">
+                <h5 class="mb-0 fw-bold text-info">
+                    <i class="bi bi-tools me-2"></i>
+                    Herramientas
+                </h5>
+            </div>
+            <div class="card-body">
+    
+                <a href="/help/asignaciones-herramientas.png" target="_blank">
+                    <img src="/help/asignaciones-herramientas.png" alt="Herramientas de asignación"
+                        class="img-fluid border rounded mb-3">
+                </a>
+    
+                <ul class="small">
+                    <li><strong>Selector del Cuadrante:</strong> Muestra todos los cuadrantes activos.</li>
+                    <li><strong>Selector del Borrador:</strong> Todas las versiones del cuadrante.</li>
+                    <li>Comentarios, Añadir y Eliminar Borrador
+                        <strong class="text-danger">Debe estar vacío de servicios.</strong>
+                    </li>
+                    <li><strong>Exportar a Excel o PDF:</strong> Exportación completa del cuadrante.</li>
+                    <li><strong>Asignación Masiva:</strong> Servicios a múltiples agentes simultáneamente.</li>
+                    <li><strong>Eliminar / Copiar Cuadrante:</strong> Gestión de cuadrantes existentes.</li>
+                    <li><strong>Historial de Cambios:</strong> Registro de modificaciones.</li>
+                    <li><strong>Cálculo de Devengo:</strong> Recalcula los días devengados.</li>
+                    <li><strong>Validar y Refrescar:</strong> Comprueba asignaciones y actualiza la vista.</li>
+                </ul>
+    
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filtros Especiales -->
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-warning bg-opacity-10 border-0 rounded-top-4 py-3">
+                <h5 class="mb-0 fw-bold text-warning">
+                    <i class="bi bi-funnel me-2"></i>
+                    Filtros Especiales
+                </h5>
+            </div>
+            <div class="card-body">
+    
+                <a href="/help/asignaciones-herramientas-filtros.png" target="_blank">
+                    <img src="/help/asignaciones-herramientas-filtros.png" alt="Filtros de asignación"
+                        class="img-fluid border rounded mb-3">
+                </a>
+    
+                <ul class="small">
+                    <li><strong>Filtro general:</strong> Busca por nombre, pelotón o estado.</li>
+                    <li><strong>Limpiar filtros:</strong> Restaura la vista completa.</li>
+                    <li><strong>Filtro de Actividades:</strong> Actividades específicas, vacías o combinadas.</li>
+                    <li><strong>Filtro por Pelotón, Empleo o Aptitud:</strong> Ideal para asignación masiva.</li>
+                </ul>
+    
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Notas importantes -->
+    <div class="col-12">
+        <div class="card shadow-sm border-0 rounded-4">
+            <div class="card-header bg-danger bg-opacity-10 border-0 rounded-top-4 py-3">
+                <h5 class="mb-0 fw-bold text-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Notas Importantes
+                </h5>
+            </div>
+            <div class="card-body">
+
+                <ul class="small">
+                    <li>Los filtros de columnas permiten múltiples criterios. Debes aceptar el filtro con Intro</li>
+
+                    <div class="row g-4">
+                    
+                        <!-- Operadores de texto -->
+                        <div class="col-12 col-lg-6">
+                            <div class="card shadow-sm border-0 rounded-4 h-100">
+                                <div class="card-header bg-primary bg-opacity-10 border-0 rounded-top-4 py-3">
+                                    <h5 class="mb-0 fw-bold text-primary">
+                                        <i class="bi bi-fonts me-2"></i>
+                                        Operadores de Texto
+                                    </h5>
+                                </div>
+                    
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered align-middle small mb-0">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>Operador</th>
+                                                    <th>Ejemplo</th>
+                                                    <th>Significado</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td>*</td>
+                                                    <td>*garcia</td>
+                                                    <td>Contiene (también sin operador: garcia)</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>=</td>
+                                                    <td>=garcia</td>
+                                                    <td>Igual exacto</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>!=</td>
+                                                    <td>!=garcia</td>
+                                                    <td>Distinto / No igual</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>^</td>
+                                                    <td>^garcia</td>
+                                                    <td>Empieza por</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>$</td>
+                                                    <td>garcia$</td>
+                                                    <td>Termina en</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>!</td>
+                                                    <td>!garcia</td>
+                                                    <td>No contiene</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                    
+                            </div>
+                        </div>
+                    
+                        <!-- Operadores numéricos -->
+                        <div class="col-12 col-lg-6">
+                            <div class="card shadow-sm border-0 rounded-4 h-100">
+                                <div class="card-header bg-success bg-opacity-10 border-0 rounded-top-4 py-3">
+                                    <h5 class="mb-0 fw-bold text-success">
+                                        <i class="bi bi-123 me-2"></i>
+                                        Operadores Numéricos
+                                    </h5>
+                                </div>
+                    
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered align-middle small mb-0">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>Operador</th>
+                                                    <th>Ejemplo</th>
+                                                    <th>Significado</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td>&gt;</td>
+                                                    <td>&gt;10</td>
+                                                    <td>Mayor que</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>&gt;=</td>
+                                                    <td>&gt;=10</td>
+                                                    <td>Mayor o igual que</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>&lt;</td>
+                                                    <td>&lt;10</td>
+                                                    <td>Menor que</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>&lt;=</td>
+                                                    <td>&lt;=10</td>
+                                                    <td>Menor o igual que</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>=</td>
+                                                    <td>=10</td>
+                                                    <td>Igual</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>!=</td>
+                                                    <td>!=10</td>
+                                                    <td>Distinto</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                    
+                            </div>
+                        </div>
+                    
+                    </div>
+                </br>
+                    <div class="card shadow-sm border-0 rounded-4">
+                        <div class="card-header bg-secondary bg-opacity-10 border-0 rounded-top-4 py-3">
+                            <h5 class="mb-0 fw-bold text-secondary">
+                                <i class="bi bi-lightning me-2"></i>
+                                Ejemplos Prácticos
+                            </h5>
+                        </div>
+                    
+                        <div class="card-body">
+                    
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered align-middle small mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Tipo</th>
+                                            <th>Ejemplo</th>
+                                            <th>Significado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                    
+                                        <tr>
+                                            <td>Texto</td>
+                                            <td>^garcia &#124;&#124; ^lopez</td>
+                                            <td>Empieza por García O López</td>
+                                        </tr>
+                    
+                                        <tr>
+                                            <td>Texto</td>
+                                            <td>!baja &amp;&amp; ^cap</td>
+                                            <td>No contiene “baja” Y empieza por “cap”</td>
+                                        </tr>
+                    
+                                        <tr>
+                                            <td>Número</td>
+                                            <td>&gt;=10 &amp;&amp; &lt;=20</td>
+                                            <td>Entre 10 y 20 (inclusive)</td>
+                                        </tr>
+                    
+                                        <tr>
+                                            <td>Número</td>
+                                            <td>=1 &#124;&#124; =3 &#124;&#124; =5</td>
+                                            <td>Es 1, 3 o 5</td>
+                                        </tr>
+                    
+                                    </tbody>
+                                </table>
+                            </div>
+                    
+                        </div>
+                    </div>
+                    
+                    <li><strong>Cálculo de Devengo:</strong> Se actualiza automáticamente en background y también puede
+                        recalcularse manualmente.</li>
+
+                    <li><strong>Historial de Cambios:</strong> Los ya impresos no vuelven a mostrarse automáticamente.
+                    </li>
+                </ul>
+
+            </div>
+        </div>
+    </div>
+
+</div>

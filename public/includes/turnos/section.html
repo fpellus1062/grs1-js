@@ -1,0 +1,51 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2>Catálogo de Turnos</h2>
+  <button class="btn btn-outline-secondary" data-section-trigger="dashboard" type="button">
+    <i class="bi bi-house"></i> Volver al Dashboard
+  </button>
+</div>
+
+<div class="card shadow">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="d-flex align-items-center gap-2">
+      <h4 class="mb-0">Listado de Turnos</h4>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <small class="text-dark-emphasis opacity-75">
+        Total: <strong id="totalRecordsTurno">0</strong> | Filtrados: <strong id="filteredRecordsTurno">0</strong>
+      </small>
+      <div class="dropdown">
+        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-download"></i> Exportar
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><button class="dropdown-item" id="btnExportExcelTurno" type="button"><i class="bi bi-file-earmark-excel me-2"></i>Excel</button></li>
+          <li><button class="dropdown-item" id="btnExportPdfTurno" type="button"><i class="bi bi-file-earmark-pdf me-2"></i>PDF</button></li>
+        </ul>
+      </div>
+      <button class="btn btn-primary btn-sm" id="btnAgregarNuevoTurno" title="Nuevo Turno" type="button">
+        <i class="bi bi-plus-circle"></i> Nuevo
+      </button>
+    </div>
+  </div>
+
+  <div class="save-changes-section pending-changes-idle" id="saveChangesSectionTurno">
+    <div class="d-flex justify-content-between align-items-center">
+      <div><i class="bi bi-pencil-square me-1"></i><strong>Cambios pendientes:</strong> <span id="pendingChangesCountTurno">0</span> fila(s)</div>
+      <div>
+        <button class="btn btn-success btn-sm me-2" id="btnSaveAllChangesTurno" type="button" disabled>
+          <i class="bi bi-check-circle"></i> Guardar Cambios
+        </button>
+        <button class="btn btn-outline-secondary btn-sm" id="btnDiscardChangesTurno" type="button" disabled>
+          <i class="bi bi-x-circle"></i> Descartar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="alertContainerTurno" class="px-3 pt-2"></div>
+
+  <div class="card-body p-0">
+    <div id="tabulatorTurnos"></div>
+  </div>
+</div>
