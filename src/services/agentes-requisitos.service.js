@@ -74,6 +74,82 @@ function buildEstado(periodoFin, vencimiento, completado, objetivo, sancionado, 
   return 'en_progreso';
 }
 
+function normalizeIsoDateStrict(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    throw new Error('La fecha de servicio debe tener formato YYYY-MM-DD.');
+  }
+  const dt = DateTime.fromISO(raw, { zone: 'utc' });
+  if (!dt.isValid || dt.toISODate() !== raw) {
+    throw new Error('La fecha de servicio es inválida.');
+  }
+  return raw;
+}
+
+async function getServiciosAsignadosPorAgente(arsId, fechaServicioIso, agenteIds) {
+  const uniqueAgenteIds = Array.from(
+    new Set((agenteIds || []).map(Number).filter((id) => Number.isInteger(id) && id > 0))
+  );
+  if (!fechaServicioIso || !uniqueAgenteIds.length) {
+    return new Map();
+  }
+
+  const result = await db.query(
+    `WITH asignacion_top AS (
+       SELECT ranked.id,
+              ranked.agente_id
+         FROM (
+           SELECT ab.id,
+                  ab.agente_id,
+                  ROW_NUMBER() OVER (
+                    PARTITION BY ab.agente_id
+                    ORDER BY
+                      CASE WHEN b.estado IN ('canonico_validado', 'canonico_modificado') THEN 0 ELSE 1 END,
+                      COALESCE(b.updated_at, b.created_at) DESC,
+                      COALESCE(ab.updated_at, ab.created_at) DESC,
+                      ab.id DESC
+                  ) AS rn
+             FROM asignaciones_borrador ab
+             JOIN asignaciones_borradores b
+               ON b.id = ab.borrador_id
+              AND b.ars_unidad_id = ab.ars_unidad_id
+            WHERE ab.ars_unidad_id = $1
+              AND ab.fecha = $2::date
+              AND ab.agente_id = ANY($3::int[])
+         ) ranked
+        WHERE ranked.rn = 1
+     )
+     SELECT t.agente_id,
+            COALESCE(
+              json_agg(
+                json_build_object(
+                  'id', a.id_actividad,
+                  'codigo', a.actividad,
+                  'nombre', a.nombre,
+                  'color', NULLIF(TRIM(a.color::text), '')
+                )
+                ORDER BY a.actividad, a.nombre
+              ) FILTER (WHERE a.id_actividad IS NOT NULL),
+              '[]'::json
+            ) AS servicios
+       FROM asignacion_top t
+       LEFT JOIN asignaciones_borrador_servicios abs
+         ON abs.asignacion_borrador_id = t.id
+        AND abs.ars_unidad_id = $1
+       LEFT JOIN actividades a
+         ON a.id_actividad = abs.actividad_id
+      GROUP BY t.agente_id`,
+    [arsId, fechaServicioIso, uniqueAgenteIds]
+  );
+
+  const byAgente = new Map();
+  result.rows.forEach((row) => {
+    byAgente.set(Number(row.agente_id), Array.isArray(row.servicios) ? row.servicios : []);
+  });
+  return byAgente;
+}
+
 async function computeSubtypeProgress(client, plantillaId, periodoId) {
   const objetivosRes = await client.query(
     `SELECT subtipo, objetivo, orden
@@ -228,6 +304,7 @@ exports.getMeta = async (arsId) => {
 exports.listPeriodos = async (arsId, filters) => {
   const where = ['p.ars_unidad_id = $1'];
   const params = [arsId];
+  const fechaServicio = normalizeIsoDateStrict(filters && filters.fecha_servicio);
 
   if (filters && filters.estado) {
     params.push(String(filters.estado).trim().toLowerCase());
@@ -239,80 +316,104 @@ exports.listPeriodos = async (arsId, filters) => {
   }
 
   const result = await db.query(
-    `SELECT p.id,
-            p.agente_id,
-            p.plantilla_id,
-            p.periodo_inicio,
-            p.periodo_fin,
-            p.vencimiento,
-            p.estado,
-            p.objetivo_total,
-            p.completado_total,
-            p.sancionado,
-            p.sancion_notas,
-            a.tip,
-            a.nombre,
-            a.apellido_1,
-            a.apellido_2,
-            a.escalafon,
-            a.empleo_id,
-            ae.descripcion AS empleo_nombre,
-            ae.color AS color_empleo,
-            a.peloton_id,
-            ap.descripcion AS peloton_nombre,
-            ap.color AS color_peloton,
-            t.nombre AS plantilla_nombre,
-            t.tipo_requisito,
-            t.periodicidad,
-            t.requiere_aprobacion,
-            t.plazo_dias,
-            COALESCE(obj.objetivos, '[]'::json) AS objetivos,
-            COALESCE(ej.ejecuciones, '[]'::json) AS ejecuciones
-       FROM agentes_requisitos_periodos p
-       JOIN agentes a
-         ON a.id = p.agente_id
-        AND a.ars_unidad_id = p.ars_unidad_id
-       LEFT JOIN agentes_empleo ae
-         ON ae.id_empleo::text = a.empleo_id::text
-       LEFT JOIN agentes_peloton ap
-         ON ap.id_peloton::text = a.peloton_id::text
-       JOIN agentes_requisitos_plantillas t
-         ON t.id = p.plantilla_id
-        AND t.ars_unidad_id = p.ars_unidad_id
-       LEFT JOIN LATERAL (
-         SELECT json_agg(
-                  json_build_object(
-                    'subtipo', po.subtipo,
-                    'objetivo', po.objetivo,
-                    'orden', po.orden
-                  )
-                  ORDER BY po.orden, po.subtipo
-                ) AS objetivos
-           FROM agentes_requisitos_plantilla_objetivos po
-          WHERE po.plantilla_id = t.id
-       ) obj ON TRUE
-       LEFT JOIN LATERAL (
-         SELECT json_agg(
-                  json_build_object(
-                    'id', e.id,
-                    'subtipo', e.subtipo,
-                    'cantidad', e.cantidad,
-                    'resultado', e.resultado,
-                    'fecha_prueba', e.fecha_prueba,
-                    'observaciones', e.observaciones
-                  )
-                  ORDER BY e.fecha_prueba DESC
-                ) AS ejecuciones
-           FROM agentes_requisitos_ejecuciones e
-          WHERE e.periodo_id = p.id
-            AND e.ars_unidad_id = p.ars_unidad_id
-       ) ej ON TRUE
-      WHERE ${where.join(' AND ')}
-      ORDER BY a.escalafon, a.apellido_1, a.apellido_2, a.nombre, p.periodo_fin DESC`,
-    params
-  );
+        `SELECT
+        p.id,
+        p.agente_id,
+        p.plantilla_id,
+        p.periodo_inicio,
+        p.periodo_fin,
+        p.vencimiento,
+        p.estado,
+        p.objetivo_total,
+        p.completado_total,
+        p.sancionado,
+        p.sancion_notas,
 
-  return result.rows.map((row) => {
+        -- AGENTE
+        a.tip,
+        a.nombre,
+        a.apellido_1,
+        a.apellido_2,
+        a.escalafon,
+        a.empleo_id,
+        ae.descripcion AS empleo_nombre,
+        ae.color AS color_empleo,
+
+        a.peloton_id,
+        ap.descripcion AS peloton_nombre,
+        ap.color AS color_peloton,
+
+        -- PLANTILLA
+        t.nombre AS plantilla_nombre,
+        t.tipo_requisito,
+        t.periodicidad,
+        t.requiere_aprobacion,
+        t.plazo_dias,
+
+        -- JSON
+        COALESCE(obj.objetivos, '[]'::jsonb)   AS objetivos,
+        COALESCE(ej.ejecuciones, '[]'::jsonb)  AS ejecuciones
+
+    FROM agentes_requisitos_periodos p
+
+    INNER JOIN agentes a
+        ON a.id = p.agente_id
+      AND a.ars_unidad_id = p.ars_unidad_id
+
+    INNER JOIN agentes_requisitos_plantillas t
+        ON t.id = p.plantilla_id
+      AND t.ars_unidad_id = p.ars_unidad_id
+
+    LEFT JOIN agentes_empleo ae
+        ON ae.id_empleo = a.empleo_id
+
+    LEFT JOIN agentes_peloton ap
+        ON ap.id_peloton = a.peloton_id
+
+    -- OBJETIVOS
+    LEFT JOIN LATERAL (
+        SELECT jsonb_agg(
+            jsonb_build_object(
+                'subtipo',  po.subtipo,
+                'objetivo', po.objetivo,
+                'orden',    po.orden
+            )
+            ORDER BY po.orden, po.subtipo
+        ) AS objetivos
+
+        FROM agentes_requisitos_plantilla_objetivos po
+
+        WHERE po.plantilla_id = t.id
+
+    ) obj ON TRUE
+
+    -- EJECUCIONES
+    LEFT JOIN LATERAL (
+        SELECT jsonb_agg(
+            jsonb_build_object(
+                'id',             e.id,
+                'subtipo',        e.subtipo,
+                'cantidad',       e.cantidad,
+                'resultado',      e.resultado,
+                'fecha_prueba',   e.fecha_prueba,
+                'observaciones',  e.observaciones
+            )
+            ORDER BY e.fecha_prueba DESC, e.id DESC
+        ) AS ejecuciones
+
+        FROM agentes_requisitos_ejecuciones e
+
+        WHERE e.periodo_id = p.id
+          AND e.ars_unidad_id = p.ars_unidad_id
+
+    ) ej ON TRUE
+
+    WHERE ${where.join(' AND ')}
+          ORDER BY a.escalafon, a.apellido_1, a.apellido_2, a.nombre, p.periodo_fin DESC, p.id DESC`,
+        params
+      );
+
+  const baseRows = result.rows.map((row) => {
     const objetivo = Number(row.objetivo_total) || 0;
     const completado = Number(row.completado_total) || 0;
     const progressPct = objetivo > 0 ? Math.min(100, Math.round((completado * 100) / objetivo)) : 0;
@@ -346,6 +447,38 @@ exports.listPeriodos = async (arsId, filters) => {
       progress_pct: String(progressPct)+'%',
       subtipos_estado: subtiposEstado,
       cumple_subtipos: subtiposEstado.every((s) => s.cumple),
+    };
+  });
+
+  if (!fechaServicio) {
+    return baseRows.map((row) => ({
+      ...row,
+      servicio_fecha: null,
+      servicio_asignaciones: [],
+      servicio_labels: '',
+    }));
+  }
+
+  const agenteIds = baseRows.map((row) => Number(row.agente_id || 0));
+  const serviciosByAgente = await getServiciosAsignadosPorAgente(arsId, fechaServicio, agenteIds);
+
+  return baseRows.map((row) => {
+    const agenteId = Number(row.agente_id || 0);
+    const servicios = serviciosByAgente.get(agenteId) || [];
+    const servicioLabels = servicios
+      .map((s) => {
+        const codigo = String((s && s.codigo) || '').trim();
+        const nombre = String((s && s.nombre) || '').trim();
+        return codigo || nombre;
+      })
+      .filter(Boolean)
+      .join(' | ');
+
+    return {
+      ...row,
+      servicio_fecha: fechaServicio,
+      servicio_asignaciones: servicios,
+      servicio_labels: servicioLabels,
     };
   });
 };

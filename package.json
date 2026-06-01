@@ -7,6 +7,7 @@
     "build:js:watch": "esbuild public/js/*.js --outdir=public/dist --minify --sourcemap --watch",
     "build": "npm run build:js",
     "dev": "nodemon server.js",
+    "dev:safe": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-dev-safe.ps1",
     "start": "npm run build && node server.js",
     "db:reset-asignaciones": "node scripts/reset-asignaciones.js",
     "db:reset-asignaciones:yes": "node scripts/reset-asignaciones.js --yes",

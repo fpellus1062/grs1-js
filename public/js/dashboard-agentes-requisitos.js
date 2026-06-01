@@ -24,11 +24,13 @@
     plantillaObjetivosDraft: [],
     plantillaObjetivoEditingIndex: -1,
     quickEstado: 'todos',
+    servicioFecha: '',
     reopenCrudAfterPlantilla: false,
   };
 
   // @ts-ignore
   let TABULATOR_LANGS = window.GRS1TabulatorLangs;
+  let LEFT_PANEL_COLLAPSED_KEY = 'grs1:req:left-panel-collapsed';
 
   function esc(value) {
     if (app && typeof app.escapeHtml === 'function') return app.escapeHtml(value);
@@ -164,6 +166,76 @@
     el.disabled = !!disabled;
   }
 
+  function getReqLayoutEls() {
+    return {
+      leftCol: document.getElementById('reqLeftCol'),
+      rightCol: document.getElementById('reqRightCol'),
+      toggleBtn: document.getElementById('btnReqToggleLeft'),
+    };
+  }
+
+  function getSavedLeftPanelCollapsed() {
+    try {
+      return localStorage.getItem(LEFT_PANEL_COLLAPSED_KEY) === '1';
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function saveLeftPanelCollapsed(collapsed) {
+    try {
+      localStorage.setItem(LEFT_PANEL_COLLAPSED_KEY, collapsed ? '1' : '0');
+    } catch (_error) {
+      // noop: almacenamiento no disponible
+    }
+  }
+
+  function updateLeftPanelToggleVisual(collapsed) {
+    let els = getReqLayoutEls();
+    let btn = els.toggleBtn;
+    if (!(btn instanceof HTMLButtonElement)) return;
+
+    btn.title = collapsed ? 'Mostrar panel de asignación' : 'Ocultar panel de asignación';
+    btn.setAttribute('aria-label', btn.title);
+    btn.innerHTML = collapsed
+      ? '<i class="bi bi-layout-sidebar-inset"></i>'
+      : '<i class="bi bi-layout-sidebar"></i>';
+  }
+
+  function applyLeftPanelCollapsed(collapsed, options) {
+    let opts = options || {};
+    let els = getReqLayoutEls();
+    let leftCol = els.leftCol;
+    let rightCol = els.rightCol;
+    if (!(leftCol instanceof HTMLElement) || !(rightCol instanceof HTMLElement)) return;
+
+    leftCol.classList.toggle('d-none', !!collapsed);
+    rightCol.classList.toggle('col-xl-8', !collapsed);
+    rightCol.classList.toggle('col-xl-12', !!collapsed);
+
+    updateLeftPanelToggleVisual(!!collapsed);
+    if (opts.persist !== false) {
+      saveLeftPanelCollapsed(!!collapsed);
+    }
+
+    if (opts.redraw === false || !state.initialized) return;
+
+    requestAnimationFrame(function () {
+      if (state.table) state.table.redraw(true);
+      if (!collapsed && state.assignAgentesTable) {
+        state.assignAgentesTable.redraw(true);
+      }
+    });
+  }
+
+  function toggleLeftPanel() {
+    let els = getReqLayoutEls();
+    let leftCol = els.leftCol;
+    if (!(leftCol instanceof HTMLElement)) return;
+    let collapsed = !leftCol.classList.contains('d-none');
+    applyLeftPanelCollapsed(collapsed, { persist: true, redraw: true });
+  }
+
   function exportMainTableExcel() {
     if (!state.table) {
       setAlert('No hay tabla cargada para exportar.', 'warning');
@@ -278,6 +350,28 @@
         );
       })
       .join('');
+  }
+
+  function servicioBadgeFormatter(cell) {
+    let row = cell.getRow().getData() || {};
+    let items = Array.isArray(row.servicio_asignaciones) ? row.servicio_asignaciones : [];
+    if (!items.length) return '<span class="text-muted">-</span>';
+
+    return items.map(function (svc) {
+      let codigo = String((svc && svc.codigo) || '').trim();
+      let nombre = String((svc && svc.nombre) || '').trim();
+      let label = codigo || nombre || 'Servicio';
+      let tooltip = nombre || label;
+      let bg = String((svc && svc.color) || '').trim() || '#6c757d';
+      return '<span title="' + esc(tooltip) + '">' + window.GRS1Utils.renderColorBadgeHtml(label, bg, {
+        escapeHtmlFn: esc,
+        className: 'badge me-1 mb-1',
+        fontSize: '.60rem',
+        padding: '.22em .45em',
+        lineHeight: '1.1',
+        contrastThreshold: 0.6,
+      }) + '</span>';
+    }).join('');
   }
 
   function safeBadgeColor(value, fallback) {
@@ -432,6 +526,7 @@
       { title: 'Escalafón', field: 'escalafon', width: 110, headerFilter: 'input', visible: false },
       { title: 'Pelotón', field: 'peloton_nombre', minWidth: 130, headerFilter: 'input', formatter: pelotonBadgeFormatter },
       { title: 'Plantilla', field: 'plantilla_nombre', minWidth: 170, headerFilter: 'input' },
+      { title: 'Servicio', field: 'servicio_labels', minWidth: 80, headerFilter: 'input', formatter: servicioBadgeFormatter },
       {
         title: 'Progreso',
         field: 'progress_pct',
@@ -1065,7 +1160,13 @@
   }
 
   async function loadRows() {
-    let res = await fetch('/api/agentes/requisitos', { headers: getHeaders(false), cache: 'no-store' });
+    let query = new URLSearchParams();
+    let fechaServicio = String(state.servicioFecha || '').trim();
+    if (fechaServicio) {
+      query.set('fecha_servicio', fechaServicio);
+    }
+    let url = '/api/agentes/requisitos' + (query.toString() ? ('?' + query.toString()) : '');
+    let res = await fetch(url, { headers: getHeaders(false), cache: 'no-store' });
     if (!res.ok) throw new Error('No se pudo cargar requisitos periódicos.');
     let json = await res.json();
     state.rows = Array.isArray(json.requisitos) ? json.requisitos : [];
@@ -1337,8 +1438,29 @@
     let todayIso = dt ? dt.now().toISODate() : '';
     let fechaRef = getControlEl('reqAsignarFechaRef');
     let fechaPrueba = getControlEl('reqEjecFecha');
+    let fechaServicio = getControlEl('reqServicioFecha');
+    let btnToggleLeft = document.getElementById('btnReqToggleLeft');
     if (fechaRef && !fechaRef.value) fechaRef.value = todayIso;
     if (fechaPrueba && !fechaPrueba.value) fechaPrueba.value = todayIso;
+    if (fechaServicio && !fechaServicio.value) fechaServicio.value = todayIso;
+    state.servicioFecha = fechaServicio ? String(fechaServicio.value || '').trim() : '';
+
+    if (btnToggleLeft && !btnToggleLeft.dataset.bound) {
+      btnToggleLeft.dataset.bound = '1';
+      btnToggleLeft.addEventListener('click', function () {
+        toggleLeftPanel();
+      });
+    }
+
+    if (fechaServicio && !fechaServicio.dataset.bound) {
+      fechaServicio.dataset.bound = '1';
+      fechaServicio.addEventListener('change', function () {
+        state.servicioFecha = String(fechaServicio.value || '').trim();
+        loadRows().catch(function (error) {
+          setAlert(error.message || 'No se pudo recargar servicios por fecha.', 'danger');
+        });
+      });
+    }
 
     let periodoInicioEl = getControlEl('reqPlantillaPeriodoInicio');
     let periodoFinEl = getControlEl('reqPlantillaPeriodoFin');
@@ -1633,6 +1755,7 @@
     ensureAssignAgentesTable();
     ensurePlantillasTable();
     bindEvents();
+    applyLeftPanelCollapsed(getSavedLeftPanelCollapsed(), { persist: false, redraw: false });
     await loadMeta();
     await loadPlantillasCrud().catch(function () {});
     await loadRows();

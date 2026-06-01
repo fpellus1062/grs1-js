@@ -231,7 +231,7 @@
         }
 
         // Redirigir al login cuando el token expiró o no es válido.
-        window.location.href = 'login.html?reason=unauthorized';
+        window.location.href = '/login.html?reason=unauthorized';
       }
       return response;
     });
@@ -268,7 +268,7 @@
   }
   app.initializeApp = async function initializeApp() {
     if (!app.globalState.token) {
-      window.location.href = 'login.html';
+      window.location.href = '/login.html';
       return;
     }
     //20240425 F.Pellus - Carga de includes con concurrencia limitada para mejorar performance y evitar bloqueos
@@ -3319,7 +3319,7 @@
 
   app.logout = function logout() {
     clearSessionAuth();
-    window.location.href = 'login.html';
+    window.location.href = '/login.html';
   };
 
   // ── Selector global de ARS ──────────────────────────────────

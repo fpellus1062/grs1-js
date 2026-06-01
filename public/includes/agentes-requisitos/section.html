@@ -2,7 +2,8 @@
   <div class="d-flex align-items-center gap-2 px-3 py-2 border-bottom bg-white flex-wrap">
     <i class="bi bi-shield-check text-secondary" style="font-size:.95rem"></i>
     <span class="fw-semibold text-dark" style="font-size:.875rem">Requisitos Periódicos</span>
-    <button class="btn btn-link p-0 ms-1" type="button" data-help-context="agentes-requisitos-help" title="Agentes · Requisitos periódicos">
+    <button class="btn btn-link p-0 ms-1" type="button" data-help-context="agentes-requisitos-help"
+      title="Agentes · Requisitos periódicos">
       <i class="bi bi-question-circle text-secondary" style="font-size: 0.95rem"></i>
     </button>
     <span class="vr mx-1 opacity-25"></span>
@@ -13,15 +14,17 @@
     </span>
 
     <div class="ms-auto d-flex align-items-center gap-1">
+      <div class="d-flex align-items-center gap-1 me-1" data-permiso="agentes-requisitos:leer">
+        <label for="reqServicioFecha" class="text-muted mb-0"
+          style="font-size:.72rem;white-space:nowrap;">Servicio</label>
+        <input id="reqServicioFecha" type="date" class="form-control form-control-sm"
+          style="font-size:.72rem;min-height:1.72rem;max-width:170px;"
+          title="Fecha para buscar servicios en asignaciones" />
+      </div>
+
       <div class="dropdown" id="reqQuickFilterEstado" data-permiso="agentes-requisitos:leer">
-        <button
-          type="button"
-          class="btn btn-outline-secondary btn-sm py-1 px-2 dropdown-toggle"
-          data-bs-toggle="dropdown"
-          aria-expanded="false"
-          style="font-size:.78rem"
-          title="Filtrar por estado"
-        >
+        <button type="button" class="btn btn-outline-secondary btn-sm py-1 px-2 dropdown-toggle"
+          data-bs-toggle="dropdown" aria-expanded="false" style="font-size:.78rem" title="Filtrar por estado">
           <i class="bi bi-funnel"></i>
           <span id="reqEstadoLabel">Todos</span>
         </button>
@@ -35,39 +38,28 @@
       </div>
 
       <div class="dropdown" data-permiso="agentes-requisitos:editar">
-        <button
-          id="btnReqPlantillasMenu"
-          type="button"
-          class="btn btn-primary btn-sm py-1 px-2 dropdown-toggle"
-          data-bs-toggle="dropdown"
-          aria-expanded="false"
-          style="font-size:.78rem"
-          title="Plantillas"
-        >
+        <button id="btnReqPlantillasMenu" type="button" class="btn btn-primary btn-sm py-1 px-2 dropdown-toggle"
+          data-bs-toggle="dropdown" aria-expanded="false" style="font-size:.78rem" title="Plantillas">
           <i class="bi bi-collection"></i> Plantillas
         </button>
         <ul class="dropdown-menu dropdown-menu-end">
           <li>
-            <button id="btnReqNuevaPlantilla" class="dropdown-item" type="button" data-permiso="agentes-requisitos:editar">
+            <button id="btnReqNuevaPlantilla" class="dropdown-item" type="button"
+              data-permiso="agentes-requisitos:editar">
               <i class="bi bi-plus-circle me-2"></i>Nueva plantilla
             </button>
           </li>
           <li>
-            <button id="btnReqPlantillasCrud" class="dropdown-item" type="button" data-permiso="agentes-requisitos:editar">
+            <button id="btnReqPlantillasCrud" class="dropdown-item" type="button"
+              data-permiso="agentes-requisitos:editar">
               <i class="bi bi-gear me-2"></i>Gestión plantillas
             </button>
           </li>
         </ul>
       </div>
       <div class="dropdown" data-permiso="agentes-requisitos:leer">
-        <button
-          type="button"
-          class="btn btn-outline-secondary btn-sm py-1 px-2 dropdown-toggle"
-          data-bs-toggle="dropdown"
-          aria-expanded="false"
-          style="font-size:.78rem"
-          title="Exportar"
-        >
+        <button type="button" class="btn btn-outline-secondary btn-sm py-1 px-2 dropdown-toggle"
+          data-bs-toggle="dropdown" aria-expanded="false" style="font-size:.78rem" title="Exportar">
           <i class="bi bi-download"></i>
         </button>
         <ul class="dropdown-menu dropdown-menu-end">
@@ -79,17 +71,20 @@
         </ul>
       </div>
       <div class="btn-group btn-group-sm">
-        <button id="btnReqRegistrar" class="btn btn-outline-secondary py-1 px-2" type="button" title="Registrar prueba" disabled data-permiso="agentes-requisitos:editar">
+        <button id="btnReqRegistrar" class="btn btn-outline-secondary py-1 px-2" type="button" title="Registrar prueba"
+          disabled data-permiso="agentes-requisitos:editar">
           <i class="bi bi-journal-check"></i>
         </button>
-        <button id="btnReqSancionar" class="btn btn-outline-danger py-1 px-2" type="button" title="Sancionar" disabled data-permiso="agentes-requisitos:editar">
+        <button id="btnReqSancionar" class="btn btn-outline-danger py-1 px-2" type="button" title="Sancionar" disabled
+          data-permiso="agentes-requisitos:editar">
           <i class="bi bi-exclamation-triangle"></i>
         </button>
         <button id="btnReqReload" class="btn btn-outline-secondary py-1 px-2" type="button" title="Recargar">
           <i class="bi bi-arrow-repeat"></i>
         </button>
       </div>
-      <button class="btn btn-outline-secondary btn-sm py-1 px-2" data-section-trigger="dashboard" title="Ir al Dashboard" type="button">
+      <button class="btn btn-outline-secondary btn-sm py-1 px-2" data-section-trigger="dashboard"
+        title="Ir al Dashboard" type="button">
         <i class="bi bi-house"></i>
       </button>
     </div>
@@ -97,8 +92,8 @@
 
   <div id="alertContainerAgentesRequisitos" class="px-2 pt-1"></div>
   <div class="card-body p-2" id="agentesReqSplit">
-    <div class="row g-2">
-      <div class="col-xl-4">
+    <div class="row g-2" id="reqLayoutRow">
+      <div class="col-xl-4" id="reqLeftCol">
         <div class="border rounded-3 p-2 bg-white h-100 d-flex flex-column req-left-panel">
           <div class="d-flex align-items-center justify-content-between mb-2">
             <span class="fw-semibold text-dark" style="font-size:.8rem">Asignacion de Plantillas</span>
@@ -107,27 +102,38 @@
           <div class="req-left-form mb-2">
             <div class="req-left-field">
               <label class="form-label req-left-label mb-1 text-truncate" title="Plantilla">Plantilla</label>
-              <select id="reqAsignarPlantilla" class="form-select form-select-sm req-left-control req-left-control--plantilla"></select>
+              <select id="reqAsignarPlantilla"
+                class="form-select form-select-sm req-left-control req-left-control--plantilla"></select>
             </div>
             <div class="req-left-form-inline">
               <div class="req-left-field req-left-field--fecha">
-                <label class="form-label req-left-label mb-1 text-truncate" title="Fecha de referencia">Fecha referencia</label>
-                <input id="reqAsignarFechaRef" class="form-control form-control-sm req-left-control req-left-control--fecha" type="date" />
+                <label class="form-label req-left-label mb-1 text-truncate" title="Fecha de referencia">Fecha
+                  referencia</label>
+                <input id="reqAsignarFechaRef"
+                  class="form-control form-control-sm req-left-control req-left-control--fecha" type="date" />
               </div>
               <div class="req-left-field req-left-field--accion d-flex align-items-end">
-                <button id="btnReqAsignarAplicar" class="btn btn-primary btn-sm w-100 req-left-action" type="button" title="Asignar a seleccionados" data-permiso="agentes-requisitos:editar">
+                <button id="btnReqAsignarAplicar" class="btn btn-primary btn-sm w-100 req-left-action" type="button"
+                  title="Asignar a seleccionados" data-permiso="agentes-requisitos:editar">
                   <i class="bi bi-link-45deg"></i> Asignar
                 </button>
               </div>
             </div>
           </div>
-          <div id="tabulatorReqAsignarAgentes" style="height:calc(100vh - 445px);min-height:240px;border:1px solid #e9ecef;border-radius:.5rem;"></div>
+          <div id="tabulatorReqAsignarAgentes"
+            style="height:calc(100vh - 445px);min-height:240px;border:1px solid #e9ecef;border-radius:.5rem;"></div>
         </div>
       </div>
-      <div class="col-xl-8">
+      <div class="col-xl-8" id="reqRightCol">
         <div class="border rounded-3 p-2 bg-white h-100 d-flex flex-column req-right-panel">
           <div class="d-flex align-items-center justify-content-between mb-2">
-            <span class="fw-semibold text-dark" style="font-size:.8rem">Requisitos periódicos</span>
+            <div class="d-flex align-items-center gap-2">
+              <button id="btnReqToggleLeft" class="btn btn-outline-secondary btn-sm py-1 px-2" type="button"
+                title="Ocultar panel de asignación" data-permiso="agentes-requisitos:leer">
+                <i class="bi bi-layout-sidebar"></i>
+              </button>
+              <span class="fw-semibold text-dark" style="font-size:.8rem">Requisitos periódicos</span>
+            </div>
             <span class="text-muted" style="font-size:.72rem">Sel.: <strong id="reqMainSelCount">0</strong></span>
           </div>
           <div id="tabulatorAgentesRequisitos" style="height:calc(100vh - 380px)"></div>
@@ -142,29 +148,35 @@
     font-size: .73rem;
     border-color: #e6e9ed;
   }
+
   #agentesReqSplit .tabulator .tabulator-header .tabulator-col,
   #agentesReqSplit .tabulator .tabulator-row .tabulator-cell {
     padding-top: .17rem;
     padding-bottom: .17rem;
     line-height: 1.15;
   }
+
   #agentesReqSplit .tabulator .tabulator-header .tabulator-col {
     background: #fbfcfd;
     font-size: .7rem;
     font-weight: 600;
   }
+
   #agentesReqSplit .tabulator .tabulator-row {
     min-height: 24px;
   }
+
   #tabulatorAgentesRequisitos .tabulator {
     font-size: .67rem;
   }
+
   #tabulatorAgentesRequisitos .tabulator .tabulator-header .tabulator-col {
     padding-top: .08rem;
     padding-bottom: .08rem;
     font-size: .64rem;
     line-height: 1.05;
   }
+
   #tabulatorAgentesRequisitos .tabulator .tabulator-header .tabulator-col .tabulator-header-filter input,
   #tabulatorAgentesRequisitos .tabulator .tabulator-header .tabulator-col .tabulator-header-filter select {
     min-height: 1.22rem;
@@ -172,14 +184,17 @@
     font-size: .64rem;
     line-height: 1.05;
   }
+
   #tabulatorAgentesRequisitos .tabulator .tabulator-row .tabulator-cell {
     padding-top: .08rem;
     padding-bottom: .08rem;
     line-height: 1.05;
   }
+
   #tabulatorAgentesRequisitos .tabulator .tabulator-row {
     min-height: 20px;
   }
+
   #agentesReqSplit .req-left-panel .req-left-label {
     font-size: .67rem;
     color: #6c757d;
@@ -191,6 +206,7 @@
     white-space: nowrap;
     letter-spacing: .01em;
   }
+
   #agentesReqSplit .req-left-panel .req-left-control {
     font-size: .72rem;
     min-height: 1.72rem;
@@ -200,12 +216,15 @@
     box-sizing: border-box;
     min-width: 0;
   }
+
   #agentesReqSplit .req-left-panel .req-left-field {
     min-width: 0;
   }
+
   #agentesReqSplit .req-left-panel .req-left-form {
     width: 100%;
   }
+
   #agentesReqSplit .req-left-panel .req-left-form-inline {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 0.72fr);
@@ -213,27 +232,34 @@
     align-items: end;
     width: 100%;
   }
+
   #agentesReqSplit .req-left-panel .req-left-field--fecha,
   #agentesReqSplit .req-left-panel .req-left-field--accion {
     min-width: 0;
   }
+
   #agentesReqSplit .req-left-panel .req-left-control--plantilla {
     max-width: 100%;
   }
+
   #agentesReqSplit .req-left-panel .req-left-control--fecha {
     max-width: 100%;
   }
+
   #agentesReqSplit .req-left-panel input[type='date'].req-left-control {
     min-width: 0;
   }
+
   #agentesReqSplit .req-left-panel .req-left-action {
     font-size: .72rem;
     min-height: 1.72rem;
     padding: .12rem .42rem;
   }
+
   #reqEjecucionModal .modal-body {
     padding: .72rem .82rem;
   }
+
   #reqEjecucionModal .form-label {
     font-size: .67rem;
     font-weight: 600;
@@ -241,19 +267,23 @@
     margin-bottom: .2rem;
     letter-spacing: .01em;
   }
+
   #reqEjecucionModal .form-control,
   #reqEjecucionModal .form-select {
     font-size: .72rem;
     min-height: 1.72rem;
     padding: .12rem .42rem;
   }
+
   #reqEjecucionModal .table {
     font-size: .72rem;
   }
-  #reqEjecucionModal .table > :not(caption) > * > * {
+
+  #reqEjecucionModal .table> :not(caption)>*>* {
     padding-top: .24rem;
     padding-bottom: .24rem;
   }
+
   #reqEjecucionModal #reqEjecSubobjetivosTable thead th {
     font-size: .66rem;
     text-transform: uppercase;
@@ -261,38 +291,48 @@
     color: #6c757d;
     white-space: nowrap;
   }
+
   #reqEjecucionModal #reqEjecSubobjetivosBody .req-ejec-cantidad {
     max-width: 7.2rem;
     margin-left: auto;
   }
+
   #reqEjecucionModal .modal-footer {
     padding: .52rem .8rem;
   }
+
   #reqEjecucionModal .modal-footer .btn {
     font-size: .74rem;
     padding: .22rem .62rem;
   }
+
   #reqPlantillaModal .modal-body {
     padding: .64rem .78rem;
   }
+
   #reqPlantillaModal .modal-footer {
     padding: .44rem .78rem;
   }
+
   #reqPlantillasCrudModal .modal-body {
     padding: .55rem .65rem;
   }
+
   #reqPlantillasCrudModal .btn {
     font-size: .72rem;
     padding: .16rem .5rem;
   }
+
   #reqPlantillasCrudModal #tabulatorReqPlantillas .tabulator {
     font-size: .67rem;
     border-color: #e6e9ed;
   }
+
   #reqPlantillasCrudModal #tabulatorReqPlantillas .tabulator .tabulator-header {
     min-height: auto !important;
     border-bottom-width: 1px;
   }
+
   #reqPlantillasCrudModal #tabulatorReqPlantillas .tabulator .tabulator-header .tabulator-col {
     padding: 0 !important;
     font-size: .58rem;
@@ -301,19 +341,23 @@
     letter-spacing: .015em;
     background: #f8fafc;
   }
+
   #reqPlantillasCrudModal #tabulatorReqPlantillas .tabulator .tabulator-header .tabulator-col .tabulator-col-content {
     padding: .06rem .24rem .06rem !important;
     min-height: auto !important;
   }
+
   #reqPlantillasCrudModal #tabulatorReqPlantillas .tabulator .tabulator-header .tabulator-col .tabulator-col-content .tabulator-col-title {
     font-size: .58rem !important;
     line-height: 1 !important;
     font-weight: 600;
   }
+
   #reqPlantillasCrudModal #tabulatorReqPlantillas .tabulator .tabulator-header .tabulator-col .tabulator-col-sorter {
     margin-top: 0 !important;
     margin-bottom: 0 !important;
   }
+
   #reqPlantillasCrudModal #tabulatorReqPlantillas .tabulator .tabulator-header .tabulator-col .tabulator-header-filter input,
   #reqPlantillasCrudModal #tabulatorReqPlantillas .tabulator .tabulator-header .tabulator-col .tabulator-header-filter select {
     min-height: .9rem !important;
@@ -321,11 +365,13 @@
     font-size: .58rem !important;
     line-height: 1 !important;
   }
+
   #reqPlantillasCrudModal #tabulatorReqPlantillas .tabulator .tabulator-row .tabulator-cell {
     padding-top: .08rem;
     padding-bottom: .08rem;
     line-height: 1.05;
   }
+
   #reqPlantillasCrudModal #tabulatorReqPlantillas .tabulator .tabulator-row {
     min-height: 20px;
   }
@@ -347,11 +393,13 @@
           </div>
           <div class="col-md-3">
             <label class="form-label small mb-1">Periodicidad (calculado)</label>
-            <input id="reqPlantillaPeriodicidad" class="form-control form-control-sm" type="text" value="anual" readonly />
+            <input id="reqPlantillaPeriodicidad" class="form-control form-control-sm" type="text" value="anual"
+              readonly />
           </div>
           <div class="col-md-3">
             <label class="form-label small mb-1">Días (calculado)</label>
-            <input id="reqPlantillaPlazoDias" class="form-control form-control-sm" type="number" min="1" value="365" readonly />
+            <input id="reqPlantillaPlazoDias" class="form-control form-control-sm" type="number" min="1" value="365"
+              readonly />
           </div>
           <div class="col-md-3">
             <label class="form-label small mb-1">Periodo inicio (manual)</label>
@@ -363,37 +411,46 @@
           </div>
           <div class="col-md-3">
             <label class="form-label small mb-1">Objetivo total</label>
-            <input id="reqPlantillaObjetivoTotal" class="form-control form-control-sm" type="number" min="1" value="1" />
+            <input id="reqPlantillaObjetivoTotal" class="form-control form-control-sm" type="number" min="1"
+              value="1" />
           </div>
           <div class="col-md-6">
             <label class="form-label small mb-1">Tipo requisito</label>
-            <input id="reqPlantillaTipo" class="form-control form-control-sm" type="text" value="" placeholder="Ej: tiro" />
+            <input id="reqPlantillaTipo" class="form-control form-control-sm" type="text" value=""
+              placeholder="Ej: tiro" />
           </div>
           <div class="col-md-3">
             <label class="form-label small mb-1">Subtipo</label>
-            <input id="reqPlantillaSubtipo" class="form-control form-control-sm" type="text" value="" placeholder="Ej: arma_corta" />
+            <input id="reqPlantillaSubtipo" class="form-control form-control-sm" type="text" value=""
+              placeholder="Ej: arma_corta" />
           </div>
           <div class="col-md-3">
             <label class="form-label small mb-1">Objetivo subtipo</label>
-            <input id="reqPlantillaObjetivoSubtipo" class="form-control form-control-sm" type="number" min="1" value="" placeholder="Ej: 4" />
+            <input id="reqPlantillaObjetivoSubtipo" class="form-control form-control-sm" type="number" min="1" value=""
+              placeholder="Ej: 4" />
           </div>
           <div class="col-md-6">
             <label class="form-label small mb-1">Acciones</label>
             <div class="d-flex gap-2 flex-wrap">
-              <button id="btnReqPlantillaObjetivoAdd" class="btn btn-outline-primary btn-sm" type="button" title="Agregar o actualizar subtipo">
+              <button id="btnReqPlantillaObjetivoAdd" class="btn btn-outline-primary btn-sm" type="button"
+                title="Agregar o actualizar subtipo">
                 <i class="bi bi-plus-lg"></i> Agregar
               </button>
-              <button id="btnReqPlantillaObjetivoClear" class="btn btn-outline-secondary btn-sm" type="button" title="Limpiar selección de edición">
+              <button id="btnReqPlantillaObjetivoClear" class="btn btn-outline-secondary btn-sm" type="button"
+                title="Limpiar selección de edición">
                 <i class="bi bi-eraser"></i> Limpiar edición
               </button>
-              <span class="text-muted small align-self-center" id="reqPlantillaObjetivoHint">Seleccione un subtipo de la lista para editar.</span>
+              <span class="text-muted small align-self-center" id="reqPlantillaObjetivoHint">Seleccione un subtipo de la
+                lista para editar.</span>
             </div>
           </div>
           <div class="col-md-12">
             <label class="form-label small mb-1">Objetivos por subtipo</label>
             <div class="border rounded-3 p-2 bg-light-subtle">
-              <div id="reqPlantillaObjetivosList" class="list-group list-group-flush" role="listbox" aria-label="Objetivos por subtipo"></div>
-              <div id="reqPlantillaObjetivosEmpty" class="text-muted small">Sin subtipos cargados. Agregue uno con los campos de arriba.</div>
+              <div id="reqPlantillaObjetivosList" class="list-group list-group-flush" role="listbox"
+                aria-label="Objetivos por subtipo"></div>
+              <div id="reqPlantillaObjetivosEmpty" class="text-muted small">Sin subtipos cargados. Agregue uno con los
+                campos de arriba.</div>
             </div>
             <input id="reqPlantillaObjetivosRaw" type="hidden" value="" />
             <div class="form-text">La lista no es editable directamente: use los inputs y el botón Agregar.</div>
@@ -405,7 +462,8 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button id="btnReqPresetTiro" class="btn btn-link btn-sm text-secondary me-auto" type="button" title="Cargar ejemplo de tiro">
+        <button id="btnReqPresetTiro" class="btn btn-link btn-sm text-secondary me-auto" type="button"
+          title="Cargar ejemplo de tiro">
           <i class="bi bi-bullseye"></i> Ejemplo tiro
         </button>
         <button id="btnReqPlantillaGuardar" class="btn btn-primary btn-sm" type="button">Guardar plantilla</button>
@@ -495,9 +553,12 @@
       </div>
       <div class="modal-body">
         <div class="d-flex align-items-center gap-1 mb-2">
-          <button id="btnReqCrudNueva" class="btn btn-primary btn-sm" type="button"><i class="bi bi-plus-circle"></i> Nueva</button>
-          <button id="btnReqCrudEditar" class="btn btn-outline-secondary btn-sm" type="button"><i class="bi bi-pencil-square"></i> Editar</button>
-          <button id="btnReqCrudEliminar" class="btn btn-outline-danger btn-sm" type="button"><i class="bi bi-trash"></i> Desactivar</button>
+          <button id="btnReqCrudNueva" class="btn btn-primary btn-sm" type="button"><i class="bi bi-plus-circle"></i>
+            Nueva</button>
+          <button id="btnReqCrudEditar" class="btn btn-outline-secondary btn-sm" type="button"><i
+              class="bi bi-pencil-square"></i> Editar</button>
+          <button id="btnReqCrudEliminar" class="btn btn-outline-danger btn-sm" type="button"><i
+              class="bi bi-trash"></i> Desactivar</button>
         </div>
         <div id="tabulatorReqPlantillas" style="height:300px;border:1px solid #e9ecef;border-radius:.5rem;"></div>
       </div>

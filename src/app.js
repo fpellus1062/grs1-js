@@ -56,6 +56,16 @@ app.use('/api/auth', apiAuthLimiter);
 app.use(compression()); // ⚠️ Cuidado: puede interferir con algunos proxies o configuraciones de hosting
 
 app.use(express.static(path.join(__dirname, '../public')));
+
+// Ruta canónica de entrada para evitar mezcla entre /login y /login.html
+app.get('/', (_req, res) => {
+  res.redirect('/login.html');
+});
+
+app.get('/login', (_req, res) => {
+  res.redirect('/login.html');
+});
+
 app.use(
   '/vendor/echarts',
   express.static(path.join(__dirname, '../node_modules/echarts/dist'))

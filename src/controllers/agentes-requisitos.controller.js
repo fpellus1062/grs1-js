@@ -15,7 +15,9 @@ exports.list = async (req, res, next) => {
     const rows = await service.listPeriodos(req.arsId, req.query || {});
     res.json({ ok: true, requisitos: rows, total: rows.length });
   } catch (error) {
-    next(new ApiError(500, error.message || 'Error al obtener requisitos periódicos', error.detail || error));
+    const msg = String((error && error.message) || '');
+    const status = msg.toLowerCase().includes('fecha de servicio') ? 400 : 500;
+    next(new ApiError(status, msg || 'Error al obtener requisitos periódicos', error.detail || error));
   }
 };
 
