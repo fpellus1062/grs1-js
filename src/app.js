@@ -9,7 +9,7 @@ const app = express();
 const path = require('path');
 
 // Grandes volumnes de datos.
-const BODY_LIMIT = process.env.BODY_LIMIT || '25mb';
+const BODY_LIMIT = process.env.BODY_LIMIT || '50mb';
 const URLENCODED_PARAMETER_LIMIT = Number(
   process.env.URLENCODED_PARAMETER_LIMIT || 50000
 );
@@ -117,6 +117,15 @@ app.use(
   })
 );
 app.use(cors());
+
+// Timeout más largo para operaciones pesadas (export Excel, etc.)
+// 5 minutos para dar tiempo a generar archivos grandes
+app.use((req, res, next) => {
+  res.setTimeout(5 * 60 * 1000, () => {
+    res.status(408).json({ ok: false, message: 'Request timeout' });
+  });
+  next();
+});
 
 // rutas públicas
 app.use('/api/auth', require('./routes/auth.routes'));

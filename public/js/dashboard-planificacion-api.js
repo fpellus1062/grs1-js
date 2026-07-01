@@ -125,6 +125,27 @@
       });
     },
 
+    aprobarVersionPrepare: function (versionId) {
+      return json('/api/planificacion/versiones/' + versionId + '/aprobar', 'POST', {
+        modo: 'prepare',
+      });
+    },
+
+    aprobarVersionChunk: function (versionId, offset, limit) {
+      return json('/api/planificacion/versiones/' + versionId + '/aprobar', 'POST', {
+        modo: 'chunk',
+        offset: Number(offset) || 0,
+        limit: Number(limit) || 500,
+      });
+    },
+
+    aprobarVersionFinalize: function (versionId, comentario) {
+      return json('/api/planificacion/versiones/' + versionId + '/aprobar', 'POST', {
+        modo: 'finalize',
+        comentario: comentario || '',
+      });
+    },
+
     descartarBorrador: function (borradorId) {
       return json('/api/planificacion/borradores/' + borradorId + '/descartar', 'POST', {});
     },

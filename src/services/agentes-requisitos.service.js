@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { DateTime } = require('luxon');
+const ExcelJS = require('exceljs');
 
 function normalizePeriodicidad(value) {
   const p = String(value || '').trim().toLowerCase();
@@ -1024,4 +1025,126 @@ exports.sancionarPeriodo = async (arsId, payload, userId) => {
   }
 
   return result.rows[0];
+};
+
+exports.buildHistoricoEjecucionesExcel = async (arsId, agenteIds) => {
+  const ids = Array.from(
+    new Set((Array.isArray(agenteIds) ? agenteIds : []).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))
+  );
+  if (!ids.length) {
+    throw new Error('Debe indicar al menos un agente para exportar histórico.');
+  }
+
+  const q = `
+  SELECT
+  a.tip,
+  a.apellido_1,
+  a.apellido_2,
+  a.nombre,
+
+  p.id                 AS periodo_id,
+  p.periodo_inicio,
+  p.periodo_fin,
+  p.estado,
+
+  pl.nombre            AS plantilla,
+  pl.tipo_requisito,
+  pl.periodicidad,
+
+  po.orden,
+  po.subtipo,
+  po.objetivo AS subtipo_objetivo,
+
+  e.id                 AS ejecucion_id,
+  e.fecha_prueba,
+  e.resultado,
+  e.cantidad,
+  e.observaciones,
+  e.evidencia_url
+  FROM agentes_requisitos_periodos p
+  JOIN agentes_requisitos_plantillas pl
+      ON pl.id = p.plantilla_id
+  JOIN agentes_requisitos_plantilla_objetivos po
+      ON po.plantilla_id = pl.id
+  JOIN agentes a
+      ON a.id = p.agente_id
+  LEFT JOIN agentes_requisitos_ejecuciones e
+      ON e.periodo_id = p.id
+     AND e.subtipo = po.subtipo
+    WHERE p.ars_unidad_id = $1
+      AND p.agente_id = ANY($2::int[])
+    ORDER BY p.periodo_inicio ASC, p.id ASC, a.apellido_1 ASC, a.apellido_2 ASC, a.nombre ASC, e.fecha_prueba DESC, e.id DESC
+  `;
+
+  const { rows } = await db.query(q, [arsId, ids]);
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'GRS1';
+  wb.created = new Date();
+  const ws = wb.addWorksheet('Historico Requisitos');
+
+  
+ ws.columns = [
+
+    { header: 'TIP', key: 'tip', width: 12 },
+    { header: 'Apellido 1', key: 'apellido_1', width: 18 },
+    { header: 'Apellido 2', key: 'apellido_2', width: 18 },
+    { header: 'Nombre', key: 'nombre', width: 18 },
+    { header: 'Plantilla', key: 'plantilla', width: 28 },
+    { header: 'Tipo Requisito', key: 'tipo_requisito', width: 18 },
+    { header: 'Periodicidad', key: 'periodicidad', width: 12 },
+    { header: 'Periodo Inicio', key: 'periodo_inicio', width: 14 },
+    { header: 'Periodo Fin', key: 'periodo_fin', width: 14 },
+    { header: 'Estado', key: 'estado', width: 14 },
+    { header: 'Subtipo', key: 'subtipo', width: 22 },
+    { header: 'Objetivo', key: 'subtipo_objetivo', width: 14 },
+    { header: 'Cantidad', key: 'cantidad', width: 10 },
+    { header: 'Resultado', key: 'resultado', width: 12 },
+    { header: 'Fecha Prueba', key: 'fecha_prueba', width: 14 },
+    { header: 'Observaciones', key: 'observaciones', width: 50 },
+    { header: 'Evidencia URL', key: 'evidencia_url', width: 36 },
+  ];
+
+  const header = ws.getRow(1);
+  header.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  header.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF0D6EFD' },
+  };
+
+  rows.forEach((r) => {
+    ws.addRow({
+      periodo_id: r.periodo_id,
+      plantilla: r.plantilla || '',
+      tipo_requisito: r.tipo_requisito || '',
+      tip: r.tip || '',
+      apellido_1: r.apellido_1 || '',
+      apellido_2: r.apellido_2 || '',
+      nombre: r.nombre || '',
+      periodicidad: r.periodicidad || '',
+      periodo_inicio: r.periodo_inicio || null,
+      periodo_fin: r.periodo_fin || null,
+      estado: r.estado || '',
+      subtipo: r.subtipo || '',
+      subtipo_objetivo: Number.isFinite(Number(r.subtipo_objetivo)) ? Number(r.subtipo_objetivo) : null,
+      cantidad: Number(r.cantidad || 0),
+      resultado: r.resultado || '',
+      fecha_prueba: r.fecha_prueba || null,
+      observaciones: r.observaciones || '',
+      evidencia_url: r.evidencia_url || '',
+    });
+  });
+
+  ws.views = [{ state: 'frozen', ySplit: 1 }];
+  ws.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: 1, column: ws.columns.length },
+  };
+
+  const nowStamp = DateTime.now().toFormat('yyyyLLdd_HHmmss');
+  const filename = `historico_requisitos_${nowStamp}.xlsx`;
+  const buffer = await wb.xlsx.writeBuffer();
+
+  return { buffer, filename };
 };

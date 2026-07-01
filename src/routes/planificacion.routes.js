@@ -45,6 +45,13 @@ router.put(
   controller.guardarBulk
 );
 
+// ── Exportar agentes a Excel ──────────────────────────────────
+router.post(
+  '/versiones/:versionId/agentes/excel',
+  authorize('planificacion:leer'),
+  controller.exportarAgentesExcel
+);
+
 // ── Aprobar versión ───────────────────────────────────────────
 router.post(
   '/versiones/:versionId/aprobar',

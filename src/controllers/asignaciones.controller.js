@@ -459,6 +459,15 @@ exports.getHistorial = async (req, res, next) => {
   }
 };
 
+exports.getHistorialCelda = async (req, res, next) => {
+  try {
+    const result = await service.getHistorialCelda(req.query, req.arsId);
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    next(new ApiError(500, error.message || 'Error al obtener historial de celda'));
+  }
+};
+
 exports.exportarHistorialPdf = async (req, res, next) => {
   try {
     const [result, meta] = await Promise.all([

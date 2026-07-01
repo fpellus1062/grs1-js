@@ -106,7 +106,6 @@ function buildWorkbookPorDia({ wb, agentes, filas, fechasSeleccionadas }) {
   const columnas = [
     { key: 'peloton_id', header: 'Pelotón ID', width: 12 },
     { key: 'peloton', header: 'Pelotón', width: 14 },
-    { key: 'escalafon', header: 'Escalafón', width: 12 },
     { key: 'tip', header: 'TIP', width: 10 },
     { key: 'agente_id', header: 'Agente ID', width: 10 },
     { key: 'nombre', header: 'Nombre', width: 16 },
@@ -151,7 +150,21 @@ function buildWorkbookPorDia({ wb, agentes, filas, fechasSeleccionadas }) {
 
     const rowsDia = filas
       .filter((r) => String(r.fecha).slice(0, 10) === fechaIso)
-      .sort((a, b) => Number(a.agente_id || 0) - Number(b.agente_id || 0));
+      .sort((a, b) => {
+        const pelA = String(a.peloton_id || '').localeCompare(
+          String(b.peloton_id || ''),
+          'es',
+          { sensitivity: 'base' }
+        );
+        if (pelA) return pelA;
+        const escA = String(a.escalafon || '').localeCompare(
+          String(b.escalafon || ''),
+          'es',
+          { numeric: true, sensitivity: 'base' }
+        );
+        if (escA) return escA;
+        return Number(a.agente_id || 0) - Number(b.agente_id || 0);
+      });
 
     const agentesOrdenados = (agentes || []).slice().sort((a, b) => {
       const p1 = String(a.peloton_id || '').localeCompare(
@@ -160,6 +173,12 @@ function buildWorkbookPorDia({ wb, agentes, filas, fechasSeleccionadas }) {
         { sensitivity: 'base' }
       );
       if (p1) return p1;
+      const e1 = String(a.escalafon || '').localeCompare(
+        String(b.escalafon || ''),
+        'es',
+        { numeric: true, sensitivity: 'base' }
+      );
+      if (e1) return e1;
       const j1 = String(a.empleo_jerarquia || '9999999').localeCompare(
         String(b.empleo_jerarquia || '9999999')
       );
@@ -232,7 +251,6 @@ function buildWorkbookPorDia({ wb, agentes, filas, fechasSeleccionadas }) {
       const row = ws.addRow({
         peloton_id: ag.peloton_id ?? '',
         peloton: ag.peloton ?? '',
-        escalafon: ag.escalafon ?? '',
         tip: ag.tip ?? '',
         agente_id: ag.id ?? '',
         nombre: ag.nombre ?? '',
@@ -344,7 +362,7 @@ async function obtenerDatos({ anio, mes, borrador_id, ars_unidad_id }) {
     LEFT JOIN agentes_empleo    e ON e.id_empleo  = ag.empleo_id
     LEFT JOIN agentes_peloton   p ON p.id_peloton = ag.peloton_id
     WHERE ag.ars_unidad_id = $1 AND ag.fecha_baja IS NULL
-    ORDER BY ag.escalafon, ag.peloton_id, e.jerarquia ASC, ag.fecha_ant_empleo ASC, ag.apellido_1, ag.apellido_2, ag.nombre
+    ORDER BY ag.peloton_id, ag.escalafon, e.jerarquia ASC, ag.fecha_ant_empleo ASC, ag.apellido_1, ag.apellido_2, ag.nombre
   `,
     values: [ars_unidad_id],
   });
@@ -393,7 +411,7 @@ async function obtenerDatos({ anio, mes, borrador_id, ars_unidad_id }) {
       LEFT JOIN agentes_peloton p  ON p.id_peloton  = ag.peloton_id
       WHERE ab.borrador_id = $1
         AND ab.ars_unidad_id = $2
-      ORDER BY ag.escalafon, ag.peloton_id, ae.jerarquia ASC, ag.fecha_ant_empleo ASC, ag.apellido_1, ag.apellido_2, ab.fecha
+      ORDER BY ag.peloton_id, ag.escalafon, ae.jerarquia ASC, ag.fecha_ant_empleo ASC, ag.apellido_1, ag.apellido_2, ab.fecha
     `,
       values: [borrador_id, ars_unidad_id],
     });
@@ -439,7 +457,7 @@ async function obtenerDatos({ anio, mes, borrador_id, ars_unidad_id }) {
       LEFT JOIN agentes_empleo ae ON ae.id_empleo  = ag.empleo_id
       LEFT JOIN agentes_peloton p  ON p.id_peloton  = ag.peloton_id
       WHERE asig.anio = $1 AND asig.mes = $2 AND asig.ars_unidad_id = $3
-      ORDER BY ag.escalafon, ag.peloton_id, ae.jerarquia ASC, ag.fecha_ant_empleo ASC, ag.apellido_1, ag.apellido_2, asig.fecha
+      ORDER BY ag.peloton_id, ag.escalafon, ae.jerarquia ASC, ag.fecha_ant_empleo ASC, ag.apellido_1, ag.apellido_2, asig.fecha
     `,
       values: [anio, mes, ars_unidad_id],
     });
@@ -508,7 +526,7 @@ async function construirExcel({ anio, mes, borrador_id, ars_unidad_id, fechas })
   // ── Hoja principal ────────────────────────────────────────
   const ws = wb.addWorksheet('Cuadrante', {
     pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1 },
-    views: [{ state: 'frozen', ySplit: 1, xSplit: 9 }],
+    views: [{ state: 'frozen', ySplit: 1, xSplit: 8 }],
   });
 
   const HEADER_BG = 'FF1E4D2B';
@@ -517,7 +535,6 @@ async function construirExcel({ anio, mes, borrador_id, ars_unidad_id, fechas })
 
   const headerValues = [
     'Pelotón',
-    'Escalafón',
     'TIP',
     'Apellidos',
     'Nombre',
@@ -547,21 +564,20 @@ async function construirExcel({ anio, mes, borrador_id, ars_unidad_id, fechas })
   });
   headerRow.height = 28;
 
-  // ── AutoFiltro en columnas A–I (fila 1) ─────────────────────────
-  ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 9 } };
+  // ── AutoFiltro en columnas fijas (fila 1) ───────────────────────
+  ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 8 } };
 
   // ── Columnas ──────────────────────────────────────────────
   ws.getColumn(1).width = 12; // Pelotón
-  ws.getColumn(2).width = 12; // Escalafón
-  ws.getColumn(3).width = 8; // TIP
-  ws.getColumn(4).width = 18; // Apellidos
-  ws.getColumn(5).width = 14; // Nombre
-  ws.getColumn(6).width = 14; // Empleo
-  ws.getColumn(7).width = 10; // Grupo
-  ws.getColumn(8).width = 18; // Titulación
-  ws.getColumn(9).width = 12; // Teléfono
-  for (let c = 10; c <= 9 + fechasCuadrante.length; c++) ws.getColumn(c).width = 7;
-  const totalHorasCol = 10 + fechasCuadrante.length;
+  ws.getColumn(2).width = 8; // TIP
+  ws.getColumn(3).width = 18; // Apellidos
+  ws.getColumn(4).width = 14; // Nombre
+  ws.getColumn(5).width = 14; // Empleo
+  ws.getColumn(6).width = 10; // Grupo
+  ws.getColumn(7).width = 18; // Titulación
+  ws.getColumn(8).width = 12; // Teléfono
+  for (let c = 9; c <= 8 + fechasCuadrante.length; c++) ws.getColumn(c).width = 7;
+  const totalHorasCol = 9 + fechasCuadrante.length;
   ws.getColumn(totalHorasCol).width = 11; // Total Horas
 
   // ── Filas de agentes ──────────────────────────────────────
@@ -579,17 +595,15 @@ async function construirExcel({ anio, mes, borrador_id, ars_unidad_id, fechas })
     const empleoARGB = toARGB(ag.empleo_color, 'FF');
 
     const cellPel = row.getCell(1);
-    const cellEsc = row.getCell(2);
-    const cellTip = row.getCell(3);
-    const cellApe = row.getCell(4);
-    const cellNom = row.getCell(5);
-    const cellEmp = row.getCell(6);
-    const cellGru = row.getCell(7);
-    const cellTit = row.getCell(8);
-    const cellTel = row.getCell(9);
+    const cellTip = row.getCell(2);
+    const cellApe = row.getCell(3);
+    const cellNom = row.getCell(4);
+    const cellEmp = row.getCell(5);
+    const cellGru = row.getCell(6);
+    const cellTit = row.getCell(7);
+    const cellTel = row.getCell(8);
 
     cellPel.value = ag.peloton || '';
-    cellEsc.value = ag.escalafon || '';
     cellTip.value = ag.tip || '';
     cellApe.value = apellidos;
     cellNom.value = ag.nombre || '';
@@ -600,7 +614,6 @@ async function construirExcel({ anio, mes, borrador_id, ars_unidad_id, fechas })
 
     [
       cellPel,
-      cellEsc,
       cellTip,
       cellApe,
       cellNom,
@@ -635,7 +648,7 @@ async function construirExcel({ anio, mes, borrador_id, ars_unidad_id, fechas })
     // Celdas de turno por fecha
     fechasCuadrante.forEach((fecha, fi) => {
       const asig = mapaAsig[fecha]?.[ag.id];
-      const cell = row.getCell(10 + fi);
+      const cell = row.getCell(9 + fi);
       cell.border = borderThin();
       cell.alignment = {
         horizontal: 'center',
@@ -712,7 +725,7 @@ async function construirExcel({ anio, mes, borrador_id, ars_unidad_id, fechas })
   // Fila final: total de horas por día
   const totalDiaRow = ws.getRow(rowIndex);
   totalDiaRow.height = 18;
-  ws.mergeCells(rowIndex, 1, rowIndex, 9);
+  ws.mergeCells(rowIndex, 1, rowIndex, 8);
   const totalLabelCell = totalDiaRow.getCell(1);
   totalLabelCell.value = 'Total horas/día';
   totalLabelCell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
@@ -725,7 +738,7 @@ async function construirExcel({ anio, mes, borrador_id, ars_unidad_id, fechas })
   totalLabelCell.border = borderThin();
 
   fechasCuadrante.forEach((fecha, fi) => {
-    const c = totalDiaRow.getCell(10 + fi);
+    const c = totalDiaRow.getCell(9 + fi);
     c.value = Number((totalHorasPorDia[fecha] || 0).toFixed(2));
     c.font = { bold: true, color: { argb: 'FFFFFFFF' } };
     c.fill = fillSolid('FF1E4D2B');

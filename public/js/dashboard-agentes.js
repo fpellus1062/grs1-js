@@ -1205,42 +1205,49 @@
   function applyEstadoFilter() {
     let table = state.table;
     if (!table) return;
-    table.clearFilter(true);
+
     let search = String(state.searchTerm || '')
       .trim()
       .toLowerCase();
-    let noQuickFilter = state.quickFilterEstado === 'todos';
-    let noSearch = !search;
+    let quick = String(state.quickFilterEstado || 'todos');
+    let hasQuickFilter = quick === 'activos' || quick === 'baja';
+    let hasSearch = !!search;
 
-    if (noQuickFilter && noSearch) {
+    if (!hasQuickFilter && !hasSearch) {
+      // Limpiar solo filtros programáticos; los header filters se mantienen.
+      table.clearFilter();
       updateCounters();
       return;
     }
 
     table.setFilter(function (rowData) {
-      let hasFechaBaja = !!(rowData && rowData.fecha_baja);
-      if (state.quickFilterEstado === 'activos') return !hasFechaBaja;
-      if (state.quickFilterEstado === 'baja') return hasFechaBaja;
+      let row = rowData || {};
+      let hasFechaBaja = !!String(row.fecha_baja || '').trim();
 
-      if (!noSearch) {
+      if (quick === 'activos' && hasFechaBaja) return false;
+      if (quick === 'baja' && !hasFechaBaja) return false;
+
+      if (hasSearch) {
         let haystack = [
-          rowData && rowData.tip,
-          rowData && rowData.nombre,
-          rowData && rowData.apellido_1,
-          rowData && rowData.apellido_2,
-          rowData && rowData.email,
-          rowData && rowData.nif,
-          rowData && rowData.telefono,
-          rowData && rowData.peloton_id,
-          rowData && rowData.escalafon,
-          rowData && rowData.empleo_id,
-          rowData && rowData.orden_gc,
-          rowData && rowData.aptitudes,
-          rowData && rowData.comentarios,
-          rowData && rowData.poblacion,
-          rowData && rowData.provincia,
+          row.tip,
+          row.nombre,
+          row.apellido_1,
+          row.apellido_2,
+          row.email,
+          row.nif,
+          row.telefono,
+          row.peloton_id,
+          row.escalafon,
+          row.empleo_id,
+          row.orden_gc,
+          row.aptitudes,
+          row.comentarios,
+          row.poblacion,
+          row.provincia,
         ]
-          .filter(Boolean)
+          .filter(function (value) {
+            return value != null && String(value).trim() !== '';
+          })
           .join(' ')
           .toLowerCase();
         return haystack.indexOf(search) !== -1;
@@ -2383,7 +2390,7 @@
     return state.table;
   }
 
-  function setTableData(rows, sourceLabel) {
+  async function setTableData(rows, sourceLabel) {
     let table = ensureTable();
     app.tabulatorAgentes = table;
     let hydrated = hydrateAgentes(rows || []);
@@ -2401,9 +2408,8 @@
     state.agentes = hydrated;
     state.originalAgentes = cloneRows(hydrated);
     state.cambiosPendientes.clear();
-    table.replaceData(hydrated).then(function () {
-      table.setSort('escalafon', 'asc');
-    });
+    await table.replaceData(hydrated);
+    table.setSort('escalafon', 'asc');
     if (table.getSelectedRows().length) {
       table.deselectRow();
     }
@@ -2469,7 +2475,7 @@
           requisitos_detalle_pct: Array.isArray(req.detalle) ? req.detalle : [],
         });
       });
-      setTableData(rows, 'API Agentes');
+      await setTableData(rows, 'API Agentes');
     } catch (error) {
       setAlert(error.message || 'Error al cargar agentes', 'danger');
       setStatus(error.message || 'Error al cargar agentes', true);

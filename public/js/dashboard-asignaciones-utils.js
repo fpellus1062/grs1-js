@@ -167,7 +167,7 @@
     el.innerHTML =
       '<div class="alert alert-' +
       type +
-      ' alert-dismissible py-1 mb-1 fade show" role="alert">' +
+      ' alert-dismissible py-1 mb-0 fade show" role="alert">' +
       app.escapeHtml(message) +
       '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
       '</div>';

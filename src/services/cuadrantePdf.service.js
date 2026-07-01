@@ -168,47 +168,19 @@ async function obtenerFilasPdf({ anio, mes, borrador_id, ars_unidad_id }) {
 }
 
 function buildPelotonTable({
-  fecha,
   peloton,
   pelotonColor,
   rows,
-  arsLabel,
-  provincia,
 }) {
   const widths = [100, 160, 50, 120, 54];
   const body = [];
-  const title = `Servicio ${arsLabel}${provincia ? ` · ${provincia}` : ''}`;
-
-  body.push([
-    {
-      colSpan: widths.length,
-      border: [false, false, false, false],
-      margin: [0, 0, 0, 8],
-      columns: [
-        {
-          text: title,
-          bold: true,
-          fontSize: 18,
-          color: '#276836',
-          alignment: 'left',
-        },
-        {
-          text: formatIsoDate(fecha, "dd 'de' LLLL yyyy"),
-          bold: true,
-          fontSize: 18,
-          color: '#276836',
-          alignment: 'right',
-        },
-      ],
-    },
-    ...new Array(widths.length - 1).fill({}),
-  ]);
 
   const pelFill =
     pelotonColor && /^#[0-9a-fA-F]{6}$/.test(pelotonColor)
       ? pelotonColor
       : '#276836';
   const pelText = pelotonTextColor(pelFill);
+
   body.push([
     {
       text: `Pelotón: ${safeText(peloton)}`,
@@ -264,17 +236,72 @@ function buildPelotonTable({
 
   return {
     table: {
-      headerRows: 3,
+      headerRows: 2,
       widths,
       body,
     },
     layout: {
-      hLineColor: (i) => (i <= 2 ? '#ffffff' : '#cbd5e1'),
+      hLineColor: (i) => (i <= 1 ? '#ffffff' : '#cbd5e1'),
       vLineColor: (i) =>
         i === 0 || i === widths.length ? '#cbd5e1' : '#d8e0e7',
-      hLineWidth: (i) => (i <= 2 ? 0 : 0.5),
+      hLineWidth: (i) => (i <= 1 ? 0 : 0.5),
       vLineWidth: (i) => (i === 0 || i === widths.length ? 0.5 : 0.5),
     },
+  };
+}
+
+function buildPageHeaderLine({ fechaHeader, arsLabel, provincia }) {
+  const title = `Parte de Nombramientos${provincia ? ` · ${provincia}` : ''}`;
+  return `${title} · Fecha de servicio: ${fechaHeader} · ARS activo: ${arsLabel}`;
+}
+
+function buildDiaWrapperTable({ fecha, arsLabel, provincia, pelotonBlocks }) {
+  const fechaHeader = formatIsoDate(fecha, "dd 'de' LLLL 'de' yyyy");
+  const headerLine = buildPageHeaderLine({ fechaHeader, arsLabel, provincia });
+  const body = [
+    [
+      {
+        text: headerLine,
+        alignment: 'center',
+        bold: true,
+        color: '#276836',
+        fontSize: 11,
+        margin: [0, 0, 0, 8],
+        border: [false, false, false, false],
+      },
+    ],
+  ];
+
+  pelotonBlocks.forEach((block, index) => {
+    if (index > 0) {
+      body.push([
+        {
+          text: ' ',
+          margin: [0, 2, 0, 2],
+          border: [false, false, false, false],
+        },
+      ]);
+    }
+    body.push([
+      {
+        margin: [0, 0, 0, 0],
+        stack: [block],
+        border: [false, false, false, false],
+      },
+    ]);
+  });
+
+  return {
+    table: {
+      headerRows: 1,
+      widths: ['*'],
+      body,
+    },
+    layout: {
+      hLineWidth: () => 0,
+      vLineWidth: () => 0,
+    },
+    margin: [0, 0, 0, 0],
   };
 }
 
@@ -317,7 +344,6 @@ exports.exportarPdf = async (
       : arsMeta && arsMeta.provincia
         ? String(arsMeta.provincia).trim()
         : '';
-
   const logoPath = path.join(__dirname, '../../public/logogrs1_.png');
   /** @type {any[]} */
   const content = [
@@ -330,9 +356,10 @@ exports.exportarPdf = async (
       ],
       alignment: 'center',
       margin: [24, 220, 24, 0],
+      pageBreak: 'after',
     },
   ];
-  fechasPdf.forEach((fecha) => {
+  fechasPdf.forEach((fecha, fechaIndex) => {
     const filasDia = (filas || [])
       .filter((row) => String(row.fecha || '').slice(0, 10) === fecha)
       .sort((a, b) => {
@@ -368,18 +395,31 @@ exports.exportarPdf = async (
       return;
     }
 
-    Array.from(pelotones.entries()).forEach(([peloton, rows]) => {
+    const pelotonBlocks = [];
+    Array.from(pelotones.entries()).forEach(([peloton, rows], pelotonIndex) => {
+      if (pelotonIndex > 0) {
+        // separacion visual entre pelotones
+      }
       const pelotonColor = pelotonColors.get(peloton) || null;
-      const block = buildPelotonTable({
-        fecha,
-        peloton,
-        pelotonColor,
-        rows,
-        arsLabel,
-        provincia,
-      });
-      block.pageBreak = 'before';
-      content.push(block);
+      pelotonBlocks.push(
+        buildPelotonTable({
+          peloton,
+          pelotonColor,
+          rows,
+        })
+      );
+    });
+
+    const dayBlock = buildDiaWrapperTable({
+      fecha,
+      arsLabel,
+      provincia,
+      pelotonBlocks,
+    });
+
+    content.push({
+      ...dayBlock,
+      pageBreak: fechaIndex === 0 ? undefined : 'before',
     });
       
   });

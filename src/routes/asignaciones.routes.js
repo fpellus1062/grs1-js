@@ -14,6 +14,7 @@ const {
   previewReglasEspecialesSchema,
   consolidarDevengosSchema,
   historialQuerySchema,
+  historialCeldaQuerySchema,
   borradoresParamsSchema,
   crearBorradorSchema,
   deleteBorradorSchema,
@@ -53,6 +54,12 @@ router.get(
   authorize('asignaciones:historial'),
   validate(historialQuerySchema, 'query'),
   controller.getHistorial
+);
+router.get(
+  '/historial/celda',
+  authorize('asignaciones:historial'),
+  validate(historialCeldaQuerySchema, 'query'),
+  controller.getHistorialCelda
 );
 router.get(
   '/historial/pdf',

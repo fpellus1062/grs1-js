@@ -28,6 +28,12 @@
       let nombre = String(s.actividad_nombre || '').trim();
       arr.push({
         id: actividadId,
+        actividad:
+          String(s.actividad || '').trim() ||
+          codigo ||
+          (Number.isFinite(actividadId) && actividadId > 0
+            ? String(actividadId)
+            : ''),
         label:
           codigo && nombre
             ? codigo + ' - ' + nombre
@@ -101,6 +107,10 @@
       let nombre = String(s.actividad_nombre || '').trim();
       return {
         id: Number(s.actividad_id),
+        actividad:
+          String(s.actividad || '').trim() ||
+          codigo ||
+          (Number(s.actividad_id) ? String(Number(s.actividad_id)) : ''),
         label:
           codigo && nombre
             ? codigo + ' - ' + nombre
@@ -300,7 +310,11 @@
               <div class="d-flex align-items-center mb-1">
                 <input type="checkbox" id="asigBulkCheckAllDias" class="form-check-input me-2">
                 <label for="asigBulkCheckAllDias" class="form-check-label mb-0" style="cursor:pointer;font-size:.95em">Marcar todos</label></div>
-              <select id="asigBulkDias" class="form-select form-select-sm py-1" multiple size="8" style="min-height:2.1em;"></select></div>
+              <select id="asigBulkDias" class="form-select form-select-sm py-1" multiple size="8" style="min-height:2.1em;"></select>
+              <div id="asigBulkDiasMarcadosWrap" class="mt-2 d-none">
+                <div class="form-text mb-1" style="font-size:.8em">Ya marcados</div>
+                <select id="asigBulkDiasMarcados" class="form-select form-select-sm py-1" multiple size="5" style="min-height:2.1em;"></select>
+              </div></div>
             <div class="col-md-4">
               <div class="d-none">
                 <select id="asigBulkTurno" class="form-select form-select-sm py-1" style="min-height:2.1em;"></select>

@@ -6,165 +6,115 @@
 
 <!-- ── Toolbar Notion-style ─────────────────────────── -->
 <div class="card shadow-sm mb-2">
-  <div
-    class="d-flex align-items-center gap-2 px-3 py-2 border-bottom bg-white flex-wrap"
-  >
-    <i
-      class="bi bi-calendar4-week text-secondary"
-      style="font-size: 0.95rem"
-    ></i>
-    <span class="fw-semibold text-dark" style="font-size: 0.875rem"
-      >Planificador</span
-    >
-    <button class="btn btn-link p-0 ms-1" type="button" data-help-context="planificador-help" title="Planificador">
+  <div class="d-flex align-items-center gap-1 px-2 py-1 border-bottom bg-white flex-nowrap overflow-x-auto"
+    style="min-height: 40px;">
+    <i class="bi bi-calendar4-week text-secondary flex-shrink-0" style="font-size: 0.95rem"></i>
+    <span class="fw-semibold text-dark flex-shrink-0" style="font-size: 0.875rem">Planificador</span>
+    <button class="btn btn-link p-0 ms-0 flex-shrink-0" type="button" data-help-context="planificador-help"
+      title="Planificador">
       <i class="bi bi-question-circle text-secondary" style="font-size: 0.85rem"></i>
     </button>
-    <span class="vr mx-1 opacity-25"></span>
+    <span class="vr mx-1 opacity-25 flex-shrink-0"></span>
 
     <!-- Navegador de plan -->
-    <button
-      id="planifBtnMesAnterior"
-      type="button"
-      class="btn btn-outline-secondary btn-sm py-1 px-2"
-      title="Plan anterior"
-    >
+    <button id="planifBtnMesAnterior" type="button" class="btn btn-outline-secondary btn-sm py-1 px-2 flex-shrink-0"
+      title="Plan anterior">
       <i class="bi bi-chevron-left"></i>
     </button>
-    <span
-      id="planifMesLabel"
-      class="fw-semibold px-1"
-      style="font-size: 0.88rem; min-width: 180px; text-align: center"
-      >—</span
-    >
-    <button
-      id="planifBtnMesSiguiente"
-      type="button"
-      class="btn btn-outline-secondary btn-sm py-1 px-2"
-      title="Plan siguiente"
-    >
+    <span id="planifMesLabel" class="fw-semibold px-1 flex-shrink-0"
+      style="font-size: 0.88rem; min-width: 140px; text-align: center">—</span>
+    <button id="planifBtnMesSiguiente" type="button" class="btn btn-outline-secondary btn-sm py-1 px-2 flex-shrink-0"
+      title="Plan siguiente">
       <i class="bi bi-chevron-right"></i>
     </button>
-    <select
-      id="planifPlanSel"
-      class="form-select form-select-sm w-auto py-1"
-      style="font-size: 0.78rem; min-width: 260px"
-      title="Plan activo"
-    ></select>
-    <select
-      id="planifVistaMeses"
-      class="form-select form-select-sm w-auto py-1"
-      style="font-size: 0.78rem"
-      title="Meses visibles"
-    >
-      <option value="1">1 mes</option>
-      <option value="2">2 meses</option>
-      <option value="3">3 meses</option>
-    </select>
-    <span class="vr mx-1 opacity-25"></span>
+    <select id="planifPlanSel" class="form-select form-select-sm w-auto py-1 flex-shrink-0"
+      style="font-size: 0.78rem; min-width: 200px" title="Plan activo"></select>
+    <div id="planifPeriodoRangeGroup" class="d-flex align-items-center gap-1 flex-shrink-0"
+      title="Rango visible del plan (por días)">
+      <label for="planifVistaFechaInicio" class="form-label mb-0 text-muted flex-shrink-0"
+        style="font-size:0.7rem;">Inicio</label>
+      <input id="planifVistaFechaInicio" type="date" class="form-control form-control-sm py-1 flex-shrink-0"
+        style="font-size:0.74rem; width: 110px;" />
+      <label for="planifVistaFechaFin" class="form-label mb-0 text-muted flex-shrink-0"
+        style="font-size:0.7rem;">Fin</label>
+      <input id="planifVistaFechaFin" type="date" class="form-control form-control-sm py-1 flex-shrink-0"
+        style="font-size:0.74rem; width: 110px;" />
+    </div>
+    <span class="vr mx-1 opacity-25 flex-shrink-0"></span>
 
     <!-- Selector de borrador/versión -->
-    <select
-      id="planifVersionSel"
-      class="form-select form-select-sm w-auto py-1"
-      style="font-size: 0.78rem; max-width: 200px"
-      title="Versión activa"
-    ></select>
+    <select id="planifVersionSel" class="form-select form-select-sm w-auto py-1 flex-shrink-0"
+      style="font-size: 0.78rem; max-width: 170px" title="Versión activa"></select>
 
     <!-- Acciones derecha -->
-    <div class="ms-auto d-flex align-items-center gap-1 flex-wrap">
+    <div class="ms-auto d-flex align-items-center gap-1 flex-shrink-0">
       <!-- Info fechas del plan -->
-      <small
-        id="planifFechasLabel"
-        class="text-muted"
-        style="font-size: 0.73rem"
-      ></small>
-      <span class="vr mx-1 opacity-25"></span>
-      <button
-        id="planifBtnNuevo"
-        data-permiso="planificacion:editar"
-        type="button"
-        class="btn btn-primary btn-sm py-1 px-2"
-        style="font-size: 0.78rem"
-        title="Nuevo plan"
-      >
-        <i class="bi bi-plus-circle"></i> Nuevo plan
+      <small id="planifFechasLabel" class="text-muted flex-shrink-0"
+        style="font-size: 0.73rem; white-space: nowrap;"></small>
+      <span class="vr mx-1 opacity-25 flex-shrink-0"></span>
+      <button id="planifBtnNuevo" data-permiso="planificacion:editar" type="button"
+        class="btn btn-primary btn-sm py-1 px-2 flex-shrink-0" style="font-size: 0.76rem; white-space: nowrap;"
+        title="Nuevo plan">
+        <i class="bi bi-plus-circle"></i> Nuevo
       </button>
-      <button
-        id="planifBtnCopiar"
-        data-permiso="planificacion:copiar"
-        type="button"
-        class="btn btn-outline-secondary btn-sm py-1 px-2"
-        title="Copiar desde plan anterior"
-      >
+      <button id="planifBtnCopiar" data-permiso="planificacion:copiar" type="button"
+        class="btn btn-outline-secondary btn-sm py-1 px-2 flex-shrink-0" title="Copiar desde plan anterior">
         <i class="bi bi-copy"></i>
       </button>
-      <button
-        id="planifBtnNuevaVersion"
-        data-permiso="planificacion:editar"
-        type="button"
-        class="btn btn-outline-secondary btn-sm py-1 px-2"
-        title="Nueva versión de borrador"
-      >
+      <button id="planifBtnNuevaVersion" data-permiso="planificacion:editar" type="button"
+        class="btn btn-outline-secondary btn-sm py-1 px-2 flex-shrink-0" title="Nueva versión de borrador">
         <i class="bi bi-file-earmark-plus"></i>
       </button>
-      <button
-        id="planifBtnAprobar"
-        data-permiso="planificacion:aprobar"
-        type="button"
-        class="btn btn-success btn-sm py-1 px-2"
-        style="font-size: 0.78rem"
-        title="Aprobar versión activa"
-      >
+      <button id="planifBtnAprobar" data-permiso="planificacion:aprobar" type="button"
+        class="btn btn-success btn-sm py-1 px-2 flex-shrink-0" style="font-size: 0.76rem; white-space: nowrap;"
+        title="Aprobar versión activa">
         <i class="bi bi-check2-all"></i> Aprobar
       </button>
       <!-- Borrado ordenado -->
-      <div class="dropdown">
-        <button
-          id="planifBtnBorrarMenu"
-          data-permiso="planificacion:editar"
-          type="button"
-          class="btn btn-outline-danger btn-sm py-1 px-2"
-          title="Borrar versión / borrador / plan"
-          data-bs-toggle="dropdown"
-          aria-expanded="false"
-        >
+      <div class="dropdown flex-shrink-0">
+        <button id="planifBtnBorrarMenu" data-permiso="planificacion:editar" type="button"
+          class="btn btn-outline-danger btn-sm py-1 px-2" title="Borrar versión / borrador / plan"
+          data-bs-toggle="dropdown" aria-expanded="false">
           <i class="bi bi-trash"></i>
         </button>
         <ul class="dropdown-menu dropdown-menu-end" style="min-width:210px;font-size:.84rem">
-          <li><h6 class="dropdown-header py-1">Borrado ordenado</h6></li>
           <li>
-            <button class="dropdown-item text-danger py-1" id="planifBtnBorrarVersion" type="button" data-permiso="planificacion:editar">
+            <h6 class="dropdown-header py-1">Borrado ordenado</h6>
+          </li>
+          <li>
+            <button class="dropdown-item text-danger py-1" id="planifBtnBorrarVersion" type="button"
+              data-permiso="planificacion:editar">
               <i class="bi bi-file-earmark-x me-2"></i>Borrar versión activa
             </button>
           </li>
           <li>
-            <button class="dropdown-item text-danger py-1" id="planifBtnDescartarBorrador" type="button" data-permiso="planificacion:editar">
+            <button class="dropdown-item text-danger py-1" id="planifBtnDescartarBorrador" type="button"
+              data-permiso="planificacion:editar">
               <i class="bi bi-journal-x me-2"></i>Descartar borrador activo
             </button>
           </li>
-          <li><hr class="dropdown-divider my-1"></li>
           <li>
-            <button class="dropdown-item text-danger fw-semibold py-1" id="planifBtnBorrarPlan" type="button" data-permiso="planificacion:editar">
+            <hr class="dropdown-divider my-1">
+          </li>
+          <li>
+            <button class="dropdown-item text-danger fw-semibold py-1" id="planifBtnBorrarPlan" type="button"
+              data-permiso="planificacion:editar">
               <i class="bi bi-calendar-x me-2"></i>Borrar plan del mes
             </button>
           </li>
         </ul>
       </div>
-      <button
-        id="planifBtnRefresh"
-        type="button"
-        class="btn btn-outline-secondary btn-sm py-1 px-2"
-        title="Recargar"
-      >
+      <button id="planifBtnExportarExcel" type="button" class="btn btn-outline-success btn-sm py-1 px-2 flex-shrink-0"
+        title="Exportar agentes seleccionados a Excel">
+        <i class="bi bi-file-earmark-spreadsheet"></i> Excel
+      </button>
+      <button id="planifBtnRefresh" type="button" class="btn btn-outline-secondary btn-sm py-1 px-2 flex-shrink-0"
+        title="Recargar">
         <i class="bi bi-arrow-clockwise"></i>
       </button>
 
-      <button
-        class="btn btn-outline-secondary btn-sm py-1 px-2"
-        data-section-trigger="dashboard"
-        type="button"
-        title="Ir al Dashboard"
-      >
+      <button class="btn btn-outline-secondary btn-sm py-1 px-2 flex-shrink-0" data-section-trigger="dashboard"
+        type="button" title="Ir al Dashboard">
         <i class="bi bi-house"></i>
       </button>
     </div>
@@ -172,7 +122,8 @@
 </div>
 
 <!-- Modal confirmación borrado planificación -->
-<div class="modal fade" id="planifBorrarModal" tabindex="-1" aria-labelledby="planifBorrarModalLabel" aria-hidden="true">
+<div class="modal fade" id="planifBorrarModal" tabindex="-1" aria-labelledby="planifBorrarModalLabel"
+  aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content modal-notion asig-modal-notion asig-modal-danger shadow-sm">
       <div class="modal-header py-2">
@@ -210,124 +161,69 @@
 </div>
 
 <!-- ── Cuerpo: panel izquierdo (agentes) + panel principal (grid) ── -->
-<div
-  class="d-flex gap-2 align-items-stretch"
-  style="height: calc(100vh - 262px); overflow: hidden"
->
+<div id="planifMainSplit" class="d-flex gap-2 align-items-stretch"
+  style="height: calc(100vh - 262px); overflow: hidden">
   <!-- Panel izquierdo: Filtro por actividades -->
-  <div
-    class="card shadow-sm flex-shrink-0 d-flex flex-column"
-    style="width: 340px; min-width: 260px; overflow: hidden"
-  >
-    <div
-      class="d-flex align-items-center gap-2 px-3 py-2 border-bottom bg-white flex-wrap flex-shrink-0"
-    >
-      <i class="bi bi-funnel text-secondary" style="font-size: 0.9rem"></i>
-      <span class="fw-semibold text-dark" style="font-size: 0.76rem"
-        >Filtro actividades</span
-      >
-      <span class="vr mx-1 opacity-25"></span>
-      <small
-        id="planifActividadesSelCount"
-        class="text-muted"
-        style="font-size: 0.66rem"
-        >0 seleccionadas</small
-      >
+  <div id="planifLeftPanel" class="card shadow-sm flex-shrink-0 d-flex flex-column"
+    style="width: 200px; min-width: 160px; overflow: hidden">
+    <div class="d-flex align-items-center gap-0 px-1 py-0 border-bottom bg-white flex-shrink-0"
+      style="min-height: 28px;">
+      <i class="bi bi-funnel text-secondary flex-shrink-0" style="font-size: 0.8rem"></i>
+      <span class="fw-semibold text-dark flex-shrink-0" style="font-size: 0.7rem; margin: 0 2px;">Filtro</span>
+      <small id="planifActividadesSelCount" class="text-muted flex-shrink-0 ms-auto" style="font-size: 0.6rem">0</small>
     </div>
-    <div
-      class="card-body p-2 pb-3 d-flex flex-column"
-      style="overflow: hidden; min-height: 0"
-    >
+    <div class="card-body p-0 d-flex flex-column" style="overflow: hidden; min-height: 0; gap: 2px;">
       <!-- Rango de fechas -->
-      <div class="d-flex gap-1 mb-2 flex-wrap flex-shrink-0">
-        <input
-          id="planifFechaInicio"
-          type="date"
-          class="form-control form-control-sm w-auto"
-          style="font-size: 0.68rem"
-          title="Fecha inicio"
-        />
-        <input
-          id="planifFechaFin"
-          type="date"
-          class="form-control form-control-sm w-auto"
-          style="font-size: 0.68rem"
-          title="Fecha fin"
-        />
+      <div class="d-flex justify-content-center flex-shrink-0" style="gap: 30px; padding: 2px 4px;">
+        <input id="planifFechaInicio" type="date" class="form-control form-control-sm flex-shrink-0"
+          style="font-size: 0.68rem; width: 90px; padding: 3px 4px;" title="Fecha inicio" />
+        <input id="planifFechaFin" type="date" class="form-control form-control-sm flex-shrink-0"
+          style="font-size: 0.68rem; width: 90px; padding: 3px 4px;" title="Fecha fin" />
       </div>
 
       <!-- Buscador de actividades -->
-      <input
-        id="planifActividadBuscar"
-        type="text"
-        class="form-control form-control-sm mb-2 flex-shrink-0"
-        placeholder="Buscar actividad..."
-        style="font-size: 0.69rem"
-      />
+      <input id="planifActividadBuscar" type="text" class="form-control form-control-sm flex-shrink-0 mx-1"
+        placeholder="Buscar..." style="font-size: 0.64rem; padding: 2px 4px;" />
 
       <!-- Lista de actividades seleccionables -->
-      <div id="planifActividadList" class="planif-act-filter-list flex-grow-1 mb-2"></div>
+      <div id="planifActividadList" class="planif-act-filter-list flex-grow-1 mx-1" style="font-size: 0.75rem;"></div>
 
       <!-- Acciones -->
-      <div class="d-flex gap-1 flex-wrap flex-shrink-0 mb-1">
-        <button
-          id="planifBtnAplicarRango"
-          type="button"
-          class="btn btn-primary btn-sm py-1 px-2"
-          style="font-size: 0.68rem"
-          title="Buscar agentes con actividades marcadas en el rango"
-        >
-          <i class="bi bi-search"></i> Buscar
+      <div class="d-flex gap-0 flex-shrink-0 mx-1" style="gap: 2px;">
+        <button id="planifBtnAplicarRango" type="button" class="btn btn-primary btn-sm py-0 px-1 flex-grow-1"
+          style="font-size: 0.62rem; white-space: nowrap; padding: 2px 4px;"
+          title="Buscar agentes con actividades marcadas en el rango">
+          <i class="bi bi-search"></i>
         </button>
-        <button
-          id="planifBtnLimpiarFiltro"
-          type="button"
-          class="btn btn-outline-secondary btn-sm py-1 px-2"
-          style="font-size: 0.68rem"
-          title="Limpiar selección de actividades"
-        >
-          <i class="bi bi-x-lg"></i> Limpiar
+        <button id="planifBtnLimpiarFiltro" type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 flex-grow-1"
+          style="font-size: 0.62rem; white-space: nowrap; padding: 2px 4px;" title="Limpiar selección de actividades">
+          <i class="bi bi-x-lg"></i>
         </button>
       </div>
 
       <!-- KPI actividades por nivel/grupo (donuts) -->
-      <div
-        id="planifKpiDonuts"
-        class="mt-1 pt-1 border-top"
-        style="min-height: 56px; max-height: 180px; overflow: hidden"
-      ></div>
+      <div id="planifKpiDonuts" class="pt-1 border-top mx-1"
+        style="min-height: 80px; max-height: 220px; overflow: hidden; font-size: 0.75rem;"></div>
     </div>
   </div>
 
   <!-- Panel principal: Grid por días naturales -->
-  <div
-    class="card shadow-sm flex-grow-1 d-flex flex-column"
-    style="min-width: 0; overflow: hidden"
-  >
-    <div
-      class="d-flex align-items-center gap-2 px-3 py-2 border-bottom bg-white flex-wrap flex-shrink-0"
-    >
-      <i class="bi bi-grid-3x3 text-secondary" style="font-size: 0.9rem"></i>
-      <span class="fw-semibold text-dark" style="font-size: 0.82rem"
-        >Grid diario</span
-      >
-      <span class="vr mx-1 opacity-25"></span>
-      <small id="planifGridInfo" class="text-muted" style="font-size: 0.72rem"
-        >—</small
-      >
-      <small
-        id="planifSelCeldasCount"
-        class="text-primary fw-semibold ms-1"
-        style="font-size: 0.72rem"
-      ></small>
-      <small class="text-muted ms-1" style="font-size: 0.68rem"
-        >Clic=sel · Ctrl+Clic=multi · BtnDcho=menú</small
-      >
+  <div id="planifRightPanel" class="card shadow-sm flex-grow-1 d-flex flex-column"
+    style="min-width: 0; overflow: hidden">
+    <div class="d-flex align-items-center gap-1 px-2 py-1 border-bottom bg-white flex-wrap flex-shrink-0">
+      <i class="bi bi-grid-3x3 text-secondary flex-shrink-0" style="font-size: 0.9rem"></i>
+      <span class="fw-semibold text-dark flex-shrink-0" style="font-size: 0.8rem">Grid</span>
+      <button id="planifBtnToggleLeft" type="button" class="btn btn-outline-secondary btn-sm py-0 px-1"
+        title="Ocultar filtros">
+        <i class="bi bi-layout-sidebar"></i>
+      </button>
+      <span class="vr mx-0 opacity-25"></span>
+      <small id="planifGridInfo" class="text-muted flex-shrink-0" style="font-size: 0.7rem">—</small>
+      <small id="planifSelCeldasCount" class="text-primary fw-semibold ms-0" style="font-size: 0.7rem"></small>
+      <small class="text-muted ms-1 d-none d-lg-inline"
+        style="font-size: 0.65rem">Clic=sel·Ctrl+Clic=multi·Dcho=menú</small>
     </div>
-    <div
-      class="card-body p-0 flex-grow-1"
-      style="overflow: hidden; min-height: 0"
-    >
+    <div class="card-body p-0 flex-grow-1" style="overflow: hidden; min-height: 0">
       <div id="planifGridContainer" style="height: 100%"></div>
     </div>
   </div>
@@ -337,72 +233,37 @@
 <div class="modal fade" id="planifModalNuevo" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content modal-notion shadow-sm">
-      <div
-        class="modal-header py-2"
-        style="background: var(--primary-gc-color, #276836); color: #fff"
-      >
+      <div class="modal-header py-2" style="background: var(--primary-gc-color, #276836); color: #fff">
         <h5 class="modal-title" style="font-size: 0.9rem">
           <i class="bi bi-plus-circle me-2"></i>Nuevo plan de planificación
         </h5>
-        <button
-          type="button"
-          class="btn-close btn-close-white"
-          data-bs-dismiss="modal"
-          aria-label="Cerrar"
-        ></button>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
       <div class="modal-body">
         <div class="row g-2">
           <div class="col-6">
             <label class="form-label small mb-1">Fecha inicio</label>
-            <input
-              id="planifNuevoFechaInicio"
-              type="date"
-              class="form-control form-control-sm"
-            />
+            <input id="planifNuevoFechaInicio" type="date" class="form-control form-control-sm" />
           </div>
           <div class="col-6">
             <label class="form-label small mb-1">Duración (meses)</label>
-            <input
-              id="planifNuevoNumMeses"
-              type="number"
-              class="form-control form-control-sm"
-              min="1"
-              max="24"
-              value="1"
-            />
+            <input id="planifNuevoNumMeses" type="number" class="form-control form-control-sm" min="1" max="12"
+              value="1" />
           </div>
           <div class="col-12">
             <label class="form-label small mb-1">Descripción (opcional)</label>
-            <input
-              id="planifNuevoDesc"
-              type="text"
-              class="form-control form-control-sm"
-              maxlength="200"
-              placeholder="Ej: Planificación mayo 2026"
-            />
+            <input id="planifNuevoDesc" type="text" class="form-control form-control-sm" maxlength="200"
+              placeholder="Ej: Planificación mayo 2026" />
           </div>
         </div>
         <div id="planifNuevoAlert" class="mt-2"></div>
-        <div
-          id="planifNuevoFechaPreview"
-          class="mt-2 text-muted"
-          style="font-size: 0.75rem"
-        ></div>
+        <div id="planifNuevoFechaPreview" class="mt-2 text-muted" style="font-size: 0.75rem"></div>
       </div>
       <div class="modal-footer py-2">
-        <button
-          type="button"
-          class="btn btn-outline-secondary btn-sm"
-          data-bs-dismiss="modal"
-        >
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
           Cancelar
         </button>
-        <button
-          type="button"
-          id="planifBtnNuevoGuardar"
-          class="btn btn-primary btn-sm"
-        >
+        <button type="button" id="planifBtnNuevoGuardar" class="btn btn-primary btn-sm">
           Crear plan
         </button>
       </div>
@@ -415,36 +276,35 @@
   <div class="modal-dialog modal-dialog-centered modal-sm">
     <div class="modal-content modal-notion shadow-sm">
       <div class="modal-header py-2" style="background: var(--primary-gc-color, #276836); color: #fff">
-        <h5 class="modal-title" style="font-size: 0.9rem">
+        <h5 id="planifAprobarModalTitle" class="modal-title" style="font-size: 0.9rem">
           <i class="bi bi-check2-all me-2"></i>Aprobar borrador
         </h5>
-        <button
-          type="button"
-          class="btn-close btn-close-white"
-          data-bs-dismiss="modal"
-          aria-label="Cerrar"
-        ></button>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
       <div class="modal-body">
-        <p class="mb-2" style="font-size: 0.9rem">
-          Se aprobará el borrador <strong id="planifAprobarNombre">—</strong> y se consolidará en el plan final.
-        </p>
-        <div id="planifAprobarEstadoPrevio" class="text-muted mb-2" style="font-size: 0.8rem"></div>
-        <label class="form-label small mb-1" for="planifAprobarComentario">COMENTARIOS</label>
-        <textarea
-          id="planifAprobarComentario"
-          class="form-control form-control-sm"
-          rows="3"
-          maxlength="500"
-          placeholder="Comentarios"
-        ></textarea>
+        <div id="planifAprobarConfirmPanel">
+          <p class="mb-2" style="font-size: 0.9rem">
+            Se aprobará el borrador <strong id="planifAprobarNombre">—</strong> y se consolidará en el plan final.
+          </p>
+          <div id="planifAprobarEstadoPrevio" class="text-muted mb-2" style="font-size: 0.8rem"></div>
+          <label class="form-label small mb-1" for="planifAprobarComentario">COMENTARIOS</label>
+          <textarea id="planifAprobarComentario" class="form-control form-control-sm" rows="3" maxlength="500"
+            placeholder="Comentarios"></textarea>
+        </div>
+        <div id="planifAprobarProgressPanel" style="display: none;">
+          <div class="mb-3">
+            <small class="text-muted"><span id="planifAprobarProgressText">0</span> / <span
+                id="planifAprobarProgressTotal">0</span> celda(s)</small>
+          </div>
+          <div class="progress" style="height: 24px;">
+            <div id="planifAprobarProgressBar" class="progress-bar progress-bar-striped progress-bar-animated"
+              role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+          </div>
+        </div>
       </div>
       <div class="modal-footer py-2">
-        <button
-          type="button"
-          class="btn btn-outline-secondary btn-sm"
-          data-bs-dismiss="modal"
-        >
+        <button type="button" id="planifAprobarCancelBtn" class="btn btn-outline-secondary btn-sm"
+          data-bs-dismiss="modal">
           Cancelar
         </button>
         <button type="button" id="planifAprobarConfirmBtn" class="btn btn-primary btn-sm">
@@ -463,12 +323,7 @@
         <h5 class="modal-title" style="font-size: 0.9rem">
           <i class="bi bi-journal-x me-2"></i>Descartar borrador
         </h5>
-        <button
-          type="button"
-          class="btn-close btn-close-white"
-          data-bs-dismiss="modal"
-          aria-label="Cerrar"
-        ></button>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
       <div class="modal-body">
         <p class="mb-1" style="font-size: 0.9rem">
@@ -479,11 +334,7 @@
         </p>
       </div>
       <div class="modal-footer py-2">
-        <button
-          type="button"
-          class="btn btn-outline-secondary btn-sm"
-          data-bs-dismiss="modal"
-        >
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
           Cancelar
         </button>
         <button type="button" id="planifDescartarConfirmBtn" class="btn btn-danger btn-sm">
@@ -498,69 +349,36 @@
 <div class="modal fade" id="planifModalCopiar" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content modal-notion shadow-sm">
-      <div
-        class="modal-header py-2"
-        style="background: var(--primary-gc-color, #276836); color: #fff"
-      >
+      <div class="modal-header py-2" style="background: var(--primary-gc-color, #276836); color: #fff">
         <h5 class="modal-title" style="font-size: 0.9rem">
           <i class="bi bi-copy me-2"></i>Copiar desde plan anterior
         </h5>
-        <button
-          type="button"
-          class="btn-close btn-close-white"
-          data-bs-dismiss="modal"
-          aria-label="Cerrar"
-        ></button>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
       <div class="modal-body">
         <div class="row g-2">
           <div class="col-12">
             <label class="form-label small mb-1">Plan origen</label>
-            <select
-              id="planifCopiarOrigenSel"
-              class="form-select form-select-sm"
-            ></select>
+            <select id="planifCopiarOrigenSel" class="form-select form-select-sm"></select>
           </div>
           <div class="col-12">
-            <label class="form-label small mb-1"
-              >Nombre del borrador destino</label
-            >
-            <input
-              id="planifCopiarNombre"
-              type="text"
-              class="form-control form-control-sm"
-              value="Copia"
-              maxlength="120"
-            />
+            <label class="form-label small mb-1">Nombre del borrador destino</label>
+            <input id="planifCopiarNombre" type="text" class="form-control form-control-sm" value="Copia"
+              maxlength="120" />
           </div>
           <div class="col-12">
-            <label class="form-label small mb-1"
-              >Descripción de la versión</label
-            >
-            <input
-              id="planifCopiarVersion"
-              type="text"
-              class="form-control form-control-sm"
-              value="v1 copia"
-              maxlength="200"
-            />
+            <label class="form-label small mb-1">Descripción de la versión</label>
+            <input id="planifCopiarVersion" type="text" class="form-control form-control-sm" value="v1 copia"
+              maxlength="200" />
           </div>
         </div>
         <div id="planifCopiarAlert" class="mt-2"></div>
       </div>
       <div class="modal-footer py-2">
-        <button
-          type="button"
-          class="btn btn-outline-secondary btn-sm"
-          data-bs-dismiss="modal"
-        >
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
           Cancelar
         </button>
-        <button
-          type="button"
-          id="planifBtnCopiarGuardar"
-          class="btn btn-primary btn-sm"
-        >
+        <button type="button" id="planifBtnCopiarGuardar" class="btn btn-primary btn-sm">
           Copiar
         </button>
       </div>
@@ -569,68 +387,35 @@
 </div>
 
 <!-- ── Modal: Nuevo borrador ─────────────────────────── -->
-<div
-  class="modal fade"
-  id="planifModalNuevoBorrador"
-  tabindex="-1"
-  aria-hidden="true"
->
+<div class="modal fade" id="planifModalNuevoBorrador" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content modal-notion shadow-sm">
-      <div
-        class="modal-header py-2"
-        style="background: var(--primary-gc-color, #276836); color: #fff"
-      >
+      <div class="modal-header py-2" style="background: var(--primary-gc-color, #276836); color: #fff">
         <h5 class="modal-title" style="font-size: 0.9rem">
           <i class="bi bi-file-earmark-plus me-2"></i>Nuevo borrador
         </h5>
-        <button
-          type="button"
-          class="btn-close btn-close-white"
-          data-bs-dismiss="modal"
-          aria-label="Cerrar"
-        ></button>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
       <div class="modal-body">
         <div class="row g-2">
           <div class="col-12">
             <label class="form-label small mb-1">Nombre del borrador</label>
-            <input
-              id="planifBorradorNombre"
-              type="text"
-              class="form-control form-control-sm"
-              maxlength="120"
-              placeholder="Ej: Borrador principal"
-            />
+            <input id="planifBorradorNombre" type="text" class="form-control form-control-sm" maxlength="120"
+              placeholder="Ej: Borrador principal" />
           </div>
           <div class="col-12">
-            <label class="form-label small mb-1"
-              >Descripción de la versión inicial (opcional)</label
-            >
-            <input
-              id="planifBorradorDesc"
-              type="text"
-              class="form-control form-control-sm"
-              maxlength="200"
-              placeholder="Ej: v1"
-            />
+            <label class="form-label small mb-1">Descripción de la versión inicial (opcional)</label>
+            <input id="planifBorradorDesc" type="text" class="form-control form-control-sm" maxlength="200"
+              placeholder="Ej: v1" />
           </div>
         </div>
         <div id="planifBorradorAlert" class="mt-2"></div>
       </div>
       <div class="modal-footer py-2">
-        <button
-          type="button"
-          class="btn btn-outline-secondary btn-sm"
-          data-bs-dismiss="modal"
-        >
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
           Cancelar
         </button>
-        <button
-          type="button"
-          id="planifBtnBorradorGuardar"
-          class="btn btn-primary btn-sm"
-        >
+        <button type="button" id="planifBtnBorradorGuardar" class="btn btn-primary btn-sm">
           Crear borrador
         </button>
       </div>

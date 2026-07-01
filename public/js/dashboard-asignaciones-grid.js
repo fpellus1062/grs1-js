@@ -415,6 +415,41 @@
     return { inicio: inicio, fin: fin };
   }
 
+  function buildAsigColumnVisibilityHeaderMenu() {
+    let targets = [
+      { field: 'peloton_codigo', title: 'Pelotón' },
+      { field: 'requisitos_pct', title: '% Requisitos' },
+      { field: 'devengo', title: 'Devengo' },
+    ];
+
+    return targets.map(function (target) {
+      let isVisible = true;
+      if (_.tabulator && typeof _.tabulator.getColumn === 'function') {
+        let col = _.tabulator.getColumn(target.field);
+        if (col && typeof col.isVisible === 'function') {
+          isVisible = col.isVisible();
+        }
+      }
+
+      return {
+        label: (isVisible ? '✓ ' : '○ ') + target.title,
+        action: function (_e, column) {
+          let table = column && typeof column.getTable === 'function'
+            ? column.getTable()
+            : _.tabulator;
+          if (!table || typeof table.getColumn !== 'function') return;
+          let targetCol = table.getColumn(target.field);
+          if (!targetCol) return;
+          if (typeof targetCol.isVisible === 'function' && targetCol.isVisible()) {
+            targetCol.hide();
+          } else {
+            targetCol.show();
+          }
+        },
+      };
+    });
+  }
+
   function rowMatchesSelectedActividades(
     rowData,
     selectedActividadIds,
@@ -557,7 +592,15 @@
       if (!f || !Object.prototype.hasOwnProperty.call(next, f.field)) return;
       if (!asigHasColumn(f.field)) return;
 
-      next[f.field] = String(f.value || '').trim();
+      let rawValue = String(f.value || '').trim();
+      // Unescapear HTML entities que el navegador/Tabulator escapó
+      rawValue = rawValue
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'");
+      next[f.field] = rawValue;
     });
 
     app.asignacionesState.columnFilters = next;
@@ -1149,6 +1192,45 @@
       let headerCheckbox = container.querySelector('.asig-select-all-active');
       if (!headerCheckbox) return;
 
+      if (headerCheckbox.dataset.bound !== '1') {
+        headerCheckbox.dataset.bound = '1';
+        headerCheckbox.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+
+          let activeRows = getActiveTabulatorRows();
+          if (!activeRows.length) {
+            syncHeaderSelectAllActiveCheckbox();
+            return;
+          }
+
+          let activeIds = activeRows
+            .map(function (row) {
+              let rowData = row && typeof row.getData === 'function' ? row.getData() : null;
+              return Number(rowData && rowData.agente_id);
+            })
+            .filter(function (value) {
+              return Number.isFinite(value) && value > 0;
+            });
+          let selectedSet = getSelectedAgenteIdsVistaSet();
+          let shouldSelect = activeIds.some(function (id) {
+            return !selectedSet.has(id);
+          });
+
+          if (shouldSelect) {
+            activeIds.forEach(function (id) {
+              selectedSet.add(id);
+            });
+          } else {
+            activeIds.forEach(function (id) {
+              selectedSet.delete(id);
+            });
+          }
+
+          setSelectedAgenteIdsVista(Array.from(selectedSet));
+        });
+      }
+
       let activeRows = getActiveTabulatorRows();
       let activeCount = activeRows.length;
       let selectedActiveCount = activeRows.filter(function (row) {
@@ -1162,6 +1244,40 @@
         selectedActiveCount > 0 && selectedActiveCount < activeCount;
     }
 
+    function getSelectedAgenteIdsVistaSet() {
+      let raw = Array.isArray(app.asignacionesState.selectedAgenteIdsVista)
+        ? app.asignacionesState.selectedAgenteIdsVista
+        : [];
+      return new Set(
+        raw
+          .map(function (value) {
+            return Number(value);
+          })
+          .filter(function (value) {
+            return Number.isFinite(value) && value > 0;
+          })
+      );
+    }
+
+    function setSelectedAgenteIdsVista(ids) {
+      let uniqueIds = Array.from(
+        new Set(
+          (Array.isArray(ids) ? ids : [])
+            .map(function (value) {
+              return Number(value);
+            })
+            .filter(function (value) {
+              return Number.isFinite(value) && value > 0;
+            })
+        )
+      );
+      app.asignacionesState.selectedAgenteIdsVista = uniqueIds;
+      if (_.tabulator && typeof _.tabulator.redraw === 'function') {
+        _.tabulator.redraw(true);
+      }
+      syncHeaderSelectAllActiveCheckbox();
+    }
+
     function buildRequisitosTooltip(rowData) {
       return window.GRS1Utils.buildRequisitosTooltip(rowData);
     }
@@ -1169,41 +1285,49 @@
     // ── Fixed columns ──
     let fixedCols = [
       {
-        formatter: 'rowSelection',
+        formatter: function (cell) {
+          let rowData = cell && typeof cell.getRow === 'function'
+            ? cell.getRow().getData()
+            : null;
+          let agenteId = Number(rowData && rowData.agente_id);
+          let checked = getSelectedAgenteIdsVistaSet().has(agenteId)
+            ? ' checked'
+            : '';
+          return (
+            '<input type="checkbox" class="form-check-input asig-row-select" aria-label="Seleccionar agente"' +
+            checked +
+            '>'
+          );
+        },
         titleFormatter: 'html',
         titleFormatterParams: {},
+        headerMenu: buildAsigColumnVisibilityHeaderMenu,
         title:
           '<input type="checkbox" class="form-check-input asig-select-all-active" ' +
           'aria-label="Seleccionar solo agentes filtrados" title="Seleccionar solo agentes filtrados">',
-        headerClick: function (_e) {
-          let activeRows = getActiveTabulatorRows();
-          if (!activeRows.length) {
-            syncHeaderSelectAllActiveCheckbox();
-            return;
-          }
-
-          let shouldSelect = activeRows.some(function (row) {
-            return (
-              row && typeof row.isSelected === 'function' && !row.isSelected()
-            );
-          });
-
-          activeRows.forEach(function (row) {
-            if (!row) return;
-            if (shouldSelect) {
-              row.select();
-            } else {
-              row.deselect();
-            }
-          });
-
-          syncHeaderSelectAllActiveCheckbox();
-        },
         frozen: true,
         headerSort: false,
         hozAlign: 'center',
         minWidth: 42,
         widthGrow: 0,
+        cellClick: function (e, cell) {
+          if (e && typeof e.preventDefault === 'function') e.preventDefault();
+          if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+
+          let rowData = cell && typeof cell.getRow === 'function'
+            ? cell.getRow().getData()
+            : null;
+          let agenteId = Number(rowData && rowData.agente_id);
+          if (!Number.isFinite(agenteId) || agenteId <= 0) return;
+
+          let current = getSelectedAgenteIdsVistaSet();
+          if (current.has(agenteId)) {
+            current.delete(agenteId);
+          } else {
+            current.add(agenteId);
+          }
+          setSelectedAgenteIdsVista(Array.from(current));
+        },
       },
       {
         title: 'TIP',
@@ -1212,10 +1336,11 @@
         headerFilter: 'input',
         headerFilterPlaceholder: 'Filtrar (*,=,!=,^,$,!,&&,||)...',
         headerFilterLiveFilter: false,
-        headerFilterFunc: function () {
-          return true;
+        headerFilterFunc: function (headerValue, rowValue) {
+          let expr = parseQbeExpression(headerValue);
+          return matchesTextQbe(rowValue, expr);
         },
-        minWidth: 60,
+        minWidth: 50,
         sorter: 'string',
       },
       {
@@ -1233,10 +1358,11 @@
         headerFilter: 'input',
         headerFilterPlaceholder: 'Filtrar (*,=,!=,^,$,!,&&,||)...',
         headerFilterLiveFilter: false,
-        headerFilterFunc: function () {
-          return true;
+        headerFilterFunc: function (headerValue, rowValue) {
+          let expr = parseQbeExpression(headerValue);
+          return matchesTextQbe(rowValue, expr);
         },
-        minWidth: 140,
+        minWidth: 105,
         sorter: 'string',
         formatter: function (cell) {
           let d = cell.getRow().getData();
@@ -1300,10 +1426,11 @@
         headerFilter: 'input',
         headerFilterPlaceholder: 'Filtrar (*,=,!=,^,$,!,&&,||)...',
         headerFilterLiveFilter: false,
-        headerFilterFunc: function () {
-          return true;
+        headerFilterFunc: function (headerValue, rowValue) {
+          let expr = parseQbeExpression(headerValue);
+          return matchesTextQbe(rowValue, expr);
         },
-        minWidth: 65,
+        minWidth: 60,
         sorter: 'string',
         formatter: function (cell) {
           let d = cell.getRow().getData();
@@ -1425,8 +1552,8 @@
         title:
           '<div style="' +
           headerBg +
-          'padding:1px 2px;border-radius:3px;line-height:1.05;">' +
-          '<span style="font-size:.78em;">' +
+          'padding:0 1px;border-radius:3px;line-height:1.0;">' +
+          '<span style="font-size:.70em;">' +
           pd.label +
           ' ' +
           pd.labelDate +
@@ -1439,7 +1566,11 @@
             : '') +
           '</div>',
         field: 'dia_' + pd.key,
-        minWidth: 70,
+        width: 46,
+        minWidth: 42,
+        maxWidth: 52,
+        widthGrow: 0,
+        widthShrink: 2,
         hozAlign: 'center',
         headerSort: false,
         cssClass: isWeekend ? 'asig-weekend-col' : '',
@@ -1507,10 +1638,10 @@
                 let tooltip =
                   actividadGrupoMaps.actividadToTooltip.get(actId) ||
                   String(s.label || 'Actividad');
-                // Mantener formato clásico: codigo + descripcion
-                // y color de la actividad (BBDD).
+                // En celdas de asignación, el badge muestra solo el campo actividad.
                 let actividadLabel =
-                  String(s && s.label ? s.label : '').trim() || tooltip;
+                  String(s && s.actividad != null ? s.actividad : '').trim() ||
+                  (Number.isFinite(actId) && actId > 0 ? String(actId) : '');
                 let actividadBg =
                   actividadGrupoMaps.actividadToColor.get(actId) || '#6c757d';
 
@@ -1535,9 +1666,9 @@
                     {
                       escapeHtmlFn: app.escapeHtml,
                       className: 'badge',
-                      fontSize: '.70em',
-                      lineHeight: '1.1',
-                      padding: '.24rem .42rem',
+                      fontSize: '.68em',
+                      lineHeight: '1.0',
+                      padding: '.14rem .26rem',
                       contrastThreshold: 0.6,
                     }
                   ) +
@@ -1574,6 +1705,10 @@
             e.target.closest('.asig-cell-comentario-icon')
           )
             return;
+          if (e.ctrlKey || e.shiftKey || e.metaKey) return;
+
+          // Click normal: abrir modal (solo si es celda de día)
+          if (!isDayCellSelectable(cell)) return;
           let rowData = cell.getRow().getData();
           let val = cell.getValue();
           app.openAsignacionCellModal({
@@ -1602,7 +1737,14 @@
       initialSort:[
         { column: "escalafon", dir: "asc" }],
       virtualDom: true,
-      selectable: true,
+      selectableRows: false,
+      selectableRange: function (cell) {
+        return isDayCellSelectable(cell);
+      },
+      selectableRangeColumns: false,
+      selectableRangeRows: true,
+      selectableRangeClearCells: true,
+      clipboard: true,
       data: tabulatorData,
       columnDefaults: { resizable: true, headerHozAlign: 'center' },
       // @ts-ignore
@@ -1645,6 +1787,684 @@
     let tableInstance = _.tabulator;
     _.tabulatorReady = false;
 
+    function isDayCellSelectable(cell) {
+      if (!cell) return false;
+
+      // En callbacks internos de Tabulator (SelectRange), `cell` suele ser
+      // una celda interna con `column.getField()`, no un CellComponent.
+      let field = '';
+
+      if (typeof cell.getField === 'function') {
+        field = String(cell.getField() || '');
+      } else if (
+        cell.column &&
+        typeof cell.column.getField === 'function'
+      ) {
+        field = String(cell.column.getField() || '');
+      } else if (
+        typeof cell.getColumn === 'function' &&
+        cell.getColumn() &&
+        typeof cell.getColumn().getField === 'function'
+      ) {
+        field = String(cell.getColumn().getField() || '');
+      }
+
+      return field.indexOf('dia_') === 0;
+    }
+
+    let asigClipboardMatrix = null;
+
+    function cloneCellValue(value) {
+      if (value == null) return null;
+      try {
+        return JSON.parse(JSON.stringify(value));
+      } catch (_e) {
+        return value;
+      }
+    }
+
+    function getSelectedDayCells(fallbackCell) {
+      let cells = [];
+      let seen = new Set();
+      let ranges =
+        _.tabulator && typeof _.tabulator.getRanges === 'function'
+          ? _.tabulator.getRanges() || []
+          : [];
+
+      ranges.forEach(function (range) {
+        if (!range || typeof range.getCells !== 'function') return;
+        let structured = range.getCells() || [];
+        structured.forEach(function (cellRow) {
+          let rowCells = Array.isArray(cellRow) ? cellRow : [cellRow];
+          rowCells.forEach(function (selectedCell) {
+            if (!isDayCellSelectable(selectedCell)) return;
+            let row = selectedCell.getRow && selectedCell.getRow();
+            let col = selectedCell.getColumn && selectedCell.getColumn();
+            let field = col && col.getField ? String(col.getField() || '') : '';
+            let rowKey = row && row.getPosition ? row.getPosition() : '';
+            let key = String(rowKey) + '|' + field;
+            if (seen.has(key)) return;
+            seen.add(key);
+            cells.push(selectedCell);
+          });
+        });
+      });
+
+      if (!cells.length && fallbackCell && isDayCellSelectable(fallbackCell)) {
+        cells.push(fallbackCell);
+      }
+
+      return cells;
+    }
+
+    function getCellSortKey(cell) {
+      let rows = _.tabulator && typeof _.tabulator.getRows === 'function'
+        ? _.tabulator.getRows()
+        : [];
+      let cols = _.tabulator && typeof _.tabulator.getColumns === 'function'
+        ? _.tabulator.getColumns()
+        : [];
+      let rowIndex = rows.indexOf(cell.getRow());
+      let colIndex = cols.indexOf(cell.getColumn());
+      return { rowIndex: rowIndex, colIndex: colIndex };
+    }
+
+    function getClipboardPlainText(matrix) {
+      return (matrix || [])
+        .map(function (row) {
+          return (row || [])
+            .map(function (entry) {
+              if (!entry || entry.value == null) return '';
+              if (typeof entry.value === 'object') {
+                if (Array.isArray(entry.value.actividad_ids)) {
+                  return String(entry.value.actividad_ids.join(','));
+                }
+                if (entry.value.turno_id != null) {
+                  return String(entry.value.turno_id);
+                }
+                return JSON.stringify(entry.value);
+              }
+              return String(entry.value);
+            })
+            .join('\t');
+        })
+        .join('\n');
+    }
+
+    function captureSelectedCellsToClipboard(cell) {
+      let selected = getSelectedDayCells(cell);
+      if (!selected.length) return null;
+
+      selected.sort(function (a, b) {
+        let ak = getCellSortKey(a);
+        let bk = getCellSortKey(b);
+        if (ak.rowIndex !== bk.rowIndex) return ak.rowIndex - bk.rowIndex;
+        return ak.colIndex - bk.colIndex;
+      });
+
+      let minRow = Infinity;
+      let maxRow = -Infinity;
+      let minCol = Infinity;
+      let maxCol = -Infinity;
+
+      selected.forEach(function (selectedCell) {
+        let k = getCellSortKey(selectedCell);
+        minRow = Math.min(minRow, k.rowIndex);
+        maxRow = Math.max(maxRow, k.rowIndex);
+        minCol = Math.min(minCol, k.colIndex);
+        maxCol = Math.max(maxCol, k.colIndex);
+      });
+
+      let matrix = [];
+      for (let r = minRow; r <= maxRow; r++) {
+        let rowArr = [];
+        for (let c = minCol; c <= maxCol; c++) {
+          rowArr.push({ value: null });
+        }
+        matrix.push(rowArr);
+      }
+
+      selected.forEach(function (selectedCell) {
+        let k = getCellSortKey(selectedCell);
+        matrix[k.rowIndex - minRow][k.colIndex - minCol] = {
+          value: cloneCellValue(selectedCell.getValue()),
+        };
+      });
+
+      asigClipboardMatrix = matrix;
+      return matrix;
+    }
+
+    function pasteMatrixAtCell(anchorCell, matrix) {
+      if (!anchorCell || !matrix || !matrix.length) return 0;
+      let rows = _.tabulator.getRows();
+      let cols = _.tabulator.getColumns();
+      let anchorRowIndex = rows.indexOf(anchorCell.getRow());
+      let anchorColIndex = cols.indexOf(anchorCell.getColumn());
+      if (anchorRowIndex < 0 || anchorColIndex < 0) return 0;
+
+      let applied = 0;
+      matrix.forEach(function (matrixRow, rOffset) {
+        matrixRow.forEach(function (entry, cOffset) {
+          let targetRow = rows[anchorRowIndex + rOffset];
+          let targetCol = cols[anchorColIndex + cOffset];
+          if (!targetRow || !targetCol || !targetCol.getField) return;
+          let targetField = String(targetCol.getField() || '');
+          if (targetField.indexOf('dia_') !== 0) return;
+          let targetCell = targetRow.getCell(targetField);
+          if (!targetCell) return;
+          targetCell.setValue(cloneCellValue(entry ? entry.value : null));
+          applied++;
+        });
+      });
+
+      return applied;
+    }
+
+    function buildPasteTargets(anchorCell, matrix) {
+      if (!anchorCell || !matrix || !matrix.length) return [];
+      let rows = _.tabulator.getRows();
+      let cols = _.tabulator.getColumns();
+      let anchorRowIndex = rows.indexOf(anchorCell.getRow());
+      let anchorColIndex = cols.indexOf(anchorCell.getColumn());
+      if (anchorRowIndex < 0 || anchorColIndex < 0) return [];
+
+      let targets = [];
+      matrix.forEach(function (matrixRow, rOffset) {
+        matrixRow.forEach(function (entry, cOffset) {
+          let targetRow = rows[anchorRowIndex + rOffset];
+          let targetCol = cols[anchorColIndex + cOffset];
+          if (!targetRow || !targetCol || !targetCol.getField) return;
+          let targetField = String(targetCol.getField() || '');
+          if (targetField.indexOf('dia_') !== 0) return;
+          let targetCell = targetRow.getCell(targetField);
+          if (!targetCell) return;
+
+          targets.push({
+            cell: targetCell,
+            field: targetField,
+            nextValue: cloneCellValue(entry ? entry.value : null),
+            previousValue: cloneCellValue(targetCell.getValue()),
+          });
+        });
+      });
+
+      return targets;
+    }
+
+    function getActividadIdsFromCellValue(value) {
+      if (!value || typeof value !== 'object') return [];
+      if (Array.isArray(value.actividad_ids) && value.actividad_ids.length) {
+        return value.actividad_ids
+          .map(function (id) {
+            return Number(id);
+          })
+          .filter(function (id) {
+            return Number.isFinite(id) && id > 0;
+          });
+      }
+      if (Array.isArray(value.servicios) && value.servicios.length) {
+        return value.servicios
+          .map(function (s) {
+            return Number(s && (s.id || s.actividad_id));
+          })
+          .filter(function (id) {
+            return Number.isFinite(id) && id > 0;
+          });
+      }
+      return [];
+    }
+
+    async function persistPastedTargets(targets) {
+      if (!Array.isArray(targets) || !targets.length) return { upserts: 0, deletes: 0 };
+
+      let borradorId = _.getSelectedBorradorId();
+      let upserted = 0;
+      let deleteCells = [];
+
+      for (let i = 0; i < targets.length; i += 1) {
+        let target = targets[i];
+        if (!target || !target.cell) continue;
+
+        let nextValue = target.nextValue;
+        if (!nextValue) {
+          deleteCells.push(target.cell);
+          continue;
+        }
+
+        let actividadIds = getActividadIdsFromCellValue(nextValue);
+        if (!actividadIds.length) {
+          deleteCells.push(target.cell);
+          continue;
+        }
+
+        let rowData = target.cell.getRow().getData() || {};
+        let fecha = String(target.field || '').slice(4);
+        let fechaParts = fecha.split('-');
+        let anioSel = Number(fechaParts[0]);
+        let mesSel = Number(fechaParts[1]);
+        let diaSel = Number(fechaParts[2]);
+        if (!anioSel || !mesSel || !diaSel) {
+          throw new Error('Fecha inválida al pegar en celda destino');
+        }
+
+        let body = {
+          anio: anioSel,
+          mes: mesSel,
+          borrador_id: borradorId,
+          agente_id: Number(rowData.agente_id),
+          dia: diaSel,
+          fecha: fecha,
+          turno_id: Number(nextValue.turno_id || 1),
+          actividad_ids: actividadIds,
+          observaciones: nextValue.observaciones || null,
+          revision:
+            target.previousValue && target.previousValue.revision != null
+              ? Number(target.previousValue.revision)
+              : null,
+        };
+
+        let res = await fetch('/api/asignaciones/upsert', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer ' + app.globalState.token,
+            'X-Asig-Client-Version': _.ASIG_FE_VERSION,
+          },
+          body: JSON.stringify(body),
+        });
+
+        let responseJson = null;
+        try {
+          responseJson = await res.json();
+        } catch (_e) {
+          responseJson = null;
+        }
+
+        if (res.status === 409) {
+          throw new Error(
+            'La celda fue modificada por otro usuario durante el pegado. Se recargará el cuadrante.'
+          );
+        }
+        if (!res.ok || (responseJson && responseJson.ok === false)) {
+          let message =
+            responseJson && responseJson.message
+              ? responseJson.message
+              : 'No se pudo persistir el pegado';
+          throw new Error(message);
+        }
+
+        if (
+          responseJson &&
+          responseJson.asignacion &&
+          typeof _.updateCell === 'function'
+        ) {
+          _.updateCell(responseJson.asignacion);
+        }
+        upserted++;
+      }
+
+      let deleted = 0;
+      if (deleteCells.length) {
+        let deletePayload = buildDeletePayloadFromCells(deleteCells);
+        if (deletePayload) {
+          let delRes = await fetch('/api/asignaciones/borrador', {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: 'Bearer ' + app.globalState.token,
+            },
+            body: JSON.stringify(deletePayload),
+          });
+          let delJson = await delRes.json();
+          if (!delRes.ok) {
+            let err = delJson || {};
+            throw new Error(err.message || 'Error al limpiar celdas vacías del pegado');
+          }
+          deleted = deleteCells.length;
+        }
+      }
+
+      return { upserts: upserted, deletes: deleted };
+    }
+
+    function buildDeletePayloadFromCells(cells) {
+      if (!Array.isArray(cells) || !cells.length) return null;
+
+      let firstRowData = cells[0].getRow().getData() || {};
+      let anioPayload = Number(
+        app.asignacionesState.anio != null
+          ? app.asignacionesState.anio
+          : firstRowData.anio
+      );
+      let mesPayload = Number(
+        app.asignacionesState.mes != null
+          ? app.asignacionesState.mes
+          : firstRowData.mes
+      );
+
+      if (!Number.isInteger(anioPayload) || !Number.isInteger(mesPayload)) {
+        throw new Error('No se pudo resolver año/mes del cuadrante');
+      }
+
+      let agenteSet = new Set();
+      let fechasSet = new Set();
+
+      cells.forEach(function (selectedCell) {
+        if (!isDayCellSelectable(selectedCell)) return;
+        let rowData = selectedCell.getRow().getData() || {};
+        if (rowData.agente_id != null) agenteSet.add(Number(rowData.agente_id));
+        let field = selectedCell.getColumn().getField();
+        if (field && String(field).indexOf('dia_') === 0) {
+          fechasSet.add(String(field).slice(4));
+        }
+      });
+
+      let agenteIds = Array.from(agenteSet);
+      let fechas = Array.from(fechasSet);
+      let dias = fechas.map(function (fecha) {
+        return Number(String(fecha).slice(8, 10));
+      });
+
+      if (!agenteIds.length || !fechas.length) return null;
+
+      return {
+        anio: anioPayload,
+        mes: mesPayload,
+        borrador_id: _.getSelectedBorradorId(),
+        agente_ids: agenteIds,
+        dias: dias,
+        fechas: fechas,
+      };
+    }
+
+    function createContextMenuItem(label) {
+      let item = document.createElement('div');
+      item.innerHTML = label;
+      Object.assign(item.style, {
+        padding: '8px 12px',
+        cursor: 'pointer',
+      });
+      item.addEventListener('mouseenter', function () {
+        item.style.background = '#f0f0f0';
+      });
+      item.addEventListener('mouseleave', function () {
+        item.style.background = '#fff';
+      });
+      return item;
+    }
+
+    function createContextMenuSeparator() {
+      let sep = document.createElement('div');
+      Object.assign(sep.style, {
+        borderTop: '1px solid #e9ecef',
+        margin: '4px 0',
+      });
+      return sep;
+    }
+
+    function getFechaFromDayCell(cell) {
+      if (!cell || !cell.getColumn || !cell.getColumn()) return '';
+      let field = String(cell.getColumn().getField() || '');
+      if (field.indexOf('dia_') !== 0) return '';
+      return field.slice(4, 14);
+    }
+
+    function fmtShortDate(isoDate) {
+      let raw = String(isoDate || '').slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+      return raw.slice(8, 10) + '/' + raw.slice(5, 7) + '/' + raw.slice(0, 4);
+    }
+
+    function fmtShortDateTime(value) {
+      if (!value) return '-';
+      let dt = new Date(String(value));
+      if (Number.isNaN(dt.getTime())) return '-';
+      return dt.toLocaleString('es-ES');
+    }
+
+    function fmtShortDateFromTimestamp(value) {
+      if (!value) return '-';
+      let dt = new Date(String(value));
+      if (Number.isNaN(dt.getTime())) return '-';
+      return dt.toLocaleDateString('es-ES');
+    }
+
+    async function fetchPreviousActividadEntriesFromAudit(cell) {
+      if (!cell || !cell.getRow) return [];
+      let rowData = cell.getRow().getData() || {};
+      let agenteId = Number(rowData.agente_id);
+      let fechaDia = getFechaFromDayCell(cell);
+      let borradorId = _.getSelectedBorradorId();
+      let anioSel = Number(app.asignacionesState.anio || String(fechaDia).slice(0, 4));
+      let mesSel = Number(app.asignacionesState.mes || String(fechaDia).slice(5, 7));
+
+      if (
+        !Number.isInteger(agenteId) ||
+        !fechaDia ||
+        !borradorId ||
+        !Number.isInteger(anioSel) ||
+        !Number.isInteger(mesSel)
+      ) {
+        return [];
+      }
+
+      let params = new URLSearchParams({
+        anio: String(anioSel),
+        mes: String(mesSel),
+        borrador_id: String(borradorId),
+        agente_id: String(agenteId),
+        fecha: fechaDia,
+        limit: '120',
+      });
+
+      let headers =
+        typeof _.headers === 'function'
+          ? _.headers()
+          : { Authorization: 'Bearer ' + app.globalState.token };
+
+      let res = await fetch('/api/asignaciones/historial/celda?' + params.toString(), {
+        headers: headers,
+      });
+      if (!res.ok) {
+        throw new Error('No se pudo cargar el historial auditado de la celda');
+      }
+
+      let json = await res.json();
+      let rows = Array.isArray(json && json.items) ? json.items : [];
+      let out = rows.map(function (entry) {
+        let actividadId = Number(entry && entry.actividad_id);
+        return {
+          fecha_dia: String(entry && entry.fecha_dia ? entry.fecha_dia : fechaDia),
+          fecha_cambio: entry && entry.fecha_cambio ? String(entry.fecha_cambio) : '',
+          actividad_id: actividadId,
+          usuario_nombre: String(entry && entry.usuario_nombre ? entry.usuario_nombre : '').trim(),
+          actividad_label:
+            (typeof _.getActividadLabelById === 'function'
+              ? _.getActividadLabelById(actividadId)
+              : String(actividadId)) || String(actividadId),
+        };
+      });
+
+      return out.filter(function (entry) {
+        return Number.isInteger(Number(entry.actividad_id)) && Number(entry.actividad_id) > 0;
+      });
+    }
+
+    function createHistoryBadge(entry) {
+      let badge = document.createElement('button');
+      badge.type = 'button';
+      badge.className = 'badge border-0';
+      badge.style.cursor = 'pointer';
+      badge.style.fontWeight = '500';
+      badge.style.margin = '0';
+      badge.style.padding = '4px 8px';
+      badge.style.display = 'inline-flex';
+      badge.style.alignItems = 'center';
+      badge.style.justifyContent = 'space-between';
+      badge.style.width = '100%';
+      badge.style.textAlign = 'left';
+      let bg =
+        (typeof actividadGrupoMaps !== 'undefined' &&
+          actividadGrupoMaps &&
+          actividadGrupoMaps.actividadToColor &&
+          typeof actividadGrupoMaps.actividadToColor.get === 'function'
+          ? actividadGrupoMaps.actividadToColor.get(Number(entry.actividad_id))
+          : null) || '#6c757d';
+      let fg = getTextColorForBackground(bg);
+      let rawLabel = String(entry.actividad_label || entry.actividad_id || '').trim();
+      let shortLabel = rawLabel;
+      let sepIdx = rawLabel.indexOf(' - ');
+      if (sepIdx > 0) {
+        shortLabel = rawLabel.slice(0, sepIdx).trim();
+      }
+      badge.style.background = bg;
+      badge.style.color = fg;
+      badge.innerHTML =
+        '<span>' +
+        app.escapeHtml(fmtShortDateFromTimestamp(entry.fecha_cambio)) +
+        '</span>' +
+        ' · ' +
+        app.escapeHtml(shortLabel || String(entry.actividad_id || '')) +
+        '<span style="margin-left:6px;padding:1px 6px;border-radius:10px;font-size:11px;line-height:1;background:' +
+        '#ffffff' +
+        ';color:' +
+        '#111111' +
+        ';border:1px solid rgba(0,0,0,.2)' +
+        ';">' +
+        app.escapeHtml(String(entry.count || 1)) +
+        '</span>';
+      let usuarioNombre = String(entry && entry.usuario_nombre ? entry.usuario_nombre : '').trim();
+      badge.title = (usuarioNombre || 'usuario') + ' · ' + fmtShortDateTime(entry.fecha_cambio);
+      return badge;
+    }
+
+    function groupAuditEntriesByActividad(items) {
+      let rows = Array.isArray(items) ? items : [];
+      let byActividad = new Map();
+
+      rows.forEach(function (entry) {
+        let actividadId = Number(entry && entry.actividad_id);
+        if (!Number.isInteger(actividadId) || actividadId <= 0) return;
+        let key = String(actividadId);
+        let current = byActividad.get(key);
+        let t = new Date(entry && entry.fecha_cambio ? entry.fecha_cambio : 0).getTime();
+        if (!Number.isFinite(t)) t = 0;
+
+        if (!current) {
+          byActividad.set(key, {
+            actividad_id: actividadId,
+            actividad_label:
+              String(entry && entry.actividad_label ? entry.actividad_label : actividadId),
+            fecha_dia: String(entry && entry.fecha_dia ? entry.fecha_dia : ''),
+            fecha_cambio: entry && entry.fecha_cambio ? String(entry.fecha_cambio) : '',
+            usuario_nombre: String(entry && entry.usuario_nombre ? entry.usuario_nombre : '').trim(),
+            last_ts: t,
+            count: 1,
+          });
+          return;
+        }
+
+        current.count += 1;
+        if (t > current.last_ts) {
+          current.last_ts = t;
+          current.fecha_cambio = entry && entry.fecha_cambio ? String(entry.fecha_cambio) : current.fecha_cambio;
+          current.fecha_dia = String(entry && entry.fecha_dia ? entry.fecha_dia : current.fecha_dia);
+          current.usuario_nombre = String(entry && entry.usuario_nombre ? entry.usuario_nombre : current.usuario_nombre || '').trim();
+        }
+      });
+
+      return Array.from(byActividad.values()).sort(function (a, b) {
+        if (a.last_ts !== b.last_ts) return b.last_ts - a.last_ts;
+        return String(a.actividad_label || '').localeCompare(
+          String(b.actividad_label || ''),
+          'es',
+          { sensitivity: 'base' }
+        );
+      });
+    }
+
+    async function applyPreviousActividadToCell(cell, actividadId) {
+      if (!cell || !isDayCellSelectable(cell)) return;
+      let rowData = cell.getRow().getData() || {};
+      let fecha = getFechaFromDayCell(cell);
+      let fechaParts = fecha.split('-');
+      let anioSel = Number(fechaParts[0]);
+      let mesSel = Number(fechaParts[1]);
+      let diaSel = Number(fechaParts[2]);
+      let actividad = Number(actividadId);
+      let cellValue = cell.getValue() || {};
+
+      if (
+        !Number.isInteger(anioSel) ||
+        !Number.isInteger(mesSel) ||
+        !Number.isInteger(diaSel) ||
+        !Number.isInteger(actividad) ||
+        actividad <= 0
+      ) {
+        throw new Error('No se pudo resolver la celda de destino');
+      }
+
+      let body = {
+        anio: anioSel,
+        mes: mesSel,
+        borrador_id: _.getSelectedBorradorId(),
+        agente_id: Number(rowData.agente_id),
+        dia: diaSel,
+        fecha: fecha,
+        turno_id: Number(cellValue.turno_id || 1),
+        actividad_ids: [actividad],
+        observaciones: cellValue.observaciones || null,
+        revision:
+          cellValue && cellValue.revision != null
+            ? Number(cellValue.revision)
+            : null,
+      };
+
+      let res = await fetch('/api/asignaciones/upsert', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + app.globalState.token,
+          'X-Asig-Client-Version': _.ASIG_FE_VERSION,
+        },
+        body: JSON.stringify(body),
+      });
+
+      let responseJson = null;
+      try {
+        responseJson = await res.json();
+      } catch (_e) {
+        responseJson = null;
+      }
+
+      if (res.status === 409) {
+        throw new Error('La celda fue modificada por otro usuario. Recargando cuadrante...');
+      }
+      if (!res.ok || (responseJson && responseJson.ok === false)) {
+        let message =
+          responseJson && responseJson.message
+            ? responseJson.message
+            : 'No se pudo actualizar la celda';
+        throw new Error(message);
+      }
+
+      if (typeof app.applyAsignacionesDevengosPendingState === 'function') {
+        app.applyAsignacionesDevengosPendingState(
+          responseJson,
+          _.getSelectedBorradorId()
+        );
+      }
+
+      if (
+        responseJson &&
+        responseJson.asignacion &&
+        typeof _.updateCell === 'function'
+      ) {
+        _.updateCell(responseJson.asignacion);
+      }
+    }
+
     // Limpiado de una celda del cuadrante: se muestra al hacer click derecho sobre una celda de día, y permite eliminar la asignación de esa celda del borrador actual (si existe) y dejarla vacía.
     function mostrarMenuCelda(e, cell) {
       // Evitar menú navegador
@@ -1677,91 +2497,181 @@
           fontSize: "14px"
       });
   
-      // ==========================================
-      // OPCIÓN LIMPIAR
-      // ==========================================
-  
-      const limpiar = document.createElement("div");
-  
-      limpiar.innerText = "🧹 Limpiar";
-  
-      Object.assign(limpiar.style, {
-          padding: "8px 12px",
-          cursor: "pointer"
+      const copiar = createContextMenuItem('<i class="bi bi-clipboard me-1"></i>Copiar');
+      copiar.addEventListener('click', async function (ev) {
+        ev.stopPropagation();
+        let copiedMatrix = captureSelectedCellsToClipboard(cell);
+        if (!copiedMatrix || !copiedMatrix.length) {
+          _.showAlert('No hay celdas seleccionadas para copiar', 'warning');
+          return;
+        }
+
+        try {
+          if (_.tabulator && typeof _.tabulator.copyToClipboard === 'function') {
+            _.tabulator.copyToClipboard('active', true);
+          }
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(getClipboardPlainText(copiedMatrix));
+          }
+          _.showAlert('Celdas copiadas', 'success');
+        } catch (_err) {
+          _.showAlert('Copiado interno listo (portapapeles del navegador no disponible)', 'info');
+        }
+        menu.remove();
       });
-  
-      limpiar.addEventListener("mouseenter", () => {
-          limpiar.style.background = "#f0f0f0";
+
+      const pegar = createContextMenuItem('<i class="bi bi-clipboard-check me-1"></i>Pegar');
+      pegar.addEventListener('click', async function (ev) {
+        ev.stopPropagation();
+        if (!asigClipboardMatrix || !asigClipboardMatrix.length) {
+          _.showAlert('No hay contenido copiado para pegar', 'warning');
+          return;
+        }
+        if (!isDayCellSelectable(cell)) {
+          _.showAlert('Solo se puede pegar en columnas de día', 'warning');
+          return;
+        }
+
+        let targets = buildPasteTargets(cell, asigClipboardMatrix);
+        if (!targets.length) {
+          _.showAlert('No se pudieron pegar celdas en el rango destino', 'warning');
+          return;
+        }
+
+        // Aplicación optimista en UI antes de persistir.
+        targets.forEach(function (target) {
+          target.cell.setValue(cloneCellValue(target.nextValue));
+        });
+
+        try {
+          let result = await persistPastedTargets(targets);
+          _.showAlert(
+            'Pegado persistido (' +
+              result.upserts +
+              ' guardadas, ' +
+              result.deletes +
+              ' limpiadas)',
+            'success'
+          );
+        } catch (err) {
+          _.showAlert(err.message || 'Error al persistir el pegado. Recargando cuadrante...', 'danger');
+          if (typeof app.loadAsignacionesCuadrante === 'function') {
+            await app.loadAsignacionesCuadrante();
+          }
+          return;
+        }
+
+        menu.remove();
       });
-  
-      limpiar.addEventListener("mouseleave", () => {
-          limpiar.style.background = "#fff";
+
+      const limpiar = createContextMenuItem('<i class="bi bi-trash me-1"></i>Limpiar');
+      limpiar.addEventListener('click', async function (ev) {
+        ev.stopPropagation();
+        let selectedCells = getSelectedDayCells(cell);
+        let payload = null;
+        try {
+          payload = buildDeletePayloadFromCells(selectedCells);
+        } catch (err) {
+          _.showAlert(err.message, 'danger');
+          return;
+        }
+
+        if (!payload) {
+          _.showAlert('No hay nada que limpiar en la selección', 'warning');
+          return;
+        }
+
+        try {
+          let res = await fetch('/api/asignaciones/borrador', {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: 'Bearer ' + app.globalState.token,
+            },
+            body: JSON.stringify(payload),
+          });
+          let responseJson = await res.json();
+          if (!res.ok) {
+            let err = responseJson || {};
+            throw new Error(err.message || 'Error al eliminar celdas del borrador');
+          }
+
+          selectedCells.forEach(function (selectedCell) {
+            selectedCell.setValue(null);
+          });
+          _.showAlert('Limpieza aplicada en ' + selectedCells.length + ' celda(s)', 'success');
+        } catch (err) {
+          _.showAlert(err.message, 'danger');
+        }
+        menu.remove();
       });
-  
-    limpiar.addEventListener("click", async (ev) => {
+
+      menu.appendChild(copiar);
+      menu.appendChild(pegar);
+      menu.appendChild(limpiar);
+
+      let selectedCells = getSelectedDayCells(cell);
+      if (selectedCells.length === 1) {
+        menu.appendChild(createContextMenuSeparator());
+        let title = document.createElement('div');
+        title.textContent = 'Audit log del día (anteriores)';
+        Object.assign(title.style, {
+          padding: '6px 12px 4px',
+          fontSize: '12px',
+          fontWeight: '600',
+          color: '#6c757d',
+        });
+        menu.appendChild(title);
+
+        let badgesWrap = document.createElement('div');
+        Object.assign(badgesWrap.style, {
+          padding: '2px 8px 6px',
+          maxWidth: '420px',
+          whiteSpace: 'normal',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '4px',
+        });
+        badgesWrap.innerHTML = '<small class="text-muted">Cargando historial...</small>';
+        menu.appendChild(badgesWrap);
+
+        fetchPreviousActividadEntriesFromAudit(cell)
+          .then(function (prevItems) {
+            badgesWrap.innerHTML = '';
+            let grouped = groupAuditEntriesByActividad(prevItems);
+            if (!grouped.length) {
+              badgesWrap.innerHTML =
+                '<small class="text-muted">Sin actividades anteriores en audit log para este día.</small>';
+              return;
+            }
+
+            grouped.forEach(function (entry) {
+              let badge = createHistoryBadge(entry);
+              badge.addEventListener('click', async function (ev) {
                 ev.stopPropagation();
-
-                let rowData = cell.getRow().getData() || {};
-                let anioPayload = Number(
-                  app.asignacionesState.anio != null
-                    ? app.asignacionesState.anio
-                    : rowData.anio
-                );
-                let mesPayload = Number(
-                  app.asignacionesState.mes != null
-                    ? app.asignacionesState.mes
-                    : rowData.mes
-                );
-
-                let agenteIds = rowData.agente_id
-                  ? [rowData.agente_id]
-                  : [];
-                let fechas = cell.getColumn().getField().indexOf('dia_') === 0
-                  ? [String(cell.getColumn().getField()).slice(4)]
-                  : [];
-                let dias = fechas.map(function (fecha) {
-                  return Number(String(fecha).slice(8, 10));
-                });
-                if (!agenteIds.length || !fechas.length) {
-                  _.showAlert(
-                    'No hay nada que limpiar en esta celda',
-                    'warning'
-                  );
-                  return;
-                }
                 try {
-                  if (!Number.isInteger(anioPayload) || !Number.isInteger(mesPayload)) {
-                    throw new Error('No se pudo resolver año/mes del cuadrante');
+                  await applyPreviousActividadToCell(cell, entry.actividad_id);
+                  _.showAlert('Actividad reemplazada desde audit log', 'success');
+                } catch (err) {
+                  _.showAlert(err.message || 'No se pudo reemplazar la actividad', 'danger');
+                  if (
+                    String((err && err.message) || '').indexOf('Recargando cuadrante') !== -1 &&
+                    typeof app.loadAsignacionesCuadrante === 'function'
+                  ) {
+                    await app.loadAsignacionesCuadrante();
                   }
-                  let res = await fetch('/api/asignaciones/borrador', {
-                    method: 'DELETE',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      Authorization: 'Bearer ' + app.globalState.token,
-                    },
-                    body: JSON.stringify({
-                      anio: anioPayload,
-                      mes: mesPayload,
-                      borrador_id: _.getSelectedBorradorId(),
-                      agente_ids: agenteIds,
-                      dias: dias,
-                      fechas: fechas,
-                    }),
-                  });
-                  let responseJson = await res.json();
-                  if (!res.ok) {
-                    let err = responseJson || {};
-                    throw new Error(err.message || 'Error al eliminar celda del borrador');
-                  }
-                  cell.setValue(null);
-                  //await app.loadAsignacionesCuadrante();
-                } catch (e) {
-                  _.showAlert(e.message, 'danger');
                 }
-          // Cerrar menú
-          menu.remove();
-    });
-    menu.appendChild(limpiar);
+                menu.remove();
+              });
+              badgesWrap.appendChild(badge);
+            });
+          })
+          .catch(function () {
+            badgesWrap.innerHTML =
+              '<small class="text-warning">No se pudo cargar el audit log para esta celda.</small>';
+          });
+      }
+
       // Añadir al DOM
       document.body.appendChild(menu);
   
@@ -1786,15 +2696,6 @@
   
       }, 0);
   }
-    _.tabulator.on('rowSelectionChanged', function (data, rows) {
-      if (tableInstance !== _.tabulator) return;
-      app.asignacionesState.selectedAgenteIdsVista = rows.map(function (r) {
-        return Number(r.getData().agente_id);
-      });
-      syncHeaderSelectAllActiveCheckbox();
-      refreshMetaResumenFromState();
-    });
-
     // @ts-ignore
     _.tabulator.on('dataFiltered', function (filters, rows) {
       if (tableInstance !== _.tabulator) return;
@@ -1835,6 +2736,26 @@
     // ── Event delegation (once per container) ──
     if (!container.dataset.asigTabDelegates) {
       container.dataset.asigTabDelegates = '1';
+
+      container.addEventListener(
+        'keydown',
+        function (e) {
+          let target = e.target;
+          if (
+            !target ||
+            // @ts-ignore
+            !target.closest ||
+            // @ts-ignore
+            !target.closest('.tabulator-header-filter')
+          )
+            return;
+
+          // Permitir escritura normal en filtros evitando atajos globales de tabla.
+          e.stopPropagation();
+        },
+        true
+      );
+
       container.addEventListener('click', function (e) {
         let obsIcon =
           // @ts-ignore
@@ -1936,7 +2857,15 @@
   }
 
   function clearAsigSelection() {
-    if (_.tabulator) _.tabulator.deselectRow();
+    app.asignacionesState.selectedAgenteIdsVista = [];
+    if (_.tabulator && typeof _.tabulator.redraw === 'function') {
+      _.tabulator.redraw(true);
+    }
+    let headerCheckbox = document.querySelector('#asigGridContainer .asig-select-all-active');
+    if (headerCheckbox) {
+      headerCheckbox.checked = false;
+      headerCheckbox.indeterminate = false;
+    }
   }
 
   // ── Exportar ────────────────────────────────────────────────────

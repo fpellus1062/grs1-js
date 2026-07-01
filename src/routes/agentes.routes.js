@@ -26,6 +26,7 @@ const {
   registerEjecucionBulkSchema,
   registerEjecucionMultiSchema,
   sancionarPeriodoSchema,
+  exportHistoricoEjecucionesQuerySchema,
 } = require('../validators/agentes-requisitos.validator');
 
 router.use(auth);
@@ -115,6 +116,12 @@ router.post(
   authorize('agentes-requisitos:editar'),
   validate(sancionarPeriodoSchema),
   requisitosController.sancionarPeriodo
+);
+router.get(
+  '/requisitos/ejecuciones/excel',
+  authorize('agentes-requisitos:leer'),
+  validate(exportHistoricoEjecucionesQuerySchema, 'query'),
+  requisitosController.exportHistoricoEjecucionesExcel
 );
 
 // Leer por ID → agentes:leer

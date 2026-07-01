@@ -132,12 +132,35 @@ exports.guardarBulk = async (req, res, next) => {
 exports.aprobar = async (req, res, next) => {
   try {
     const { versionId } = req.params;
-    const { comentario } = req.body || {};
-    const result = await service.aprobarConComentario({
-      versionId: Number(versionId),
-      userId: req.user.id,
-      comentario,
-    });
+    const body = req.body || {};
+    const comentario = body.comentario;
+    const modo = String(body.modo || '').trim().toLowerCase();
+
+    let result;
+    if (modo === 'prepare') {
+      result = await service.aprobarChunkPrepare({
+        versionId: Number(versionId),
+      });
+    } else if (modo === 'chunk') {
+      result = await service.aprobarChunk({
+        versionId: Number(versionId),
+        userId: req.user.id,
+        offset: body.offset,
+        limit: body.limit,
+      });
+    } else if (modo === 'finalize') {
+      result = await service.aprobarChunkFinalize({
+        versionId: Number(versionId),
+        userId: req.user.id,
+        comentario,
+      });
+    } else {
+      result = await service.aprobarConComentario({
+        versionId: Number(versionId),
+        userId: req.user.id,
+        comentario,
+      });
+    }
     res.json({ ok: true, ...result });
   } catch (err) {
     next(new ApiError(400, err.message || 'Error al aprobar versión', err));
@@ -238,5 +261,100 @@ exports.borrarPlan = async (req, res, next) => {
     res.json({ ok: true, ...result });
   } catch (err) {
     next(new ApiError(400, err.message || 'Error al borrar plan', err));
+  }
+};
+
+// ─────────────────────────────────────────────
+// POST /api/planificacion/versiones/:versionId/agentes/excel
+// ─────────────────────────────────────────────
+exports.exportarAgentesExcel = async (req, res, next) => {
+  try {
+    const { versionId } = req.params;
+    const { agenteIds = [], fechaInicio, fechaFin } = req.body;
+
+    if (!Array.isArray(agenteIds) || !agenteIds.length) {
+      return next(new ApiError(400, 'No hay agentes para exportar'));
+    }
+
+    if (!fechaInicio || !fechaFin) {
+      return next(new ApiError(400, 'Fechas inválidas para el rango de exportación'));
+    }
+
+    // Obtener todas las asignaciones para esta versión (con datos de agentes y actividades)
+    const allAsignaciones = await service.listarAsignaciones(Number(versionId));
+
+    // Filtrar por agentes seleccionados y rango de fechas
+    const agenteIdSet = new Set(agenteIds.map(id => Number(id)));
+    const startISO = String(fechaInicio).slice(0, 10);
+    const endISO = String(fechaFin).slice(0, 10);
+
+    const agentesMap = new Map();
+    const asignacionesFiltered = [];
+
+    // Construir mapa de agentes únicos con todos sus datos
+    allAsignaciones.forEach(a => {
+      if (agenteIdSet.has(Number(a.agente_id))) {
+        const agenteKey = String(a.agente_id);
+        if (!agentesMap.has(agenteKey)) {
+          agentesMap.set(agenteKey, {
+            agente_id: a.agente_id,
+            tip: a.tip || '',
+            nombre: `${a.apellido_1 || ''} ${a.apellido_2 || ''} ${a.agente_nombre || ''}`.trim(),
+            peloton_desc: a.peloton_desc || '',
+            empleo_desc: a.empleo_desc || '',
+            empleo_id: a.empleo_id || '',
+            aptitudes: a.aptitudes || '',
+            situacion_id: a.situacion_id || '',
+            situacion_desc: a.situacion_desc || '',
+          });
+        }
+
+        // Filtrar asignación por rango de fechas
+        const fechaISO = String(a.fecha).slice(0, 10);
+        if (fechaISO >= startISO && fechaISO <= endISO) {
+          asignacionesFiltered.push(a);
+        }
+      }
+    });
+
+    const agentes = Array.from(agentesMap.values());
+
+    // Generar fechas del rango para el Excel
+    const start = new Date(fechaInicio);
+    const end = new Date(fechaFin);
+    const fechas = [];
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      fechas.push(d.toISOString().split('T')[0]);
+    }
+
+    // Extraer actividades únicas usadas
+    const activitiesMap = new Map();
+    asignacionesFiltered.forEach(a => {
+      if (a.actividad_id) {
+        const key = String(a.actividad_id);
+        if (!activitiesMap.has(key)) {
+          activitiesMap.set(key, {
+            id: a.actividad_id,
+            id_actividad: a.actividad_id,
+            nombre: a.actividad_nombre || '',
+            codigo: a.actividad_codigo || a.actividad || '',
+            color: a.actividad_color || '#e8f5e9',
+          });
+        }
+      }
+    });
+
+    const actividades = Array.from(activitiesMap.values());
+
+    const excelService = require('../services/planificacionAgentesExcel.service');
+    await excelService.buildPlanificacionAgentesExcel(res, {
+      agentes,
+      asignaciones: asignacionesFiltered,
+      fechas,
+      actividades,
+      fechaHoy: new Date(),
+    });
+  } catch (err) {
+    next(new ApiError(500, err.message || 'Error al exportar agentes a Excel', err));
   }
 };

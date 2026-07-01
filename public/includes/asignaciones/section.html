@@ -1,18 +1,10 @@
 <div class="d-flex justify-content-between align-items-center mb-2">
   <div class="d-flex align-items-center gap-2">
     <h2 class="mb-0 fs-5">Asignación de Servicios</h2>
-    <span
-      id="asignacionesEstadoPeriodo"
-      class="badge bg-light text-dark border flex-shrink-0"
-      style="font-size: 0.95rem; padding: 0.4rem 0.65rem"
-      >sin datos</span
-    >
+    <span id="asignacionesEstadoPeriodo" class="badge bg-light text-dark border flex-shrink-0"
+      style="font-size: 0.95rem; padding: 0.4rem 0.65rem">sin datos</span>
   </div>
-  <button
-    class="btn btn-outline-secondary btn-sm px-2 py-1"
-    data-section-trigger="dashboard"
-    type="button"
-  >
+  <button class="btn btn-outline-secondary btn-sm px-2 py-1" data-section-trigger="dashboard" type="button">
     <i class="bi bi-house"></i> Dashboard
   </button>
 </div>
@@ -21,40 +13,22 @@
   <div class="card-header py-1 px-2">
     <div class="d-flex align-items-center gap-1 flex-nowrap overflow-visible">
       <!-- Año / Mes: ocultos, se rellenan desde el cuadrante seleccionado -->
-      <input
-        id="asigAnio"
-        type="number"
-        class="visually-hidden"
-        aria-hidden="true"
-        tabindex="-1"
-      />
-      <select
-        id="asigMes"
-        class="visually-hidden"
-        aria-hidden="true"
-        tabindex="-1"
-      ></select>
+      <input id="asigAnio" type="number" class="visually-hidden" aria-hidden="true" tabindex="-1" />
+      <select id="asigMes" class="visually-hidden" aria-hidden="true" tabindex="-1"></select>
 
       <!-- Cuadrante definido (después del mes) -->
       <i class="bi bi-calendar3-week text-muted flex-shrink-0 ms-1"></i>
-      <span class="text-muted flex-shrink-0" style="font-size: 0.8rem"
-        >Cuadrante</span
-      >
-      <button class="btn btn-link p-0 ms-1" type="button" data-help-context="asignaciones-help" title="Asignación Servicios">
+      <span class="text-muted flex-shrink-0" style="font-size: 0.8rem">Cuadrante</span>
+      <button class="btn btn-link p-0 ms-1" type="button" data-help-context="asignaciones-help"
+        title="Asignación Servicios">
         <i class="bi bi-question-circle text-secondary" style="font-size: 0.95rem"></i>
-        </button>
-      <select
-        id="asigCuadrante"
-        class="form-select form-select-sm flex-shrink-0 asig-sel-cuadrante"
-        title="Cuadrantes Definidos"
-      >
+      </button>
+      <select id="asigCuadrante" class="form-select form-select-sm flex-shrink-0 asig-sel-cuadrante"
+        title="Cuadrantes Definidos">
         <option value="">— Sin cuadrantes —</option>
       </select>
-      <button
-        id="btnGestionCuadrantes"
-        class="btn btn-outline-secondary btn-sm px-2 flex-shrink-0 d-none"
-        title="Gestionar cuadrantes"
-      >
+      <button id="btnGestionCuadrantes" class="btn btn-outline-secondary btn-sm px-2 flex-shrink-0 d-none"
+        title="Gestionar cuadrantes">
         <i class="bi bi-gear"></i>
       </button>
 
@@ -62,42 +36,20 @@
       <div class="vr mx-1 flex-shrink-0"></div>
 
       <!-- Borrador -->
-      <select
-        id="asigBorrador"
-        class="form-select form-select-sm flex-shrink-0 asig-sel-borrador"
-        title="Borrador activo"
-      ></select>
-      <span
-        id="asigPeriodoCerradoBadge"
-        class="badge text-bg-warning d-none flex-shrink-0"
-        title="Período cerrado por borrador canónico"
-        style="font-size: 0.72rem"
-        >Período cerrado</span
-      >
-      <button
-        class="btn btn-outline-secondary btn-sm px-2 py-1 flex-shrink-0"
-        id="btnEditObservacionesBorrador"
-        type="button"
-        title="Ver/editar observaciones del borrador"
-      >
+      <select id="asigBorrador" class="form-select form-select-sm flex-shrink-0 asig-sel-borrador"
+        title="Borrador activo"></select>
+      <span id="asigPeriodoCerradoBadge" class="badge text-bg-warning d-none flex-shrink-0"
+        title="Período cerrado por borrador canónico" style="font-size: 0.72rem">Período cerrado</span>
+      <button class="btn btn-outline-secondary btn-sm px-2 py-1 flex-shrink-0" id="btnEditObservacionesBorrador"
+        type="button" title="Ver/editar observaciones del borrador">
         <i class="bi bi-chat-left-text"></i>
       </button>
-      <button
-        class="btn btn-outline-dark btn-sm px-2 py-1 flex-shrink-0"
-        id="btnAsigNuevoBorrador"
-        data-permiso="asignaciones:crear"
-        type="button"
-        title="Nuevo borrador"
-      >
+      <button class="btn btn-outline-dark btn-sm px-2 py-1 flex-shrink-0" id="btnAsigNuevoBorrador"
+        data-permiso="asignaciones:crear" type="button" title="Nuevo borrador">
         <i class="bi bi-plus-circle"></i>
       </button>
-      <button
-        class="btn btn-outline-danger btn-sm px-2 py-1 flex-shrink-0"
-        id="btnAsigDeleteBorrador"
-        data-permiso="asignaciones:eliminar"
-        type="button"
-        title="Eliminar borrador"
-      >
+      <button class="btn btn-outline-danger btn-sm px-2 py-1 flex-shrink-0" id="btnAsigDeleteBorrador"
+        data-permiso="asignaciones:eliminar" type="button" title="Eliminar borrador">
         <i class="bi bi-trash"></i>
       </button>
 
@@ -105,23 +57,13 @@
       <div class="ms-auto d-flex gap-1 flex-shrink-0">
         <!-- Exportación en dropdown (ids conservados para handlers JS) -->
         <div class="dropdown" id="asigExportDropdown">
-          <button
-            class="btn btn-outline-secondary btn-sm dropdown-toggle"
-            type="button"
-            data-bs-toggle="dropdown"
-            aria-label="Exportar"
-            aria-expanded="false"
-            title="Exportar"
-          >
+          <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown"
+            aria-label="Exportar" aria-expanded="false" title="Exportar">
             <i class="bi bi-download"></i>
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
             <li>
-              <button
-                class="dropdown-item"
-                id="btnExportExcelAsig"
-                type="button"
-              >
+              <button class="dropdown-item" id="btnExportExcelAsig" type="button">
                 <i class="bi bi-file-earmark-excel me-2"></i>Excel
               </button>
             </li>
@@ -132,72 +74,37 @@
             </li>
           </ul>
         </div>
-        <button
-          class="btn btn-outline-primary btn-sm"
-          id="btnAsigBulk"
-          data-permiso="asignaciones:crear"
-          type="button"
-          title="Asignación masiva"
-        >
+        <button class="btn btn-outline-primary btn-sm" id="btnAsigBulk" data-permiso="asignaciones:crear" type="button"
+          title="Asignación masiva">
           <i class="bi bi-grid-3x3-gap"></i>
         </button>
-        <button
-          class="btn btn-outline-danger btn-sm"
-          id="btnAsigDelete"
-          data-permiso="asignaciones:eliminar"
-          type="button"
-          title="Eliminar asignaciones"
-        >
+        <button class="btn btn-outline-danger btn-sm" id="btnAsigDelete" data-permiso="asignaciones:eliminar"
+          type="button" title="Eliminar asignaciones">
           <i class="bi bi-eraser"></i>
         </button>
-        <button
-          class="btn btn-outline-secondary btn-sm"
-          id="btnAsigCopy"
-          type="button"
-          title="Copiar mes"
-        >
+        <button class="btn btn-outline-secondary btn-sm" id="btnAsigCopy" type="button" title="Copiar mes">
           <i class="bi bi-files"></i>
         </button>
-        <button
-          class="btn btn-outline-info btn-sm"
-          id="btnAsigHistorial"
-          type="button"
-          title="Historial de cambios"
-        >
+        <button class="btn btn-outline-info btn-sm" id="btnAsigHistorial" type="button" title="Historial de cambios">
           <i class="bi bi-clock-history"></i>
         </button>
 
-        <button
-          class="btn btn-outline-warning btn-sm"
-          id="btnAsigConsolidarDevengos"
-          data-permiso="asignaciones:crear"
-          type="button"
-          title="Consolidar devengos (recalcular)"
-        >
+        <button class="btn btn-outline-warning btn-sm" id="btnAsigConsolidarDevengos" data-permiso="asignaciones:crear"
+          type="button" title="Consolidar devengos (recalcular)">
           <i class="bi bi-lightning-charge"></i>
         </button>
-        <button
-          class="btn btn-success btn-sm"
-          id="btnAsigValidate"
-          data-permiso="asignaciones:validar"
-          type="button"
-          title="Validar borrador"
-        >
+        <button class="btn btn-success btn-sm" id="btnAsigValidate" data-permiso="asignaciones:validar" type="button"
+          title="Validar borrador">
           <i class="bi bi-check2-circle"></i>
         </button>
-        <button
-          class="btn btn-primary btn-sm"
-          id="btnReloadAsignaciones"
-          type="button"
-          title="Recargar cuadrante"
-        >
+        <button class="btn btn-primary btn-sm" id="btnReloadAsignaciones" type="button" title="Recargar cuadrante">
           <i class="bi bi-arrow-clockwise"></i>
         </button>
       </div>
     </div>
   </div>
 
-  <div id="alertContainerAsignaciones" class="px-3 pt-2"></div>
+  <div id="alertContainerAsignaciones" class="px-3 pt-2 asig-alert-slot"></div>
 
   <div class="card-body pt-1 pb-1">
     <div class="row g-1" id="asigMetaResumen"></div>
@@ -207,40 +114,22 @@
     <div class="row g-1 align-items-center">
       <div class="col-12 col-md-6 col-lg-4">
         <div class="input-group input-group-sm">
-          <span class="input-group-text" aria-hidden="true"
-            ><i class="bi bi-search"></i
-          ></span>
-          <input
-            id="asigSearchAgente"
-            class="form-control form-control-sm"
-            type="search"
-            placeholder="Buscar contenido en la tabla"
-            aria-label="Buscar agente por nombre, apellidos o TIP"
-            autocomplete="off"
-          />
-          <button
-            id="asigClearAllFilters"
-            class="btn btn-outline-secondary"
-            type="button"
-            title="Limpiar todos los filtros"
-            aria-label="Limpiar todos los filtros"
-          >
+          <span class="input-group-text" aria-hidden="true"><i class="bi bi-search"></i></span>
+          <input id="asigSearchAgente" class="form-control form-control-sm" type="search"
+            placeholder="Buscar contenido en la tabla" aria-label="Buscar agente por nombre, apellidos o TIP"
+            autocomplete="off" />
+          <button id="asigClearAllFilters" class="btn btn-outline-secondary" type="button"
+            title="Limpiar todos los filtros" aria-label="Limpiar todos los filtros">
             <i class="bi bi-eraser"></i><span> Filtros</span>
           </button>
         </div>
       </div>
       <div class="col-12 col-md-6 col-lg-4">
         <div class="asig-actividad-filter">
-          <button
-            id="asigActividadFilterToggle"
-            type="button"
+          <button id="asigActividadFilterToggle" type="button"
             class="btn btn-outline-secondary btn-sm w-100 d-flex align-items-center justify-content-between"
-            aria-expanded="false"
-            aria-controls="asigActividadFilterPanel"
-            data-bs-toggle="tooltip"
-            data-bs-placement="top"
-            title="Filtro de Actividad por fecha"
-          >
+            aria-expanded="false" aria-controls="asigActividadFilterPanel" data-bs-toggle="tooltip"
+            data-bs-placement="top" title="Filtro de Actividad por fecha">
             <span class="d-inline-flex align-items-center gap-1">
               <i class="bi bi-funnel"></i>
               <span>Actividades</span>
@@ -250,48 +139,28 @@
 
           <div id="asigActividadFilterPanel" class="asig-actividad-filter-panel d-none">
             <div class="asig-actividad-filter-toolbar">
-              <input
-                id="asigActividadFilterSearch"
-                type="text"
-                class="form-control form-control-sm"
-                placeholder="Buscar actividad..."
-                autocomplete="off"
-              />
-              <button
-                id="asigActividadFilterApply"
-                type="button"
-                class="btn btn-sm btn-primary"
-                title="Aplicar filtro de actividades"
-              >
+              <input id="asigActividadFilterSearch" type="text" class="form-control form-control-sm"
+                placeholder="Buscar actividad..." autocomplete="off" />
+              <button id="asigActividadFilterApply" type="button" class="btn btn-sm btn-primary"
+                title="Aplicar filtro de actividades">
                 Filtrar
               </button>
-              <button
-                id="asigActividadFilterClear"
-                type="button"
-                class="btn btn-sm btn-outline-secondary"
-                title="Limpiar actividades marcadas"
-              >
+              <button id="asigActividadFilterClear" type="button" class="btn btn-sm btn-outline-secondary"
+                title="Limpiar actividades marcadas">
                 Limpiar
               </button>
             </div>
             <div class="row g-2 mt-1 px-1">
               <div class="col-6">
-                <label for="asigActividadFilterFechaInicio" class="form-label mb-1 small text-muted">Fecha inicio</label>
-                <input
-                  id="asigActividadFilterFechaInicio"
-                  type="date"
-                  class="form-control form-control-sm"
-                  title="Fecha inicial para filtrar actividades"
-                />
+                <label for="asigActividadFilterFechaInicio" class="form-label mb-1 small text-muted">Fecha
+                  inicio</label>
+                <input id="asigActividadFilterFechaInicio" type="date" class="form-control form-control-sm"
+                  title="Fecha inicial para filtrar actividades" />
               </div>
               <div class="col-6">
                 <label for="asigActividadFilterFechaFin" class="form-label mb-1 small text-muted">Fecha fin</label>
-                <input
-                  id="asigActividadFilterFechaFin"
-                  type="date"
-                  class="form-control form-control-sm"
-                  title="Fecha final para filtrar actividades"
-                />
+                <input id="asigActividadFilterFechaFin" type="date" class="form-control form-control-sm"
+                  title="Fecha final para filtrar actividades" />
               </div>
             </div>
             <div id="asigActividadFilterList" class="asig-actividad-filter-list"></div>
@@ -302,11 +171,7 @@
   </div>
 
   <div class="card-body p-0">
-    <div
-      id="asigGridContainer"
-      class="table-responsive"
-      style="max-height: calc(100vh - 320px); overflow: auto"
-    ></div>
+    <div id="asigGridContainer" class="table-responsive" style="max-height: calc(100vh - 320px); overflow: auto"></div>
   </div>
 
   <style>
@@ -326,6 +191,15 @@
       font-size: 0.97em;
       padding-top: 0.15rem;
       padding-bottom: 0.15rem;
+    }
+
+    /* Reservar espacio fijo para mensajes y evitar salto vertical del grid */
+    #alertContainerAsignaciones.asig-alert-slot {
+      min-height: 44px;
+    }
+
+    #alertContainerAsignaciones.asig-alert-slot .alert {
+      margin-bottom: 0;
     }
 
     /*
@@ -370,24 +244,15 @@
 </div>
 
 <!-- ── Modal: nuevo borrador ───────────────────────────────── -->
-<div
-  class="modal fade"
-  id="modalNuevoBorrador"
-  tabindex="-1"
-  aria-labelledby="modalNuevoBorradorLabel"
-  aria-hidden="true"
->
+<div class="modal fade" id="modalNuevoBorrador" tabindex="-1" aria-labelledby="modalNuevoBorradorLabel"
+  aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content modal-notion">
       <div class="modal-header">
         <h5 class="modal-title" id="modalNuevoBorradorLabel">
           <i class="bi bi-plus-circle me-2"></i>Nuevo borrador
         </h5>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-        ></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
         <div class="mb-3">
@@ -399,28 +264,17 @@
           </select>
         </div>
         <div class="mb-1">
-          <label class="form-label" for="nuevoObservacionesBorrador"
-            >Observaciones
-            <span class="text-muted small">(opcional)</span></label
-          >
-          <textarea
-            class="form-control"
-            id="nuevoObservacionesBorrador"
-            rows="2"
-            maxlength="500"
-            placeholder="Notas sobre este borrador…"
-          ></textarea>
+          <label class="form-label" for="nuevoObservacionesBorrador">Observaciones
+            <span class="text-muted small">(opcional)</span></label>
+          <textarea class="form-control" id="nuevoObservacionesBorrador" rows="2" maxlength="500"
+            placeholder="Notas sobre este borrador…"></textarea>
         </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
           Cancelar
         </button>
-        <button
-          type="button"
-          class="btn btn-primary"
-          id="btnConfirmarNuevoBorrador"
-        >
+        <button type="button" class="btn btn-primary" id="btnConfirmarNuevoBorrador">
           <i class="bi bi-plus-circle me-1"></i>Crear
         </button>
       </div>
@@ -429,44 +283,25 @@
 </div>
 
 <!-- Modal edición de observaciones de borrador -->
-<div
-  class="modal fade"
-  id="modalObservacionesBorrador"
-  tabindex="-1"
-  aria-labelledby="modalObservacionesBorradorLabel"
-  aria-hidden="true"
->
+<div class="modal fade" id="modalObservacionesBorrador" tabindex="-1" aria-labelledby="modalObservacionesBorradorLabel"
+  aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content modal-notion">
       <div class="modal-header">
         <h5 class="modal-title" id="modalObservacionesBorradorLabel">
-          <i class="bi bi-chat-left-text me-2"></i
-          ><span id="obsModalTitulo">Borrador</span>
+          <i class="bi bi-chat-left-text me-2"></i><span id="obsModalTitulo">Borrador</span>
         </h5>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-        ></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <textarea
-          class="form-control"
-          id="editObservacionesBorrador"
-          rows="4"
-          maxlength="500"
-          placeholder="Notas sobre este borrador…"
-        ></textarea>
+        <textarea class="form-control" id="editObservacionesBorrador" rows="4" maxlength="500"
+          placeholder="Notas sobre este borrador…"></textarea>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
           Cancelar
         </button>
-        <button
-          type="button"
-          class="btn btn-primary"
-          id="btnGuardarObservacionesBorrador"
-        >
+        <button type="button" class="btn btn-primary" id="btnGuardarObservacionesBorrador">
           <i class="bi bi-floppy me-1"></i>Guardar
         </button>
       </div>
@@ -474,13 +309,8 @@
   </div>
 </div>
 
-<div
-  class="modal fade"
-  id="modalHistorialAsignaciones"
-  tabindex="-1"
-  aria-labelledby="modalHistorialAsignacionesLabel"
-  aria-hidden="true"
->
+<div class="modal fade" id="modalHistorialAsignaciones" tabindex="-1" aria-labelledby="modalHistorialAsignacionesLabel"
+  aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content modal-notion">
       <div class="modal-header">
@@ -488,26 +318,16 @@
           <h5 class="modal-title" id="modalHistorialAsignacionesLabel">
             <i class="bi bi-clock-history me-2"></i>Historial del cuadrante
           </h5>
-          <div
-            id="asigHistorialModalSubtitulo"
-            class="small text-white-50 mt-1"
-          ></div>
+          <div id="asigHistorialModalSubtitulo" class="small text-white-50 mt-1"></div>
         </div>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-          aria-label="Cerrar"
-        ></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
       <div class="modal-body">
         <div class="row g-2 mb-3">
           <!-- Fila 1: Acción · Fecha cuadrante · Fecha de cambio -->
           <div class="col-12 col-md-4">
             <label class="form-label small mb-1">Acción</label>
-            <div
-              id="asigHistorialFiltroAccion"
-              style="
+            <div id="asigHistorialFiltroAccion" style="
                 max-height: 130px;
                 overflow-y: auto;
                 border: 1px solid #dee2e6;
@@ -515,20 +335,13 @@
                 padding: 4px 6px;
                 background: #fff;
                 font-size: 0.8rem;
-              "
-            >
+              ">
               <!-- checkboxes generados por JS -->
             </div>
           </div>
           <div class="col-12 col-md-4">
-            <label
-              class="form-label small mb-1"
-              for="asigHistorialFiltroFechaCuadrante"
-              >Fecha cuadrante</label
-            >
-            <div
-              id="asigHistorialFiltroFechaCuadrante"
-              style="
+            <label class="form-label small mb-1" for="asigHistorialFiltroFechaCuadrante">Fecha cuadrante</label>
+            <div id="asigHistorialFiltroFechaCuadrante" style="
                 max-height: 130px;
                 overflow-y: auto;
                 border: 1px solid #dee2e6;
@@ -536,20 +349,13 @@
                 padding: 4px 6px;
                 background: #fff;
                 font-size: 0.8rem;
-              "
-            >
+              ">
               <!-- checkboxes generados por JS -->
             </div>
           </div>
           <div class="col-12 col-md-4">
-            <label
-              class="form-label small mb-1"
-              for="asigHistorialFiltroFechaCambio"
-              >Fecha de cambio</label
-            >
-            <div
-              id="asigHistorialFiltroFechaCambio"
-              style="
+            <label class="form-label small mb-1" for="asigHistorialFiltroFechaCambio">Fecha de cambio</label>
+            <div id="asigHistorialFiltroFechaCambio" style="
                 max-height: 130px;
                 overflow-y: auto;
                 border: 1px solid #dee2e6;
@@ -557,50 +363,30 @@
                 padding: 4px 6px;
                 background: #fff;
                 font-size: 0.8rem;
-              "
-            >
+              ">
               <!-- checkboxes generados por JS -->
             </div>
           </div>
           <!-- Fila 2: Usuario -->
           <div class="col-12 col-md-4">
-            <label
-              class="form-label small mb-1"
-              for="asigHistorialFiltroUsuario"
-              >Usuario</label
-            >
-            <select
-              class="form-select form-select-sm"
-              id="asigHistorialFiltroUsuario"
-            >
+            <label class="form-label small mb-1" for="asigHistorialFiltroUsuario">Usuario</label>
+            <select class="form-select form-select-sm" id="asigHistorialFiltroUsuario">
               <option value="">Todos los usuarios</option>
             </select>
           </div>
           <div class="col-12 col-md-4 d-flex align-items-end">
             <div class="form-check mb-1">
-              <input
-                class="form-check-input"
-                type="checkbox"
-                id="asigHistorialIncluirComunicados"
-              />
+              <input class="form-check-input" type="checkbox" id="asigHistorialIncluirComunicados" />
               <label class="form-check-label small" for="asigHistorialIncluirComunicados">
                 Repetir Comunicados
               </label>
             </div>
           </div>
           <div class="col-12 d-flex justify-content-end gap-2">
-            <button
-              type="button"
-              class="btn btn-outline-secondary btn-sm"
-              id="btnAsigHistorialLimpiarFiltros"
-            >
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnAsigHistorialLimpiarFiltros">
               Limpiar filtros
             </button>
-            <button
-              type="button"
-              class="btn btn-primary btn-sm"
-              id="btnAsigHistorialAplicarFiltros"
-            >
+            <button type="button" class="btn btn-primary btn-sm" id="btnAsigHistorialAplicarFiltros">
               <i class="bi bi-search me-1"></i>Consultar
             </button>
           </div>
@@ -608,28 +394,16 @@
         <div id="asigHistorialResumen" class="mb-3"></div>
         <div id="asigHistorialContent">
           <div class="text-center text-muted py-4">
-            <div
-              class="spinner-border spinner-border-sm me-2"
-              role="status"
-            ></div>
+            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
             Cargando historial...
           </div>
         </div>
       </div>
       <div class="modal-footer">
-        <button
-          type="button"
-          class="btn btn-outline-success"
-          id="btnAsigHistorialExcel"
-          disabled
-        >
+        <button type="button" class="btn btn-outline-success" id="btnAsigHistorialExcel" disabled>
           <i class="bi bi-file-earmark-excel me-1"></i>Exportar Excel plano
         </button>
-        <button
-          type="button"
-          class="btn btn-outline-secondary"
-          id="btnAsigHistorialPdf"
-        >
+        <button type="button" class="btn btn-outline-secondary" id="btnAsigHistorialPdf">
           <i class="bi bi-file-earmark-pdf me-1"></i>Exportar y Marcar comunicados
         </button>
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
@@ -639,13 +413,8 @@
     </div>
   </div>
 </div>
-<div
-  class="modal fade"
-  id="modalConsolidarDevengos"
-  tabindex="-1"
-  aria-labelledby="modalConsolidarDevengosLabel"
-  aria-hidden="true"
->
+<div class="modal fade" id="modalConsolidarDevengos" tabindex="-1" aria-labelledby="modalConsolidarDevengosLabel"
+  aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content modal-notion">
       <div class="modal-header">
@@ -653,12 +422,7 @@
           <i class="bi bi-lightning-charge me-2"></i>Consolidar devengos
         </h5>
 
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-          aria-label="Cerrar"
-        ></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
 
       <div class="modal-body">
@@ -667,19 +431,11 @@
         </div>
 
         <div id="asigConsolidarDevengosProgressWrap" class="mb-3 d-none">
-          <div
-            class="progress"
-            role="progressbar"
-            aria-label="Progreso de consolidación de devengos"
-            aria-valuemin="0"
-            aria-valuemax="100"
-          >
-            <div
-              id="asigConsolidarDevengosProgressBar"
+          <div class="progress" role="progressbar" aria-label="Progreso de consolidación de devengos" aria-valuemin="0"
+            aria-valuemax="100">
+            <div id="asigConsolidarDevengosProgressBar"
               class="progress-bar progress-bar-striped progress-bar-animated bg-warning"
-              style="width: 30%; transition: width 0.3s ease-in-out"
-              aria-valuenow="30"
-            >
+              style="width: 30%; transition: width 0.3s ease-in-out" aria-valuenow="30">
               30%
             </div>
           </div>
@@ -689,21 +445,10 @@
         </div>
 
         <div class="form-check">
-          <input
-            class="form-check-input"
-            type="checkbox"
-            id="asigConsolidarDevengosAceptarSwitch"
-          />
+          <input class="form-check-input" type="checkbox" id="asigConsolidarDevengosAceptarSwitch" />
 
-          <label
-            class="form-check-label"
-            for="asigConsolidarDevengosAceptarSwitch"
-          >
-            <span
-              class="ms-2 badge bg-secondary"
-              id="asigConsolidarDevengosAceptarLabel"
-              >No</span
-            >
+          <label class="form-check-label" for="asigConsolidarDevengosAceptarSwitch">
+            <span class="ms-2 badge bg-secondary" id="asigConsolidarDevengosAceptarLabel">No</span>
           </label>
         </div>
       </div>
@@ -713,12 +458,7 @@
           Cancelar
         </button>
 
-        <button
-          type="button"
-          class="btn btn-warning"
-          id="btnConfirmAsigConsolidarDevengos"
-          disabled
-        >
+        <button type="button" class="btn btn-warning" id="btnConfirmAsigConsolidarDevengos" disabled>
           <i class="bi bi-lightning-charge me-1"></i>Consolidar
         </button>
       </div>

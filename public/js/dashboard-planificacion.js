@@ -38,6 +38,7 @@
       activeAnio: null,
       activeMes: null,
       viewMonths: 1,
+      leftPanelCollapsed: false,
       referenceISO: null,
       planesDisponibles: [],
       activePlanIndex: -1,
@@ -60,6 +61,11 @@
     ? app.createPlanificacionStore()
     : createLocalState();
 
+  var PLANIF_TABULATOR_RENDER_HORIZONTAL = 'virtual';
+  var _planifCollapseRedrawTimeout = 0;
+  var _planifSelectedAgenteIds = new Set(); // Agentes seleccionados para exportar
+  var _planifSelectedAgenteIds = new Set(); // Agentes seleccionados para exportar
+
   function resetPlanificacionStateData() {
     if (app.resetPlanificacionStoreState) {
       app.resetPlanificacionStoreState(state);
@@ -71,6 +77,7 @@
     state.selectedActividadIds = new Set();
     state.asignaciones = [];
     state.festivosSet = new Set();
+    _planifSelectedAgenteIds.clear();
     state.activePlan = null;
     state.activePlanId = null;
     state.activePlanIndex = -1;
@@ -318,6 +325,24 @@
           comentario: comentario || '',
         });
       },
+      aprobarVersionPrepare: function (versionId) {
+        return apiJson('/api/planificacion/versiones/' + versionId + '/aprobar', 'POST', {
+          modo: 'prepare',
+        });
+      },
+      aprobarVersionChunk: function (versionId, offset, limit) {
+        return apiJson('/api/planificacion/versiones/' + versionId + '/aprobar', 'POST', {
+          modo: 'chunk',
+          offset: Number(offset) || 0,
+          limit: Number(limit) || 500,
+        });
+      },
+      aprobarVersionFinalize: function (versionId, comentario) {
+        return apiJson('/api/planificacion/versiones/' + versionId + '/aprobar', 'POST', {
+          modo: 'finalize',
+          comentario: comentario || '',
+        });
+      },
       descartarBorrador: function (borradorId) {
         return apiJson('/api/planificacion/borradores/' + borradorId + '/descartar', 'POST', {});
       },
@@ -354,6 +379,20 @@
     return dt.isValid ? dt.toFormat('dd/MM/yy') : String(isoDate);
   }
 
+  function inferPlanMonthsFromDates(dtInicio, dtFin) {
+    if (!dtInicio || !dtFin || !dtInicio.isValid || !dtFin.isValid || dtFin < dtInicio) {
+      return 1;
+    }
+    var months =
+      (dtFin.year - dtInicio.year) * 12 +
+      (dtFin.month - dtInicio.month);
+    // Cuenta el mes final solo cuando alcanza (o supera) el día de inicio.
+    if (dtFin.day >= dtInicio.day) {
+      months += 1;
+    }
+    return months > 0 ? months : 1;
+  }
+
   function fmtPlanRangeLabel(plan) {
     if (!plan) return '—';
     var fi = fmtFecha(plan.fecha_inicio);
@@ -362,16 +401,74 @@
     if (!mesesPlan && DateTime && plan.fecha_inicio && plan.fecha_fin) {
       var dtInicio = DateTime.fromISO(String(plan.fecha_inicio).slice(0, 10));
       var dtFin = DateTime.fromISO(String(plan.fecha_fin).slice(0, 10));
-      if (dtInicio.isValid && dtFin.isValid && dtFin >= dtInicio) {
-        mesesPlan =
-          (dtFin.year - dtInicio.year) * 12 +
-          (dtFin.month - dtInicio.month) +
-          1;
-      }
+      mesesPlan = inferPlanMonthsFromDates(dtInicio, dtFin);
     }
   // Legacy: Ahora el plan infiere por fechas. No meses Plan.
     if (!mesesPlan || mesesPlan < 1) mesesPlan = 1;
     return fi + ' → ' + ff + ' (' + mesesPlan + ' mes' + (mesesPlan === 1 ? '' : 'es') + ')';
+  }
+
+  function getActivePlanBounds() {
+    if (!DateTime) return null;
+    if (state.activePlan && state.activePlan.fecha_inicio && state.activePlan.fecha_fin) {
+      var planStart = DateTime.fromISO(String(state.activePlan.fecha_inicio).slice(0, 10)).startOf('day');
+      var planEnd = DateTime.fromISO(String(state.activePlan.fecha_fin).slice(0, 10)).startOf('day');
+      if (planStart.isValid && planEnd.isValid && planEnd >= planStart) {
+        return { start: planStart, end: planEnd };
+      }
+    }
+    if (!state.activeAnio || !state.activeMes) return null;
+    var fallbackStart = DateTime.fromObject({ year: state.activeAnio, month: state.activeMes, day: 1 }).startOf('day');
+    if (!fallbackStart.isValid) return null;
+    var fallbackEnd = fallbackStart
+      .plus({ months: Math.max(1, Number(state.viewMonths) || 1) - 1 })
+      .endOf('month')
+      .startOf('day');
+    return { start: fallbackStart, end: fallbackEnd };
+  }
+
+  function syncVistaFechaControls() {
+    var inStart = getEl('planifVistaFechaInicio');
+    var inEnd = getEl('planifVistaFechaFin');
+    if (!inStart || !inEnd || !DateTime) return;
+
+    var bounds = getActivePlanBounds();
+    if (!bounds) return;
+
+    var minISO = bounds.start.toISODate();
+    var maxISO = bounds.end.toISODate();
+
+    // @ts-ignore
+    inStart.min = minISO;
+    // @ts-ignore
+    inStart.max = maxISO;
+    // @ts-ignore
+    inEnd.min = minISO;
+    // @ts-ignore
+    inEnd.max = maxISO;
+
+    // @ts-ignore
+    var rawStart = String(inStart.value || '');
+    // @ts-ignore
+    var rawEnd = String(inEnd.value || '');
+
+    var dtStart = DateTime.fromISO(rawStart, { zone: 'utc' }).startOf('day');
+    var dtEnd = DateTime.fromISO(rawEnd, { zone: 'utc' }).startOf('day');
+
+    if (!dtStart.isValid || dtStart < bounds.start || dtStart > bounds.end) {
+      dtStart = bounds.start;
+    }
+    if (!dtEnd.isValid || dtEnd < bounds.start || dtEnd > bounds.end) {
+      dtEnd = bounds.end;
+    }
+    if (dtStart > dtEnd) {
+      dtEnd = dtStart;
+    }
+
+    // @ts-ignore
+    inStart.value = dtStart.toISODate();
+    // @ts-ignore
+    inEnd.value = dtEnd.toISODate();
   }
 
   function actividadColor(actividadId) {
@@ -386,13 +483,57 @@
       return String(a.id_actividad || a.id) === String(actividadId);
     });
     if (!act) return actividadId ? '#' + actividadId : '—';
+    var actividad = String(act.actividad || act.codigo || '').trim();
+    return actividad || ('#' + String(actividadId || '—'));
+  }
 
-    var codigo = String(act.actividad || act.codigo || '').trim();
-    var nombre = String(act.nombre || '').trim();
-    if (codigo && nombre && nombre !== codigo) {
-      return codigo + ' - ' + nombre;
+  function applyLeftPanelCollapsed(collapsed, contextEl) {
+    state.leftPanelCollapsed = !!collapsed;
+
+    var left = document.getElementById('planifLeftPanel');
+    var btn = document.getElementById('planifBtnToggleLeft');
+
+    if (left) {
+      if (state.leftPanelCollapsed) {
+        left.setAttribute('style', 'display: none !important;');
+      } else {
+        left.removeAttribute('style');
+      }
     }
-    return nombre || codigo || '#' + actividadId;
+    
+    if (btn) {
+      btn.title = state.leftPanelCollapsed ? 'Mostrar filtros' : 'Ocultar filtros';
+      btn.setAttribute('aria-label', btn.title);
+      btn.innerHTML = state.leftPanelCollapsed
+        ? '<i class="bi bi-layout-sidebar-inset"></i>'
+        : '<i class="bi bi-layout-sidebar"></i>';
+    }
+
+    if (_planifTabulator && typeof _planifTabulator.redraw === 'function') {
+      if (_planifCollapseRedrawTimeout) {
+        clearTimeout(_planifCollapseRedrawTimeout);
+      }
+      _planifCollapseRedrawTimeout = setTimeout(function () {
+        _planifCollapseRedrawTimeout = 0;
+        if (_planifTabulator && typeof _planifTabulator.redraw === 'function') {
+          _planifTabulator.redraw(false);
+        }
+      }, 150);
+    }
+  }
+
+  function ensureToggleLeftBinding() {
+    if (!app._planifToggleLeftDelegated) {
+      document.addEventListener('click', function (event) {
+        var target = /** @type {HTMLElement|null} */ (event.target instanceof HTMLElement ? event.target : null);
+        if (!target) return;
+        var btn = target.closest('#planifBtnToggleLeft');
+        if (!btn) return;
+        event.preventDefault();
+        applyLeftPanelCollapsed(!state.leftPanelCollapsed, /** @type {HTMLElement} */ (btn));
+      });
+      app._planifToggleLeftDelegated = true;
+    }
   }
 
   function actividadTooltip(actividadId) {
@@ -476,36 +617,45 @@
   }
 
   function getVisibleRange() {
-    if (DateTime && state.activePlan && state.activePlan.fecha_inicio) {
-      var dtPlanStart = DateTime.fromISO(
-        String(state.activePlan.fecha_inicio).slice(0, 10)
-      );
-      var dtPlanEnd = DateTime.fromISO(
-        String(state.activePlan.fecha_fin || '').slice(0, 10)
-      );
-      if (dtPlanStart.isValid && dtPlanEnd.isValid) {
-        var rangeStart = dtPlanStart.startOf('day');
-        var endByView = rangeStart
-          .plus({ months: Math.max(1, Number(state.viewMonths) || 1) - 1 })
-          .endOf('month')
-          .startOf('day');
-        var rangeEnd =
-          endByView <= dtPlanEnd.startOf('day')
-            ? endByView
-            : dtPlanEnd.startOf('day');
-        return { start: rangeStart, end: rangeEnd };
-      }
+    var bounds = getActivePlanBounds();
+    if (!bounds || !DateTime) {
+      var fallbackStart = DateTime.fromObject({
+        year: state.activeAnio,
+        month: state.activeMes,
+        day: 1,
+      });
+      var fallbackEnd = fallbackStart
+        .plus({ months: Math.max(1, Number(state.viewMonths) || 1) - 1 })
+        .endOf('month')
+        .startOf('day');
+      return { start: fallbackStart, end: fallbackEnd };
     }
-    var fallbackStart = DateTime.fromObject({
-      year: state.activeAnio,
-      month: state.activeMes,
-      day: 1,
-    });
-    var fallbackEnd = fallbackStart
-      .plus({ months: Math.max(1, Number(state.viewMonths) || 1) - 1 })
-      .endOf('month')
-      .startOf('day');
-    return { start: fallbackStart, end: fallbackEnd };
+
+    var inStart = getEl('planifVistaFechaInicio');
+    var inEnd = getEl('planifVistaFechaFin');
+    if (!inStart || !inEnd) {
+      return { start: bounds.start, end: bounds.end };
+    }
+
+    // @ts-ignore
+    var rawStart = String(inStart.value || '');
+    // @ts-ignore
+    var rawEnd = String(inEnd.value || '');
+
+    var dtStart = DateTime.fromISO(rawStart, { zone: 'utc' }).startOf('day');
+    var dtEnd = DateTime.fromISO(rawEnd, { zone: 'utc' }).startOf('day');
+
+    if (!dtStart.isValid || dtStart < bounds.start || dtStart > bounds.end) {
+      dtStart = bounds.start;
+    }
+    if (!dtEnd.isValid || dtEnd < bounds.start || dtEnd > bounds.end) {
+      dtEnd = bounds.end;
+    }
+    if (dtStart > dtEnd) {
+      dtEnd = dtStart;
+    }
+
+    return { start: dtStart, end: dtEnd };
   }
 
   function actualizarRangoInputs(forceEndToRange) {
@@ -551,13 +701,15 @@
     if (!dtInicio.isValid) return out;
     var dtFin = DateTime.fromISO(String(out.fecha_fin || '').slice(0, 10));
     if (!dtFin.isValid || dtFin < dtInicio) {
-      const meses =  ((dtFin.year - dtInicio.year) * 12) +  (dtFin.month - dtInicio.month) +  1;
+      var meses = Number(out.num_meses || 0);
+      if (!Number.isInteger(meses) || meses < 1) meses = 1;
       out.fecha_fin = dtInicio.plus({ months: meses }).minus({ days: 1 }).toISODate();
+      out.num_meses = meses;
     } else {
       out.fecha_fin = dtFin.toISODate();
+      out.num_meses = inferPlanMonthsFromDates(dtInicio, dtFin);
     }
     out.fecha_inicio = dtInicio.toISODate();
-    out.num_meses =  ((dtFin.year - dtInicio.year) * 12) +  (dtFin.month - dtInicio.month) +  1;
     return out;
   }
 
@@ -747,7 +899,7 @@
     var btnNext = getEl('planifBtnMesSiguiente');
 
     renderPlanSelector();
-
+    syncVistaFechaControls();
     if (el) {
       if (!state.activePlan) {
         el.textContent = 'Sin plan';
@@ -1303,12 +1455,12 @@
 
     host.innerHTML =
       '<div class="d-flex align-items-center justify-content-between mb-1">' +
-      '<small class="text-muted" style="font-size:.66rem">Servicios por nivel</small>' +
+      '<small class="text-muted" style="font-size:.66rem">Servicios x Agente y Grupo Actividad </small>' +
       '<small class="text-muted" style="font-size:.64rem">Total: ' +
       app.escapeHtml(String(total)) +
       '</small>' +
       '</div>' +
-      '<div id="planifKpiDonutChart" style="width:100%;height:150px;"></div>';
+      '<div id="planifKpiDonutChart" style="width:100%;height:180px;"></div>';
 
     var chartEl = getEl('planifKpiDonutChart');
     if (!chartEl) return;
@@ -1343,9 +1495,14 @@
           radius: ['46%', '68%'],
           center: ['50%', '34%'],
           avoidLabelOverlap: false,
-          label: { show: false },
-          labelLine: { show: false },
-          emphasis: { scale: false },
+          label: {
+            show: true,
+            fontSize: 9,
+            formatter: '{d}%',
+            color: '#333',
+          },
+          labelLine: { show: true, length: 6, length2: 4 },
+          emphasis: false,
           data: items.map(function (it) {
             return {
               value: it.count,
@@ -1362,9 +1519,245 @@
     return Array.from(state.selectedActividadIds);
   }
 
+  // ── Exportación a Excel ──────────────────────────────────
+  async function exportAgentesSeleccionadosExcel() {
+    if (!_planifTabulator || !_planifSelectedAgenteIds.size) {
+      showAlert('Selecciona al menos un agente para exportar.', 'warning');
+      return;
+    }
+
+    if (!state.activeVersionId) {
+      showAlert('No hay versión activa para exportar.', 'warning');
+      return;
+    }
+
+    try {
+      // Obtener rango visible de fechas
+      var visible = getVisibleRange();
+      var startISO = visible.start.toISODate();
+      var endISO = visible.end.toISODate();
+
+      // Mostrar indicador de exportación
+      showAlert('Exportando ' + _planifSelectedAgenteIds.size + ' agente(s)... Por favor espera.', 'info');
+
+      // Llamar al endpoint del servidor con timeout
+      var controller = new AbortController();
+      var timeoutId = setTimeout(function () {
+        controller.abort();
+      }, 180000); // 3 minutos timeout
+
+      // Payload mínimo: solo IDs de agentes y rango de fechas
+      var payload = {
+        agenteIds: Array.from(_planifSelectedAgenteIds).map(function (id) {
+          return Number(id);
+        }),
+        fechaInicio: startISO,
+        fechaFin: endISO,
+      };
+
+      try {
+        var response = await fetch('/api/planificacion/versiones/' + state.activeVersionId + '/agentes/excel', {
+          method: 'POST',
+          headers: Object.assign(
+            { 'Content-Type': 'application/json' },
+            headers()
+          ),
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          var errorText = await response.text();
+          showAlert('Error al exportar: status ' + response.status + ' - ' + errorText, 'danger');
+          return;
+        }
+
+        var blob = await response.blob();
+        var contentDisposition = response.headers.get('Content-Disposition') || '';
+        var filename = 'Agentes_Planificacion.xlsx';
+        
+        var match = contentDisposition.match(/filename="?([^";]+)"?/i);
+        if (match && match[1]) {
+          filename = match[1];
+        }
+
+        var blobUrl = URL.createObjectURL(blob);
+        var link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(blobUrl);
+
+        showAlert(_planifSelectedAgenteIds.size + ' agente(s) exportado(s) correctamente.', 'success');
+        _planifSelectedAgenteIds.clear();
+        _planifTabulator.redraw();
+      } catch (e) {
+        clearTimeout(timeoutId);
+        if (e.name === 'AbortError') {
+          showAlert('Timeout al exportar. El archivo es muy grande. Intenta con menos agentes.', 'danger');
+        } else {
+          showAlert('Error al exportar: ' + e.message, 'danger');
+        }
+      }
+    } catch (e) {
+      showAlert('Error al preparar exportación: ' + e.message, 'danger');
+    }
+  }
+
   // ── Selección nativa Tabulator ───────────────────────────
   // Items sobre los que opera el menú contextual actual
   var _contextMenuItems = [];
+  var _planifClipboardMatrix = null; // Matriz para copiar/pegar
+
+  // ── Funciones de copiar/pegar para planificación ─────────
+  function capturePlanifSelectedCells() {
+    if (!_planifTabulator || !_contextMenuItems.length) return null;
+
+    var rows = _planifTabulator.getRows();
+    var cols = _planifTabulator.getColumns();
+
+    // Construir matriz rectangular con todas las celdas del rango
+    var minRow = Infinity;
+    var maxRow = -Infinity;
+    var minCol = Infinity;
+    var maxCol = -Infinity;
+
+    _contextMenuItems.forEach(function (item) {
+      var agId = String(item.agente_id);
+      var fecha = String(item.fecha).slice(0, 10);
+      var rowIdx = rows.findIndex(function (r) { return String(r.getData().agente_id) === agId; });
+      var colIdx = cols.findIndex(function (c) { 
+        var f = c.getField();
+        return f === 'd_' + fecha;
+      });
+      if (rowIdx >= 0 && colIdx >= 0) {
+        minRow = Math.min(minRow, rowIdx);
+        maxRow = Math.max(maxRow, rowIdx);
+        minCol = Math.min(minCol, colIdx);
+        maxCol = Math.max(maxCol, colIdx);
+      }
+    });
+
+    if (minRow === Infinity) return null;
+
+    var matrix = [];
+    for (var r = minRow; r <= maxRow; r++) {
+      var rowArr = [];
+      for (var c = minCol; c <= maxCol; c++) {
+        var row = rows[r];
+        var col = cols[c];
+        var cell = row && col ? row.getCell(col.getField()) : null;
+        rowArr.push({
+          value: cell ? cell.getValue() : null,
+          rowIdx: r,
+          colIdx: c,
+        });
+      }
+      matrix.push(rowArr);
+    }
+
+    _planifClipboardMatrix = matrix;
+    return matrix;
+  }
+
+  function pastePlanifMatrix(anchorRowIdx, anchorColIdx, matrix) {
+    if (!_planifTabulator || !matrix || !matrix.length) return [];
+    var rows = _planifTabulator.getRows();
+    var cols = _planifTabulator.getColumns();
+    var targets = [];
+
+    matrix.forEach(function (matrixRow, rOffset) {
+      matrixRow.forEach(function (entry, cOffset) {
+        var targetRowIdx = anchorRowIdx + rOffset;
+        var targetColIdx = anchorColIdx + cOffset;
+        if (targetRowIdx >= rows.length || targetColIdx >= cols.length) return;
+
+        var targetRow = rows[targetRowIdx];
+        var targetCol = cols[targetColIdx];
+        if (!targetRow || !targetCol) return;
+
+        var field = targetCol.getField();
+        if (!field || !field.startsWith('d_')) return;
+
+        var targetCell = targetRow.getCell(field);
+        if (!targetCell) return;
+
+        targets.push({
+          cell: targetCell,
+          row: targetRow,
+          field: field,
+          fecha: field.slice(2), // "d_YYYY-MM-DD" → "YYYY-MM-DD"
+          agente_id: targetRow.getData().agente_id,
+          nextValue: entry ? entry.value : null,
+          previousValue: targetCell.getValue(),
+        });
+      });
+    });
+
+    return targets;
+  }
+
+  async function persistPlanifPaste(targets) {
+    if (!Array.isArray(targets) || !targets.length) return { afectados: 0 };
+    if (!state.activeVersionId) throw new Error('Sin versión activa');
+
+    var items = targets.map(function (t) {
+      return {
+        fecha: t.fecha,
+        agente_id: Number(t.agente_id),
+        actividad_id: t.nextValue ? Number(t.nextValue) : null,
+      };
+    });
+
+    // Actualizar UI primero (optimistic update)
+    targets.forEach(function (t) {
+      t.cell.setValue(t.nextValue);
+    });
+
+    try {
+      // Persistir via API
+      var data = await getPlanifApiClient().bulkAsignaciones(
+        state.activeVersionId,
+        items
+      );
+
+      // Actualizar state.asignaciones
+      items.forEach(function (item) {
+        var isoFecha = String(item.fecha).slice(0, 10);
+        var idx = state.asignaciones.findIndex(function (a) {
+          return (
+            String(a.agente_id) === String(item.agente_id) &&
+            String(a.fecha).slice(0, 10) === isoFecha
+          );
+        });
+        if (item.actividad_id) {
+          if (idx >= 0) {
+            state.asignaciones[idx].actividad_id = item.actividad_id;
+          } else {
+            state.asignaciones.push({
+              agente_id: item.agente_id,
+              fecha: isoFecha,
+              actividad_id: item.actividad_id,
+            });
+          }
+        } else {
+          if (idx >= 0) state.asignaciones.splice(idx, 1);
+        }
+      });
+
+      return data;
+    } catch (e) {
+      // Revertir cambios en UI si falla
+      targets.forEach(function (t) {
+        t.cell.setValue(t.previousValue);
+      });
+      throw e;
+    }
+  }
 
   // Devuelve [{agente_id, fecha}] de todas las celdas de día en el rango activo
   function getRangeCeldasItems() {
@@ -1429,6 +1822,81 @@
       ' seleccionada' +
       (numSel !== 1 ? 's' : '');
     menu.appendChild(header);
+
+    // ─ Opción Copiar ─
+    var itemCopiar = document.createElement('div');
+    itemCopiar.className = 'planif-ctx-item';
+    itemCopiar.innerHTML =
+      '<i class="bi bi-clipboard me-1"></i>Copiar';
+    itemCopiar.addEventListener('click', function () {
+      closePlanifContextMenu();
+      var matrix = capturePlanifSelectedCells();
+      if (!matrix || !matrix.length) {
+        showAlert('No hay celdas para copiar.', 'warning');
+        return;
+      }
+      showAlert('Celdas copiadas (' + _contextMenuItems.length + ').', 'success');
+    });
+    menu.appendChild(itemCopiar);
+
+    // ─ Opción Pegar ─
+    var itemPegar = document.createElement('div');
+    itemPegar.className = 'planif-ctx-item';
+    itemPegar.innerHTML =
+      '<i class="bi bi-clipboard-check me-1"></i>Pegar';
+    itemPegar.addEventListener('click', async function () {
+      closePlanifContextMenu();
+      if (!_planifClipboardMatrix || !_planifClipboardMatrix.length) {
+        showAlert('No hay contenido copiado para pegar.', 'warning');
+        return;
+      }
+      if (!_planifTabulator || !_contextMenuItems.length) {
+        showAlert('No hay celda de destino seleccionada.', 'warning');
+        return;
+      }
+
+      var rows = _planifTabulator.getRows();
+      var cols = _planifTabulator.getColumns();
+      var anchorItem = _contextMenuItems[0];
+      var anchorRowIdx = rows.findIndex(function (r) {
+        return String(r.getData().agente_id) === String(anchorItem.agente_id);
+      });
+      var anchorColIdx = cols.findIndex(function (c) {
+        var f = c.getField();
+        return f === 'd_' + String(anchorItem.fecha).slice(0, 10);
+      });
+
+      if (anchorRowIdx < 0 || anchorColIdx < 0) {
+        showAlert('No se encontró celda de destino válida.', 'warning');
+        return;
+      }
+
+      var targets = pastePlanifMatrix(anchorRowIdx, anchorColIdx, _planifClipboardMatrix);
+      if (!targets.length) {
+        showAlert('No se pudieron pegar celdas.', 'warning');
+        return;
+      }
+
+      try {
+        var result = await persistPlanifPaste(targets);
+        parchearCeldasEnGrid(
+          targets.map(function (t) { 
+            return { agente_id: t.agente_id, fecha: t.fecha, actividad_id: t.nextValue }; 
+          })
+        );
+        renderPlanifKpiDonuts();
+        actualizarContadorCeldas();
+        showAlert('Pegado persistido (' + result.afectados + ' celdas).', 'success');
+      } catch (e) {
+        showAlert('Error al pegar: ' + e.message, 'danger');
+      }
+    });
+    menu.appendChild(itemPegar);
+
+    // Separador antes de Borrar
+    var sep1 = document.createElement('div');
+    sep1.className = 'planif-ctx-sep';
+    menu.appendChild(sep1);
 
     // Separador "Borrar"
     var itemBorrar = document.createElement('div');
@@ -1548,43 +2016,165 @@
       };
     });
 
-    showAlert('', 'info');
+    // ─ Si son pocas celdas, procesar sin confirmación ─
+    if (items.length < 500) {
+      await procesarBulkAsignaciones(items, actividadId);
+      return;
+    }
+
+    // ─ Modal con confirmación para >= 500 celdas ─
+    var modalId = 'bulkProgressModal';
+    var existingModal = document.getElementById(modalId);
+    if (existingModal) existingModal.remove();
+
+    var modalHtml = `
+      <div id="${modalId}" class="modal fade" tabindex="-1" style="backdrop-filter: blur(3px);">
+        <div class="modal-dialog modal-sm">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="bulkModalTitle">Confirmar asignación masiva</h5>
+            </div>
+            <div class="modal-body">
+              <!-- PANEL DE CONFIRMACIÓN -->
+              <div id="bulkConfirmPanel">
+                <div class="alert alert-warning mb-3" role="alert">
+                  <div class="fw-semibold mb-2">⚠️ Operación masiva</div>
+                  <div id="bulkCellCount" style="font-size: 1.2rem; color: #d39e00; margin-bottom: 8px;">
+                    0 celda(s)
+                  </div>
+                  <small class="text-muted">Esta operación puede tardar varios minutos.</small>
+                </div>
+                <div class="d-grid gap-2">
+                  <button type="button" class="btn btn-primary" id="bulkConfirmBtn">
+                    <i class="bi bi-check-circle me-1"></i>Continuar
+                  </button>
+                  <button type="button" class="btn btn-secondary" id="bulkCancelBtn" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i>Cancelar
+                  </button>
+                </div>
+              </div>
+
+              <!-- PANEL DE PROGRESO (oculto inicialmente) -->
+              <div id="bulkProgressPanel" style="display: none;">
+                <div class="mb-3">
+                  <small class="text-muted"><span id="bulkProgressText">0</span> / <span id="bulkProgressTotal">${items.length}</span> celda(s)</small>
+                </div>
+                <div class="progress" style="height: 24px;">
+                  <div id="bulkProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    var modal = new bootstrap.Modal(document.getElementById(modalId), { 
+      backdrop: 'static', 
+      keyboard: false 
+    });
+    
+    // ─ Actualizar texto de confirmación ─
+    document.getElementById('bulkCellCount').textContent = items.length + ' celda(s)';
+    
+    // ─ Botón Continuar ─
+    document.getElementById('bulkConfirmBtn').addEventListener('click', async function () {
+      document.getElementById('bulkConfirmPanel').style.display = 'none';
+      document.getElementById('bulkProgressPanel').style.display = 'block';
+      document.getElementById('bulkModalTitle').textContent = 'Procesando asignación masiva...';
+      document.getElementById('bulkConfirmBtn').disabled = true;
+      document.getElementById('bulkCancelBtn').disabled = true;
+
+      try {
+        await procesarBulkAsignaciones(items, actividadId, modalId, modal);
+      } catch (e) {
+        modal.hide();
+        document.getElementById(modalId).remove();
+        showAlert(e.message, 'danger');
+      }
+    });
+
+    modal.show();
+  }
+
+  // ─ Función auxiliar para procesar bulk con chunking ─
+  async function procesarBulkAsignaciones(items, actividadId, modalId, modal) {
     try {
-      var data = await getPlanifApiClient().bulkAsignaciones(
-        state.activeVersionId,
-        items
-      );
-      showAlert(data.afectados + ' celda(s) actualizadas.', 'success');
-      // Actualizar state.asignaciones en memoria
-      items.forEach(function (item) {
-        var isoFecha = String(item.fecha).slice(0, 10);
-        var idx = state.asignaciones.findIndex(function (a) {
-          return (
-            String(a.agente_id) === String(item.agente_id) &&
-            String(a.fecha).slice(0, 10) === isoFecha
-          );
-        });
-        if (actividadId) {
-          if (idx >= 0) {
-            state.asignaciones[idx].actividad_id = actividadId;
+      var chunkSize = 500;
+      var totalProcessed = 0;
+      var totalAffected = 0;
+
+      // ─ Procesar en chunks ─
+      for (var c = 0; c < items.length; c += chunkSize) {
+        var chunk = items.slice(c, Math.min(c + chunkSize, items.length));
+        
+        var data = await getPlanifApiClient().bulkAsignaciones(
+          state.activeVersionId,
+          chunk
+        );
+        
+        totalProcessed += chunk.length;
+        totalAffected += data.afectados || 0;
+
+        // ─ Actualizar state.asignaciones en memoria ─
+        chunk.forEach(function (item) {
+          var isoFecha = String(item.fecha).slice(0, 10);
+          var idx = state.asignaciones.findIndex(function (a) {
+            return (
+              String(a.agente_id) === String(item.agente_id) &&
+              String(a.fecha).slice(0, 10) === isoFecha
+            );
+          });
+          if (actividadId) {
+            if (idx >= 0) {
+              state.asignaciones[idx].actividad_id = actividadId;
+            } else {
+              state.asignaciones.push({
+                agente_id: item.agente_id,
+                fecha: isoFecha,
+                actividad_id: actividadId,
+              });
+            }
           } else {
-            state.asignaciones.push({
-              agente_id: item.agente_id,
-              fecha: isoFecha,
-              actividad_id: actividadId,
-            });
+            if (idx >= 0) state.asignaciones.splice(idx, 1);
           }
-        } else {
-          if (idx >= 0) state.asignaciones.splice(idx, 1);
+        });
+
+        // ─ Actualizar progreso visual (solo si hay modal) ─
+        if (modalId) {
+          var pct = Math.round((totalProcessed / items.length) * 100);
+          var barEl = document.getElementById('bulkProgressBar');
+          if (barEl) {
+            barEl.style.width = pct + '%';
+            barEl.setAttribute('aria-valuenow', pct);
+          }
+          var textEl = document.getElementById('bulkProgressText');
+          if (textEl) textEl.textContent = totalProcessed;
         }
-      });
-      // Parche in-place en Tabulator sin reconstruir la tabla
+
+        // ─ Pequeña pausa para dejar respirar el navegador ─
+        await new Promise(function (resolve) { setTimeout(resolve, 100); });
+      }
+
+      // ─ Parche in-place en Tabulator sin reconstruir la tabla ─
       parchearCeldasEnGrid(items, actividadId);
       renderPlanifKpiDonuts();
       _contextMenuItems = [];
       actualizarContadorCeldas();
+
+      // ─ Cerrar modal si existe y mostrar éxito ─
+      if (modal) {
+        modal.hide();
+        document.getElementById(modalId).remove();
+      }
+      showAlert(totalAffected + ' celda(s) actualizadas.', 'success');
     } catch (e) {
-      showAlert(e.message, 'danger');
+      if (modal) {
+        modal.hide();
+        document.getElementById(modalId).remove();
+      }
+      throw e;
     }
   }
 
@@ -1596,16 +2186,16 @@
     items.forEach(function (item) {
       var id = String(item.agente_id);
       if (!porAgente[id]) porAgente[id] = {};
-      porAgente[id]['d_' + String(item.fecha).slice(0, 10)] =
-        actividadId || null;
+      // Si actividadId se proporciona explícitamente (incluso null), usarlo para todos
+      // Si no se proporciona (undefined), usar item.actividad_id de cada item
+      var valor = actividadId !== undefined ? actividadId : (item.actividad_id !== undefined ? item.actividad_id : null);
+      porAgente[id]['d_' + String(item.fecha).slice(0, 10)] = valor;
     });
     var rows = _planifTabulator.getRows();
     rows.forEach(function (row) {
       var rd = row.getData();
       var patch = porAgente[String(rd.agente_id)];
       if (!patch) return;
-      // updateData acepta objeto parcial con el mismo rowIndex/id que Tabulator usa internamente
-      // Tabulator no tiene PK declarada, usamos la referencia de fila directa
       Object.keys(patch).forEach(function (field) {
         var cell = row.getCell(field);
         if (cell) cell.setValue(patch[field]);
@@ -1712,6 +2302,28 @@
     // Columnas maestras (TIP / Agente / Empleo) + grupos de meses
     var columns = [
       {
+        formatter: 'rowSelection',
+        titleFormatter: 'html',
+        titleFormatterParams: {},
+        title:
+          '<input type="checkbox" class="form-check-input planif-select-all-agentes" ' +
+          'aria-label="Seleccionar/deseleccionar todos agentes" title="Seleccionar/deseleccionar todos agentes">',
+        headerClick: function (_e) {
+          var allChecked = document.querySelector('.planif-select-all-agentes');
+          if (!allChecked) return;
+          // El clic en el checkbox se maneja en su event listener
+          // Este headerClick es para clics en el header en general
+        },
+        cellClick: function (e, cell) {
+          e.stopPropagation();
+        },
+        frozen: true,
+        headerSort: false,
+        hozAlign: 'center',
+        minWidth: 42,
+        widthGrow: 0,
+      },
+      {
         title: 'Escalafon',
         field: 'escalafon',
         visible: false,
@@ -1723,10 +2335,11 @@
         title: 'TIP',
         field: 'tip',
         frozen: true,
-        minWidth: 92,
-        width: 96,
+        minWidth: 50,
+        width: 55,
         headerSort: true,
         headerFilter: 'input',
+        headerFilterPlaceholder: 'Filtrar (*,=,!=,^,$,!,&&,||)...',
         headerFilterFunc: planifHeaderFilterQbe,
         formatter: function (cell) {
           return (
@@ -1740,9 +2353,10 @@
         title: 'Agente',
         field: 'nombre',
         frozen: true,
-        minWidth: 170,
+        minWidth: 105,
         headerSort: true,
         headerFilter: 'input',
+        headerFilterPlaceholder: 'Filtrar (*,=,!=,^,$,!,&&,||)...',
         headerFilterFunc: planifHeaderFilterQbe,
         formatter: function (cell) {
           var rd = cell.getRow().getData() || {};
@@ -1796,12 +2410,10 @@
           }
 
           return (
-            '<div class="d-flex flex-column gap-1">' +
-              '<span style="font-size:.72rem">' +
-                app.escapeHtml(cell.getValue() || '') +
-              '</span>' +
+            '<div>' +
+              '<div>' + app.escapeHtml(cell.getValue() || '') + '</div>' +
               (badges.length
-                ? '<div class="d-flex flex-wrap gap-1">' + badges.join('') + '</div>'
+                ? '<div style="display:flex; flex-wrap:wrap; gap:2px;">' + badges.join('') + '</div>'
                 : '') +
             '</div>'
           );
@@ -1811,9 +2423,10 @@
         title: 'Pelotón',
         field: 'peloton_desc',
         frozen: true,
-        minWidth: 120,
+        minWidth: 75,
         headerSort: true,
         headerFilter: 'input',
+        headerFilterPlaceholder: 'Filtrar (*,=,!=,^,$,!,&&,||)...',
         headerFilterFunc: planifHeaderFilterQbe,
         formatter: function (cell) {
           var rd = cell.getRow().getData() || {};
@@ -1842,18 +2455,20 @@
       initialSort:[
         {column:"escalafon", dir:"asc"} //Ordenacion de carga del Grid, para que respete el orden del filtro de agentes (que a su vez respeta el orden de la lista de agentes cargada desde el backend)
       ],
-      renderHorizontal:"virtual", //enable horizontal virtual DOM for better performance with many columns
+      renderHorizontal: PLANIF_TABULATOR_RENDER_HORIZONTAL,
       columnDefaults: { resizable: true, headerHozAlign: 'center' },
-      selectableRange:1, //allow only one range at a time
-      selectableRangeColumns:true,
-      selectableRangeRows:true,
-      selectableRangeClearCells:true,
+      selectableRange: function(cell) {
+        // Solo permitir selección en columnas de fechas (índice >= 5)
+        // Las primeras 5 columnas (0-4) son: checkbox, escalafon, tip, agente, peloton
+        var colIdx = cell.getColumn().getIndex();
+        return colIdx >= 5;
+      },
+      selectableRangeColumns: false,
+      selectableRangeRows: true,
+      selectableRangeClearCells: true,
       columns: columns,
       placeholder:
         'Sin asignaciones. Selecciona agentes y aplica un rango de días.',
-      rowFormatter: function (row) {
-        row.getElement().style.fontSize = '.72rem';
-      },
     });
 
     // Actualizar contador al cambiar el rango nativo
@@ -1863,6 +2478,34 @@
     _planifTabulator.on('dataFiltered', function () {
       renderPlanifKpiDonuts();
     });
+    _planifTabulator.on('rowSelectionChanged', function (data, rows) {
+      rows.forEach(function (row) {
+        var agenteId = String(row.getData().agente_id || '');
+        if (row.isSelected && row.isSelected()) {
+          _planifSelectedAgenteIds.add(agenteId);
+        } else {
+          _planifSelectedAgenteIds.delete(agenteId);
+        }
+      });
+    });
+
+    // ─ Event listener para checkbox "Seleccionar todos" ─
+    setTimeout(function () {
+      var selectAllCheckbox = document.querySelector('.planif-select-all-agentes');
+      if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function (e) {
+          e.stopPropagation();
+          if (this.checked) {
+            // Seleccionar todas las filas activas (visibles)
+            _planifTabulator.selectRow('active');
+          } else {
+            // Deseleccionar todas las filas
+            _planifTabulator.deselectRow('active');
+          }
+        });
+      }
+    }, 100);
+
     renderPlanifKpiDonuts();
     logPerf('renderGrid', perfStart, 'rows=' + tableData.length + ', days=' + fechas.length);
   }
@@ -1934,8 +2577,8 @@
       showAlert('Fecha inicio requerida.', 'warning', 'planifNuevoAlert');
       return;
     }
-    if (!Number.isInteger(numMeses) || numMeses < 1 || numMeses > 24) {
-      showAlert('Duración inválida (1-24 meses).', 'warning', 'planifNuevoAlert');
+    if (!Number.isInteger(numMeses) || numMeses < 1 || numMeses > 12) {
+      showAlert('Duración inválida (1-12 meses).', 'warning', 'planifNuevoAlert');
       return;
     }
 
@@ -2214,6 +2857,29 @@
       }
     }
 
+    var confirmPanel = getEl('planifAprobarConfirmPanel');
+    var progressPanel = getEl('planifAprobarProgressPanel');
+    var progressText = getEl('planifAprobarProgressText');
+    var progressTotal = getEl('planifAprobarProgressTotal');
+    var progressBar = getEl('planifAprobarProgressBar');
+    var titleEl = getEl('planifAprobarModalTitle');
+    var btnCancel = getEl('planifAprobarCancelBtn');
+    var btnConfirm = getEl('planifAprobarConfirmBtn');
+
+    if (confirmPanel) confirmPanel.style.display = '';
+    if (progressPanel) progressPanel.style.display = 'none';
+    if (progressText) progressText.textContent = '0';
+    if (progressTotal) progressTotal.textContent = '0';
+    if (progressBar) {
+      progressBar.style.width = '0%';
+      progressBar.setAttribute('aria-valuenow', '0');
+    }
+    if (titleEl) titleEl.textContent = 'Aprobar borrador';
+    // @ts-ignore
+    if (btnCancel) btnCancel.disabled = false;
+    // @ts-ignore
+    if (btnConfirm) btnConfirm.disabled = false;
+
     bootstrap.Modal.getOrCreateInstance(getEl('planifModalAprobar')).show();
   }
 
@@ -2230,14 +2896,77 @@
 
     showAlert('', 'info');
     var btn = getEl('planifAprobarConfirmBtn');
+    var btnCancel = getEl('planifAprobarCancelBtn');
+    var titleEl = getEl('planifAprobarModalTitle');
+    var confirmPanel = getEl('planifAprobarConfirmPanel');
+    var progressPanel = getEl('planifAprobarProgressPanel');
+    var progressText = getEl('planifAprobarProgressText');
+    var progressTotal = getEl('planifAprobarProgressTotal');
+    var progressBar = getEl('planifAprobarProgressBar');
+
+    function setProgress(processed, total) {
+      var safeTotal = Math.max(0, Number(total) || 0);
+      var safeProcessed = Math.max(0, Math.min(Number(processed) || 0, safeTotal));
+      var pct = safeTotal > 0 ? Math.round((safeProcessed * 100) / safeTotal) : 100;
+      if (progressText) progressText.textContent = String(safeProcessed);
+      if (progressTotal) progressTotal.textContent = String(safeTotal);
+      if (progressBar) {
+        progressBar.style.width = pct + '%';
+        progressBar.setAttribute('aria-valuenow', String(pct));
+      }
+    }
+
     // @ts-ignore
     if (btn) btn.disabled = true;
+    // @ts-ignore
+    if (btnCancel) btnCancel.disabled = true;
+    if (confirmPanel) confirmPanel.style.display = 'none';
+    if (progressPanel) progressPanel.style.display = '';
+    if (titleEl) titleEl.textContent = 'Aprobando borrador...';
+    setProgress(0, 0);
 
     try {
-      var data = await getPlanifApiClient().aprobarVersion(
-        state.activeVersionId,
-        comentario
-      );
+      var apiClient = getPlanifApiClient();
+      var hasChunkApi =
+        apiClient &&
+        typeof apiClient.aprobarVersionPrepare === 'function' &&
+        typeof apiClient.aprobarVersionChunk === 'function' &&
+        typeof apiClient.aprobarVersionFinalize === 'function';
+
+      var data;
+      if (!hasChunkApi) {
+        data = await apiClient.aprobarVersion(state.activeVersionId, comentario);
+      } else {
+        var prep = await apiClient.aprobarVersionPrepare(state.activeVersionId);
+        var total = Math.max(0, Number(prep.total) || 0);
+        var chunkSize = 500;
+        var processed = 0;
+        var aprobados = 0;
+        var auditados = 0;
+
+        setProgress(0, total);
+
+        for (var offset = 0; offset < total; offset += chunkSize) {
+          var partial = await apiClient.aprobarVersionChunk(
+            state.activeVersionId,
+            offset,
+            chunkSize
+          );
+          processed += Number(partial.procesadas || 0);
+          aprobados += Number(partial.aprobados || 0);
+          auditados += Number(partial.auditados || 0);
+          setProgress(processed, total);
+        }
+
+        var fin = await apiClient.aprobarVersionFinalize(state.activeVersionId, comentario);
+        setProgress(total, total);
+        data = {
+          aprobados: aprobados,
+          auditados: auditados,
+          borrador: fin && fin.borrador ? fin.borrador : null,
+        };
+      }
+
       try {
         bootstrap.Modal.getOrCreateInstance(getEl('planifModalAprobar')).hide();
       } catch (_) {
@@ -2251,8 +2980,13 @@
     } catch (e) {
       showAlert(e.message, 'danger');
     } finally {
+      if (confirmPanel) confirmPanel.style.display = '';
+      if (progressPanel) progressPanel.style.display = 'none';
+      if (titleEl) titleEl.textContent = 'Aprobar borrador';
       // @ts-ignore
       if (btn) btn.disabled = false;
+      // @ts-ignore
+      if (btnCancel) btnCancel.disabled = false;
     }
   }
 
@@ -2497,15 +3231,25 @@
     if (btnAnterior) btnAnterior.addEventListener('click', irMesAnterior);
     var btnSiguiente = getEl('planifBtnMesSiguiente');
     if (btnSiguiente) btnSiguiente.addEventListener('click', irMesSiguiente);
-    var vistaMeses = getEl('planifVistaMeses');
-    if (vistaMeses) {
-      vistaMeses.addEventListener('change', async function () {
-        // @ts-ignore
-        state.viewMonths = Math.min(3, Math.max(1, Number(this.value) || 1));
+    ensureToggleLeftBinding();
+    // @ts-ignore
+    var vistaInicio = /** @type {HTMLInputElement|null} */ (getEl('planifVistaFechaInicio'));
+    // @ts-ignore
+    var vistaFin = /** @type {HTMLInputElement|null} */ (getEl('planifVistaFechaFin'));
+    if (vistaInicio && vistaFin) {
+      var applyVistaFechaChange = async function () {
+        syncVistaFechaControls();
         actualizarNavMes();
         actualizarRangoInputs(true);
         await cargarFestivos();
         renderGrid();
+      };
+
+      vistaInicio.addEventListener('change', function () {
+        applyVistaFechaChange();
+      });
+      vistaFin.addEventListener('change', function () {
+        applyVistaFechaChange();
       });
     }
 
@@ -2620,6 +3364,11 @@
         cargarPlanActivo();
       });
 
+    // Botón exportar agentes a Excel
+    var btnExportarExcel = getEl('planifBtnExportarExcel');
+    if (btnExportarExcel)
+      btnExportarExcel.addEventListener('click', exportAgentesSeleccionadosExcel);
+
     ['planifFechaInicio', 'planifFechaFin'].forEach(function (id) {
       var elRango = getEl(id);
       if (elRango) {
@@ -2707,6 +3456,9 @@
       bindEvents();
     }
 
+    // El include puede re-renderizarse entre aperturas de sección; reasegurar binding del toggle.
+    ensureToggleLeftBinding();
+
     applyConsultaReadOnlyUi();
 
     resetPlanificacionStateData();
@@ -2717,11 +3469,10 @@
     state.activeMes = ahora ? ahora.month : new Date().getMonth() + 1;
     state.referenceISO = monthRefISO(state.activeAnio, state.activeMes);
     state.viewMonths = 1;
+    state.leftPanelCollapsed = false;
 
     actualizarNavMes();
-    var vistaMeses = getEl('planifVistaMeses');
-    // @ts-ignore
-    if (vistaMeses) vistaMeses.value = '1';
+    applyLeftPanelCollapsed(false);
     actualizarRangoInputs();
     showAlert('', 'info');
 

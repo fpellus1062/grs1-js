@@ -4,13 +4,13 @@ services:
     container_name: grs1-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${DB_USER:-gestor}
+      POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-Nix100}
       POSTGRES_DB: ${DB_NAME:-turnos}
     networks:
       - grs1_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-gestor} -d ${DB_NAME:-turnos}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-turnos}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -32,7 +32,7 @@ services:
       PGPASSWORD: ${DB_PASSWORD:-Nix100}
       DB_HOST: grs1-postgres
       DB_PORT: 5432
-      DB_USER: ${DB_USER:-gestor}
+      DB_USER: ${DB_USER:-postgres}
       DB_NAME: ${DB_NAME:-turnos}
       MIGRATIONS_DIR: /migrations
       DUMP_FILE: ${DUMP_FILE:-docker_dump.sql}
@@ -66,7 +66,7 @@ services:
       PORT: 3000
       DB_HOST: grs1-postgres
       DB_PORT: 5432
-      DB_USER: ${DB_USER:-gestor}
+      DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-Nix100}
       DB_NAME: ${DB_NAME:-turnos}
       JWT_SECRET: ${JWT_SECRET:-change-this-secret-for-qnap}
@@ -111,7 +111,7 @@ services:
       - "${ADMINER_PORT:-18081}:8080"
     environment:
       ADMINER_DEFAULT_SERVER: grs1-postgres
-      ADMINER_DEFAULT_USER: ${DB_USER:-gestor}
+      ADMINER_DEFAULT_USER: ${DB_USER:-postgres}
       ADMINER_DEFAULT_DB: ${DB_NAME:-turnos}
     networks:
       - grs1_net

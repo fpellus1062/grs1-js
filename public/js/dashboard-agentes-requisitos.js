@@ -24,6 +24,7 @@
     plantillaObjetivosDraft: [],
     plantillaObjetivoEditingIndex: -1,
     quickEstado: 'todos',
+    plantillaSelectionLock: true,
     servicioFecha: '',
     reopenCrudAfterPlantilla: false,
   };
@@ -256,6 +257,7 @@
     let visibleColumns = state.table.getColumns().filter(function (col) {
       let def = col.getDefinition() || {};
       if (!def || !def.field || !def.title) return false;
+      if (def.field === 'escalafon') return false;
       if (def.visible === false) return false;
       return true;
     });
@@ -268,7 +270,20 @@
       return String(col.getDefinition().title || '');
     });
 
-    let rows = selectedRows.map(function (rowComp) {
+    let sortedSelectedRows = selectedRows.slice().sort(function (aComp, bComp) {
+      let a = aComp && typeof aComp.getData === 'function' ? aComp.getData() : {};
+      let b = bComp && typeof bComp.getData === 'function' ? bComp.getData() : {};
+      let pelotonA = String((a && a.peloton_nombre) || '').toLowerCase();
+      let pelotonB = String((b && b.peloton_nombre) || '').toLowerCase();
+      let pelotonCmp = pelotonA.localeCompare(pelotonB, 'es');
+      if (pelotonCmp !== 0) return pelotonCmp;
+
+      let escalafonA = String((a && a.escalafon) || '').toLowerCase();
+      let escalafonB = String((b && b.escalafon) || '').toLowerCase();
+      return escalafonA.localeCompare(escalafonB, 'es');
+    });
+
+    let rows = sortedSelectedRows.map(function (rowComp) {
       let row = rowComp && typeof rowComp.getData === 'function' ? rowComp.getData() : {};
       return visibleColumns.map(function (col) {
         let def = col.getDefinition() || {};
@@ -278,8 +293,13 @@
         if (field === 'periodo_inicio' || field === 'periodo_fin' || field === 'vencimiento') {
           return formatIsoDateEs(value);
         }
+        let porcentaje_total = 0;
         if (field === 'progress_pct') {
-          return String(row.completado_total || 0) + '/' + String(row.objetivo_total || 0) + ' (' + String(Number(row.progress_pct || 0)) + '%)';
+          if (Number(row.completado_total) >= 0 && Number(row.objetivo_total) >= 0) {
+            porcentaje_total = Number((row.completado_total / row.objetivo_total) * 100 || 0);
+          }
+        
+        return String(row.completado_total || 0) + '/' + String(row.objetivo_total || 0) + (Number(porcentaje_total) >= 0 ? ' (' + porcentaje_total.toFixed(2) + '%)' : '');
         }
         if (field === 'subtipos_estado') {
           let items = Array.isArray(row.subtipos_estado) ? row.subtipos_estado : [];
@@ -298,6 +318,14 @@
     });
 
     let ws = xlsx.utils.aoa_to_sheet([headers].concat(rows));
+    if (headers.length > 0) {
+      ws['!autofilter'] = {
+        ref: xlsx.utils.encode_range({
+          s: { r: 0, c: 0 },
+          e: { r: rows.length, c: headers.length - 1 },
+        }),
+      };
+    }
     let wb = xlsx.utils.book_new();
     xlsx.utils.book_append_sheet(wb, ws, 'Requisitos');
 
@@ -305,6 +333,58 @@
       ? window.luxon.DateTime.now().toFormat('yyyyLLdd_HHmm')
       : String(Date.now());
     xlsx.writeFile(wb, 'requisitos_periodicos_marcados_' + ts + '.xlsx');
+  }
+
+  async function exportHistoricoRequisitosExcel() {
+    if (!state.table) {
+      setAlert('No hay tabla cargada para exportar.', 'warning');
+      return;
+    }
+
+    let selected = state.table.getSelectedData();
+    let agenteIds = Array.from(new Set((Array.isArray(selected) ? selected : [])
+      .map(function (row) { return Number((row && row.agente_id) || 0); })
+      .filter(function (id) { return Number.isFinite(id) && id > 0; })));
+
+    if (!agenteIds.length) {
+      setAlert('Marque al menos un agente para exportar el histórico.', 'warning');
+      return;
+    }
+
+    try {
+      let params = new URLSearchParams();
+      params.set('agente_ids', agenteIds.join(','));
+
+      let resp = await fetch('/api/agentes/requisitos/ejecuciones/excel?' + params.toString(), {
+        headers: getHeaders(false),
+        cache: 'no-store',
+      });
+
+      if (!resp.ok) {
+        let err = await resp.json().catch(function () { return {}; });
+        throw new Error(err.message || err.error || ('Error HTTP ' + String(resp.status)));
+      }
+
+      let blob = await resp.blob();
+      if (!blob || Number(blob.size || 0) < 1) {
+        throw new Error('El servidor no devolvió contenido para descargar.');
+      }
+
+      let header = String(resp.headers.get('Content-Disposition') || '');
+      let m = header.match(/filename="?([^";]+)"?/i);
+      let filename = (m && m[1]) ? m[1] : 'historico_requisitos.xlsx';
+
+      let url = URL.createObjectURL(blob);
+      let a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setAlert(error && error.message ? error.message : 'No se pudo exportar el histórico.', 'danger');
+    }
   }
 
   function statusBadge(cell) {
@@ -558,7 +638,81 @@
     return 'nombre:' + String(row.plantilla_nombre || '').trim().toLowerCase();
   }
 
+  function isPlantillaLockEnabled() {
+    return state.plantillaSelectionLock !== false;
+  }
+
+  function refreshPlantillaLockUi() {
+    let lockSwitch = document.getElementById('reqPlantillaLockSwitch');
+    let lockState = document.getElementById('reqPlantillaLockState');
+    let lockHint = document.getElementById('reqPlantillaLockHint');
+    let enabled = isPlantillaLockEnabled();
+
+    if (lockSwitch instanceof HTMLInputElement) {
+      lockSwitch.checked = enabled;
+    }
+    if (lockState) {
+      lockState.textContent = enabled ? 'ON' : 'OFF';
+      lockState.classList.toggle('text-bg-success', enabled);
+      lockState.classList.toggle('text-bg-secondary', !enabled);
+    }
+    if (lockHint) {
+      lockHint.classList.toggle('d-none', enabled);
+    }
+  }
+
+  function applyPlantillaSelectionLock(options) {
+    let opts = options || {};
+    if (!state.table) return;
+    if (!isPlantillaLockEnabled()) {
+      state.selectedPlantillaKey = '';
+      if (opts.redraw !== false) state.table.redraw(true);
+      return;
+    }
+
+    let selected = state.table.getSelectedData();
+    selected = Array.isArray(selected) ? selected : [];
+    if (!selected.length) {
+      state.selectedPlantillaKey = '';
+      if (opts.redraw !== false) state.table.redraw(true);
+      return;
+    }
+
+    let firstKey = getPlantillaKey(selected[0]);
+    let mixed = selected.filter(function (row) {
+      return getPlantillaKey(row) !== firstKey;
+    });
+    if (mixed.length) {
+      let mixedIds = mixed
+        .map(function (row) { return Number(row.id || 0); })
+        .filter(function (id) { return id > 0; });
+      if (mixedIds.length) state.table.deselectRow(mixedIds);
+      if (opts.showAlert !== false) {
+        setAlert('Selección bloqueada a una sola plantilla. Limpie la selección para cambiar de plantilla.', 'warning');
+      }
+    }
+    state.selectedPlantillaKey = firstKey;
+    if (opts.redraw !== false) state.table.redraw(true);
+  }
+
+  function setPlantillaSelectionLock(enabled, options) {
+    let next = !!enabled;
+    let prev = isPlantillaLockEnabled();
+    state.plantillaSelectionLock = next;
+    refreshPlantillaLockUi();
+
+    if (next && !prev) {
+      applyPlantillaSelectionLock(options);
+    } else if (!next) {
+      state.selectedPlantillaKey = '';
+      if (state.table) state.table.redraw(true);
+    }
+
+    refreshSelectedActions();
+  }
+
   function isSelectableByPlantilla(rowData) {
+    if (!isPlantillaLockEnabled()) return true;
     let lockedKey = String(state.selectedPlantillaKey || '');
     if (!lockedKey) return true;
     return getPlantillaKey(rowData) === lockedKey;
@@ -581,9 +735,15 @@
     let btnReg = document.getElementById('btnReqRegistrar');
     let btnSan = document.getElementById('btnReqSancionar');
     let selectedCount = Array.isArray(state.selectedPeriodoIds) ? state.selectedPeriodoIds.length : 0;
+    let lockEnabled = isPlantillaLockEnabled();
     if (btnReg) {
-      setDisabled('btnReqRegistrar', selectedCount < 1);
-      btnReg.title = selectedCount > 1 ? ('Registrar prueba (' + selectedCount + ')') : 'Registrar prueba';
+      if (!lockEnabled) {
+        setDisabled('btnReqRegistrar', true);
+        btnReg.title = 'Registrar prueba deshabilitado con Bloqueo Plantilla en OFF';
+      } else {
+        setDisabled('btnReqRegistrar', selectedCount < 1);
+        btnReg.title = selectedCount > 1 ? ('Registrar prueba (' + selectedCount + ')') : 'Registrar prueba';
+      }
     }
     if (btnSan) {
       setDisabled('btnReqSancionar', selectedCount !== 1);
@@ -828,15 +988,60 @@
 
   function buildEjecucionSubobjetivosTable() {
     let body = document.getElementById('reqEjecSubobjetivosBody');
+    let historialTh = document.getElementById('reqEjecHistorialTh');
     if (!body) return;
 
     let rows = Array.isArray(state.selectedRows) ? state.selectedRows : [];
     if (!rows.length) rows = state.selectedRow ? [state.selectedRow] : [];
+    let showHistorial = rows.length === 1;
+    if (historialTh) historialTh.classList.toggle('d-none', !showHistorial);
+
+    let tableCols = showHistorial ? 6 : 5;
 
     if (!rows.length) {
-      body.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-2">Seleccione al menos un período.</td></tr>';
+      body.innerHTML = '<tr><td colspan="' + String(tableCols) + '" class="text-muted text-center py-2">Seleccione al menos un período.</td></tr>';
       return;
     }
+
+    function formatHistFecha(value) {
+      let DateTime = window.luxon && window.luxon.DateTime;
+      if (!value) return 'Sin fecha';
+      if (DateTime) {
+        let dt = DateTime.fromISO(String(value), { zone: 'utc' });
+        if (dt.isValid) return dt.setLocale('es').toFormat('dd/MM/yyyy');
+      }
+      return String(value).slice(0, 10);
+    }
+
+    let historialBySubtipo = new Map();
+    if (showHistorial) {
+      rows.forEach(function (row) {
+        let ejecuciones = Array.isArray(row && row.ejecuciones) ? row.ejecuciones : [];
+        ejecuciones.forEach(function (e) {
+          if (String((e && e.resultado) || '').toLowerCase() !== 'aprobado') return;
+          let subtipo = String((e && e.subtipo) || '').trim();
+          if (!subtipo) return;
+          if (!historialBySubtipo.has(subtipo)) historialBySubtipo.set(subtipo, []);
+          historialBySubtipo.get(subtipo).push({
+            fecha_prueba: e && e.fecha_prueba,
+            observaciones: String((e && e.observaciones) || '').trim(),
+            cantidad: Number((e && e.cantidad) || 0),
+          });
+        });
+      });
+    }
+
+    historialBySubtipo.forEach(function (items, subtipo) {
+      let ordenados = (Array.isArray(items) ? items : []).slice().sort(function (a, b) {
+        let ta = Date.parse(String(a && a.fecha_prueba || ''));
+        let tb = Date.parse(String(b && b.fecha_prueba || ''));
+        if (!Number.isFinite(ta) && !Number.isFinite(tb)) return 0;
+        if (!Number.isFinite(ta)) return 1;
+        if (!Number.isFinite(tb)) return -1;
+        return tb - ta;
+      });
+      historialBySubtipo.set(subtipo, ordenados);
+    });
 
     // En multi-selección usamos solo subtipos comunes para evitar errores de registro,
     // y mostramos cantidades base por prueba (sin sumar entre agentes/períodos).
@@ -865,7 +1070,14 @@
 
     let data = commonSubtipos
       .map(function (subtipo) {
-        return rowMaps[0].get(subtipo);
+        let base = rowMaps[0].get(subtipo);
+        if (!base) return null;
+        return {
+          subtipo: base.subtipo,
+          objetivo: base.objetivo,
+          completado: base.completado,
+          historico: historialBySubtipo.get(subtipo) || [],
+        };
       })
       .filter(Boolean)
       .sort(function (a, b) {
@@ -873,12 +1085,33 @@
       });
 
     if (!data.length) {
-      body.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-2">No hay subobjetivos comunes entre la selección.</td></tr>';
+      body.innerHTML = '<tr><td colspan="' + String(tableCols) + '" class="text-muted text-center py-2">No hay subobjetivos comunes entre la selección.</td></tr>';
       return;
     }
 
     body.innerHTML = data.map(function (it) {
       let pendiente = Math.max(0, Number(it.objetivo) - Number(it.completado));
+      let historico = Array.isArray(it.historico) ? it.historico : [];
+      let maxItems = 4;
+      let historialHtml = '<span class="text-muted">Sin registros aprobados</span>';
+
+      if (showHistorial && historico.length) {
+        let itemsHtml = historico.slice(0, maxItems).map(function (h) {
+          let detalle = [
+            '<span class="text-body-secondary">' + esc(formatHistFecha(h.fecha_prueba)) + '</span>',
+            '<span class="fw-semibold">+' + esc(String(Number(h.cantidad) || 0)) + '</span>',
+          ];
+          if (h.observaciones) {
+            detalle.push('<span class="text-muted">' + esc(String(h.observaciones)) + '</span>');
+          }
+          return '<div class="req-ejec-hist-item">' + detalle.join(' · ') + '</div>';
+        }).join('');
+        let extra = historico.length > maxItems
+          ? '<div class="text-muted">+' + esc(String(historico.length - maxItems)) + ' más…</div>'
+          : '';
+        historialHtml = '<div class="req-ejec-hist-wrap">' + itemsHtml + extra + '</div>';
+      }
+
       return (
         '<tr data-subtipo="' + esc(it.subtipo) + '">' +
           '<td><span class="fw-semibold">' + esc(it.subtipo) + '</span></td>' +
@@ -888,6 +1121,9 @@
           '<td>' +
             '<input class="form-control form-control-sm req-ejec-cantidad" type="number" min="0" max="' + esc(String(pendiente)) + '" step="1" value="0" data-max="' + esc(String(pendiente)) + '" data-subtipo="' + esc(it.subtipo) + '" ' + (pendiente <= 0 ? 'disabled' : '') + '>' +
           '</td>' +
+          (showHistorial
+            ? '<td class="align-top req-ejec-historial">' + historialHtml + '</td>'
+            : '') +
         '</tr>'
       );
     }).join('');
@@ -972,7 +1208,10 @@
         { title: 'Escalafón', field: 'escalafon', width: 110, headerFilter: 'input', visible: false },
       ],
       data: state.meta.agentes || [],
-      initialSort: [{ column: 'escalafon', dir: 'asc' }],
+      initialSort: [
+        { column: 'peloton_nombre', dir: 'asc' },
+        { column: 'escalafon', dir: 'asc' },
+      ],
     });
 
     state.assignAgentesTable.on('rowSelectionChanged', function () {
@@ -1199,7 +1438,10 @@
       columnDefaults: { headerSort: true, resizable: true, headerFilterPlaceholder: 'Filtrar...' },
       columns: buildColumns(),
       data: state.rows,
-      initialSort: [{ column: 'escalafon', dir: 'asc' }],
+      initialSort: [
+        { column: 'peloton_nombre', dir: 'asc' },
+        { column: 'escalafon', dir: 'asc' },
+      ],
       rowFormatter: function (row) {
         let el = row && typeof row.getElement === 'function' ? row.getElement() : null;
         let data = row && typeof row.getData === 'function' ? row.getData() : null;
@@ -1211,7 +1453,7 @@
 
     state.table.on('rowSelectionChanged', function (data) {
       let selected = Array.isArray(data) ? data : [];
-      if (selected.length > 1) {
+      if (isPlantillaLockEnabled() && selected.length > 1) {
         let firstKey = getPlantillaKey(selected[0]);
         let mixed = selected.filter(function (row) {
           return getPlantillaKey(row) !== firstKey;
@@ -1233,7 +1475,7 @@
       state.selectedPeriodoIds = selected.map(function (row) { return Number(row.id || 0); }).filter(function (id) { return id > 0; });
       state.selectedRow = first || null;
       state.selectedPeriodoId = first ? Number(first.id || 0) : 0;
-      state.selectedPlantillaKey = first ? getPlantillaKey(first) : '';
+      state.selectedPlantillaKey = isPlantillaLockEnabled() && first ? getPlantillaKey(first) : '';
       buildEjecucionSubobjetivosTable();
       refreshSelectedActions();
       refreshMainSelCount();
@@ -1524,6 +1766,16 @@
       });
     }
 
+    let plantillaLockSwitch = document.getElementById('reqPlantillaLockSwitch');
+    if (plantillaLockSwitch instanceof HTMLInputElement && !plantillaLockSwitch.dataset.bound) {
+      plantillaLockSwitch.dataset.bound = '1';
+      plantillaLockSwitch.checked = isPlantillaLockEnabled();
+      plantillaLockSwitch.addEventListener('change', function () {
+        setPlantillaSelectionLock(plantillaLockSwitch.checked, { showAlert: true, redraw: true });
+      });
+      refreshPlantillaLockUi();
+    }
+
     let btnAsignar = document.getElementById('btnReqAsignar');
     if (btnAsignar && !btnAsignar.dataset.bound) {
       btnAsignar.dataset.bound = '1';
@@ -1747,6 +1999,14 @@
         exportMainTableExcel();
       });
     }
+
+    let btnExportHistoricoExcel = document.getElementById('btnReqExportHistoricoExcel');
+    if (btnExportHistoricoExcel && !btnExportHistoricoExcel.dataset.bound) {
+      btnExportHistoricoExcel.dataset.bound = '1';
+      btnExportHistoricoExcel.addEventListener('click', function () {
+        exportHistoricoRequisitosExcel();
+      });
+    }
   }
 
   app.initializeAgentesRequisitosSection = async function initializeAgentesRequisitosSection() {
@@ -1755,6 +2015,8 @@
     ensureAssignAgentesTable();
     ensurePlantillasTable();
     bindEvents();
+    refreshPlantillaLockUi();
+    setPlantillaSelectionLock(true, { showAlert: false, redraw: false });
     applyLeftPanelCollapsed(getSavedLeftPanelCollapsed(), { persist: false, redraw: false });
     await loadMeta();
     await loadPlantillasCrud().catch(function () {});

@@ -111,3 +111,33 @@ exports.sancionarPeriodo = async (req, res, next) => {
     next(new ApiError(400, error.message || 'Error al sancionar período', error.detail || error));
   }
 };
+
+exports.exportHistoricoEjecucionesExcel = async (req, res, next) => {
+  try {
+    const agenteIds = String((req.query && req.query.agente_ids) || '')
+      .split(',')
+      .map((x) => Number(String(x).trim()))
+      .filter((id) => Number.isFinite(id) && id > 0);
+
+    if (!agenteIds.length) {
+      throw new ApiError(400, 'Debe indicar al menos un agente para exportar histórico.');
+    }
+
+    const { buffer, filename } = await service.buildHistoricoEjecucionesExcel(req.arsId, agenteIds);
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    const contentLength = Buffer.from(buffer).byteLength;
+    res.setHeader('Content-Length', String(contentLength));
+    res.status(200).send(buffer);
+  } catch (error) {
+    if (error instanceof ApiError) {
+      next(error);
+      return;
+    }
+    next(new ApiError(400, error.message || 'Error al exportar histórico de requisitos', error.detail || error));
+  }
+};

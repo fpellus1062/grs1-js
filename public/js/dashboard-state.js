@@ -152,7 +152,7 @@ window.GRS1Dashboard = {
     },
     {
       id: 'agentesRequisitosSection',
-      path: 'includes/agentes-requisitos/section.html?v=20260506a',
+      path: 'includes/agentes-requisitos/section.html?v=20260628a',
     },
     { id: 'configuracionSection', path: 'includes/config/section.html' },
     { id: 'devengosSection', path: 'includes/devengos/section.html' },
@@ -187,7 +187,7 @@ window.GRS1Dashboard = {
     },
     {
       id: 'planificacionSection',
-      path: 'includes/planificacion/planificacion-section.html',
+      path: 'includes/planificacion/planificacion-section.html?v=20260630a',
     },
     { id: 'informesSection', path: 'includes/informes/section.html' },
     { id: 'turnoModalHost', path: 'includes/turnos/modal.html' },

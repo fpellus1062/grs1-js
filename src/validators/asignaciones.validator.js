@@ -226,3 +226,15 @@ exports.historialQuerySchema = Joi.object({
   limit: Joi.number().integer().min(1).max(5000).default(1000),
   fechas: Joi.string().trim().allow('', null),
 });
+
+exports.historialCeldaQuerySchema = Joi.object({
+  anio: Joi.number().integer().min(2020).max(2100).required(),
+  mes: Joi.number().integer().min(1).max(12).required(),
+  borrador_id: Joi.number().integer().positive().required(),
+  agente_id: Joi.number().integer().positive().required(),
+  fecha: Joi.string()
+    .trim()
+    .pattern(/^\d{4}-\d{2}-\d{2}$/)
+    .required(),
+  limit: Joi.number().integer().min(1).max(300).default(100),
+});

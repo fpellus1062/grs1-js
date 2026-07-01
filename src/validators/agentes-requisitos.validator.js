@@ -91,3 +91,7 @@ exports.sancionarPeriodoSchema = Joi.object({
   periodo_id: Joi.number().integer().positive().required(),
   sancion_notas: Joi.string().trim().min(3).max(3000).required(),
 });
+
+exports.exportHistoricoEjecucionesQuerySchema = Joi.object({
+  agente_ids: Joi.string().trim().min(1).required(),
+});

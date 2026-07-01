@@ -188,7 +188,7 @@
     let actividadTexto =
       String(actividadCount) +
       ' ' +
-      (actividadCount === 1 ? 'actividad' : 'actividades');
+      (actividadCount > 1 ? 'Actividades' : 'Actividad');
 
     countEl.textContent =
       totalActiveFilters > 0 || hasDateRange
@@ -646,13 +646,6 @@
       return String(a.empleo).localeCompare(String(b.empleo), 'es');
     });
 
-    let pelotonCounts = new Map();
-    bucketRows.forEach(function (b) {
-      let p = String(b.peloton);
-      pelotonCounts.set(p, (pelotonCounts.get(p) || 0) + 1);
-    });
-
-    let pelotonSeen = new Set();
     let body = bucketRows.map(function (b) {
       let totalSet = new Set();
       let rowCounts = grupos.map(function (g) {
@@ -664,21 +657,7 @@
         return String(set ? set.size : 0);
       });
 
-      let row;
-      if (!pelotonSeen.has(b.peloton)) {
-        pelotonSeen.add(b.peloton);
-        row = [
-          {
-            content: truncateText(b.peloton, 16),
-            rowSpan: pelotonCounts.get(b.peloton) || 1,
-            styles: { valign: 'middle', fontStyle: 'bold' },
-          },
-        ];
-      } else {
-        row = [];
-      }
-
-      return row
+      return [truncateText(b.peloton, 16)]
         .concat([truncateText(b.empleo, 28)])
         .concat(rowCounts)
         .concat([String(totalSet.size)]);
@@ -2435,8 +2414,19 @@
           // @ts-ignore
           document.getElementById('asigBulkObservaciones').value = '';
 
-          let diasEl = document.getElementById('asigBulkDias');
+          let diasElRaw = document.getElementById('asigBulkDias');
+          let diasEl =
+            diasElRaw instanceof HTMLSelectElement ? diasElRaw : null;
+          let diasMarcadosWrapEl = document.getElementById(
+            'asigBulkDiasMarcadosWrap'
+          );
+          let diasMarcadosRawEl = document.getElementById('asigBulkDiasMarcados');
+          let diasMarcadosEl =
+            diasMarcadosRawEl instanceof HTMLSelectElement
+              ? diasMarcadosRawEl
+              : null;
           let planningDays = getPlanningWindowSafe(p.anio, p.mes);
+          if (!diasEl) return;
           diasEl.innerHTML = planningDays
             .map(function (day) {
               return (
@@ -2452,6 +2442,8 @@
               );
             })
             .join('');
+          if (diasMarcadosEl) diasMarcadosEl.innerHTML = '';
+          if (diasMarcadosWrapEl) diasMarcadosWrapEl.classList.add('d-none');
 
           let filterAgBulk = document.getElementById('asigBulkFilterAgentes');
           if (filterAgBulk) {
@@ -2558,9 +2550,67 @@
           updateBulkApplyEnabledState();
 
           let checkAllDias = document.getElementById('asigBulkCheckAllDias');
+
+          function moveBulkAssignedDaysToMarkedList(dayKeys) {
+            if (!diasEl || !Array.isArray(dayKeys) || !dayKeys.length) return;
+
+            let keys = new Set(
+              dayKeys
+                .map(function (k) {
+                  return String(k || '').trim();
+                })
+                .filter(Boolean)
+            );
+            if (!keys.size) return;
+
+            let moved = [];
+            for (let i = diasEl.options.length - 1; i >= 0; i -= 1) {
+              let opt = diasEl.options[i];
+              if (!opt) continue;
+              let key = String(opt.value || '').trim();
+              if (!keys.has(key)) continue;
+              moved.push({ key: key, label: String(opt.text || key).trim() });
+              diasEl.remove(i);
+            }
+
+            if (diasMarcadosEl && moved.length) {
+              let existing = new Set(
+                Array.from(diasMarcadosEl.options || []).map(function (opt) {
+                  return String(opt && opt.value ? opt.value : '').trim();
+                })
+              );
+
+              moved.reverse().forEach(function (item) {
+                if (!item || !item.key || existing.has(item.key)) return;
+                let opt = document.createElement('option');
+                opt.value = item.key;
+                opt.text = item.label;
+                diasMarcadosEl.appendChild(opt);
+              });
+            }
+
+            if (diasMarcadosWrapEl) {
+              let hasMarked = !!(diasMarcadosEl && diasMarcadosEl.options.length);
+              diasMarcadosWrapEl.classList.toggle('d-none', !hasMarked);
+            }
+
+            if (checkAllDias) {
+              // @ts-ignore
+              checkAllDias.checked = false;
+              // @ts-ignore
+              checkAllDias.indeterminate = false;
+              // @ts-ignore
+              checkAllDias.disabled = diasEl.options.length === 0;
+            }
+          }
+
           if (checkAllDias && diasEl) {
             // @ts-ignore
             checkAllDias.checked = false;
+            // @ts-ignore
+            checkAllDias.indeterminate = false;
+            // @ts-ignore
+            checkAllDias.disabled = diasEl.options.length === 0;
             checkAllDias.onclick = function () {
               // @ts-ignore
               for (let i = 0; i < diasEl.options.length; i++)
@@ -2719,6 +2769,7 @@
                     ' celdas. El modal permanece abierto.',
                   'success'
                 );
+                moveBulkAssignedDaysToMarkedList(dias);
                 setTimeout(_.resetBulkProgress, 1200);
               } catch (e) {
                 _.showAlert(e.message, 'danger');

@@ -461,10 +461,17 @@ exports.crearBorrador = async ({ planId, nombre, descripcion, userId }) => {
 exports.listarAsignaciones = async (versionId) => {
   const { rows } = await db.query(
     `SELECT pba.id, pba.fecha, pba.agente_id, pba.actividad_id,
-            a.nombre AS agente_nombre, a.apellido_1, a.apellido_2,
-            act.nombre AS actividad_nombre, act.color AS actividad_color
-     FROM plan_borrador_asignacion pba
-     JOIN agentes a ON a.id = pba.agente_id
+            a.nombre AS agente_nombre, a.apellido_1, a.apellido_2, a.tip, a.aptitudes,
+            p.id_peloton, p.descripcion AS peloton_desc,
+            e.id_empleo, e.descripcion AS empleo_desc,
+            s.id_situacion, s.descripcion AS situacion_desc,
+            act.nombre AS actividad_nombre, act.actividad AS actividad_codigo, act.color AS actividad_color
+            FROM agentes a
+            JOIN plan_borrador_asignacion pba
+                ON pba.agente_id = a.id
+     LEFT JOIN agentes_peloton p ON a.peloton_id = p.id_peloton
+     LEFT JOIN agentes_empleo e ON a.empleo_id = e.id_empleo
+     LEFT JOIN agentes_situacion s ON a.situacion_id = s.id_situacion
      LEFT JOIN actividades act ON act.id_actividad = pba.actividad_id
      WHERE pba.version_id = $1
      ORDER BY a.apellido_1, a.apellido_2, a.nombre, pba.fecha`,
@@ -572,173 +579,290 @@ exports.guardarBulk = async ({ versionId, items, userId }) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// 7. Aprobar versión → UPSERT en plan_final_asignacion
+// 7. Aprobar versión (legacy y chunked)
 // ─────────────────────────────────────────────────────────────
-exports.aprobar = async ({ versionId, userId }) => {
-  const client = await db.connect();
-  try {
-    await client.query('BEGIN');
-
-    // Obtener borrador y plan
-    const vRes = await client.query(
-      `SELECT pbv.*, pb.plan_id
+async function getAprobacionContext(client, versionId) {
+  const vRes = await client.query(
+    `SELECT pbv.id, pbv.borrador_id, pb.plan_id
        FROM plan_borrador_version pbv
        JOIN plan_borrador pb ON pb.id = pbv.borrador_id
-       WHERE pbv.id = $1`,
-      [versionId]
+      WHERE pbv.id = $1`,
+    [versionId]
+  );
+  if (!vRes.rows.length) throw new Error('Versión no encontrada');
+
+  const totalRes = await client.query(
+    'SELECT COUNT(*)::int AS total FROM plan_borrador_asignacion WHERE version_id = $1',
+    [versionId]
+  );
+
+  return {
+    planId: vRes.rows[0].plan_id,
+    borradorId: vRes.rows[0].borrador_id,
+    total: Number(totalRes.rows[0] && totalRes.rows[0].total) || 0,
+  };
+}
+
+async function aplicarComentarioAprobacion(client, { versionId, userId, comentario }) {
+  const text = String(comentario || '').trim();
+  if (!text) return;
+
+  const vRes = await client.query(
+    `SELECT pbv.id, pbv.borrador_id, pb.plan_id, pb.observaciones,
+            COALESCE(NULLIF(u.nombre, ''), NULLIF(u.email, ''), 'usuario') AS actor_username
+       FROM plan_borrador_version pbv
+       JOIN plan_borrador pb ON pb.id = pbv.borrador_id
+       LEFT JOIN usuarios u ON u.id = $2
+      WHERE pbv.id = $1`,
+    [versionId, userId || null]
+  );
+  if (!vRes.rows.length) throw new Error('Versión no encontrada');
+
+  const prevObs = String(vRes.rows[0].observaciones || '').trim();
+  let mergedObs = prevObs;
+  let delta = text;
+  if (prevObs && text.indexOf(prevObs) === 0) {
+    delta = String(text.slice(prevObs.length)).trim();
+  }
+
+  if (delta) {
+    const stamp = DateTime.now().toFormat('dd/MM/yyyy HH:mm');
+    const actor = vRes.rows[0].actor_username || 'usuario';
+    const block = '[' + stamp + ' · ' + actor + ']\n' + delta;
+    mergedObs = prevObs ? prevObs + '\n\n' + block : block;
+  }
+
+  if (mergedObs === prevObs) return;
+
+  const updObs = await client.query(
+    'UPDATE plan_borrador SET observaciones = $1 WHERE id = $2 RETURNING *',
+    [mergedObs || null, vRes.rows[0].borrador_id]
+  );
+
+  await auditLog(
+    client,
+    'plan_borrador',
+    vRes.rows[0].borrador_id,
+    'UPDATE',
+    buildAuditPayload({
+      plan_id: vRes.rows[0].plan_id,
+      borrador_id: vRes.rows[0].borrador_id,
+    }),
+    buildAuditPayload({
+      plan_id:
+        (updObs.rows[0] && updObs.rows[0].plan_id) || vRes.rows[0].plan_id,
+      borrador_id: vRes.rows[0].borrador_id,
+    }),
+    userId
+  );
+}
+
+async function procesarAprobacionChunk(client, {
+  versionId,
+  planId,
+  borradorId,
+  userId,
+  offset,
+  limit,
+}) {
+  const safeOffset = Math.max(0, Number(offset) || 0);
+  const safeLimit = Math.max(1, Math.min(1000, Number(limit) || 500));
+
+  const asignaciones = await client.query(
+    `SELECT *
+       FROM plan_borrador_asignacion
+      WHERE version_id = $1
+      ORDER BY id ASC
+      OFFSET $2
+      LIMIT $3`,
+    [versionId, safeOffset, safeLimit]
+  );
+
+  let aprobados = 0;
+  let auditados = 0;
+
+  for (const a of asignaciones.rows) {
+    const snapRes = await client.query(
+      'SELECT to_jsonb(ag.*) AS snap FROM agentes ag WHERE ag.id = $1',
+      [a.agente_id]
     );
-    if (!vRes.rows.length) throw new Error('Versión no encontrada');
-    const planId = vRes.rows[0].plan_id;
-    const borradorId = vRes.rows[0].borrador_id;
+    const agenteSnapshot = snapRes.rows[0] ? snapRes.rows[0].snap : null;
 
-    // Asignaciones del borrador
-    const asignaciones = await client.query(
-      'SELECT * FROM plan_borrador_asignacion WHERE version_id = $1',
-      [versionId]
+    const existing = await client.query(
+      `SELECT id, fecha, agente_id, actividad_id, agente_snapshot
+         FROM plan_final_asignacion
+        WHERE plan_id = $1
+          AND fecha = $2
+          AND agente_id = $3`,
+      [planId, a.fecha, a.agente_id]
     );
 
-    let aprobados = 0;
-    let auditados = 0;
-
-    for (const a of asignaciones.rows) {
-      // agente_snapshot
-      const snapRes = await client.query(
-        'SELECT to_jsonb(ag.*) AS snap FROM agentes ag WHERE ag.id = $1',
-        [a.agente_id]
+    if (!existing.rows.length) {
+      const ins = await client.query(
+        `INSERT INTO plan_final_asignacion
+           (plan_id, fecha, agente_id, actividad_id, agente_snapshot, approved_by_user_id, approved_at)
+         VALUES ($1, $2, $3, $4, $5, $6, now())
+         RETURNING id`,
+        [
+          planId,
+          a.fecha,
+          a.agente_id,
+          a.actividad_id,
+          agenteSnapshot,
+          userId || null,
+        ]
       );
-      const agenteSnapshot = snapRes.rows[0]?.snap || null;
 
-      // Comprobar existente
-      const existing = await client.query(
-        'SELECT id, fecha, agente_id, actividad_id, agente_snapshot FROM plan_final_asignacion WHERE plan_id = $1 AND fecha = $2 AND agente_id = $3',
-        [planId, a.fecha, a.agente_id]
+      await auditLog(
+        client,
+        'plan_final_asignacion',
+        ins.rows[0].id,
+        'INSERT',
+        buildAuditPayload(),
+        buildAuditPayload({
+          plan_id: planId,
+          borrador_id: borradorId,
+          fecha: a.fecha,
+          agente_id: a.agente_id,
+          actividad_id: a.actividad_id,
+        }),
+        userId
       );
-
-      if (existing.rows.length === 0) {
-        const ins = await client.query(
-          `INSERT INTO plan_final_asignacion
-             (plan_id, fecha, agente_id, actividad_id, agente_snapshot, approved_by_user_id, approved_at)
-           VALUES ($1, $2, $3, $4, $5, $6, now())
-           RETURNING id`,
-          [
-            planId,
-            a.fecha,
-            a.agente_id,
-            a.actividad_id,
-            agenteSnapshot,
-            userId || null,
-          ]
-        );
-        await auditLog(
-          client,
-          'plan_final_asignacion',
-          ins.rows[0].id,
-          'INSERT',
-          buildAuditPayload(),
-          buildAuditPayload({
-            plan_id: planId,
-            borrador_id: borradorId,
-            fecha: a.fecha,
-            agente_id: a.agente_id,
-            actividad_id: a.actividad_id,
-          }),
-          userId
-        );
-        aprobados++;
-        auditados++;
-      } else {
-        const row = existing.rows[0];
-        const actividadCambio =
-          String(row.actividad_id) !== String(a.actividad_id);
-        const snapCambio =
-          JSON.stringify(row.agente_snapshot) !==
-          JSON.stringify(agenteSnapshot);
-
-        if (actividadCambio || snapCambio) {
-          await client.query(
-            `UPDATE plan_final_asignacion
-             SET actividad_id = $1, agente_snapshot = $2, approved_by_user_id = $3, approved_at = now()
-             WHERE id = $4`,
-            [a.actividad_id, agenteSnapshot, userId || null, row.id]
-          );
-          await auditLog(
-            client,
-            'plan_final_asignacion',
-            row.id,
-            'UPDATE',
-            buildAuditPayload({
-              plan_id: planId,
-              borrador_id: borradorId,
-              fecha: row.fecha,
-              agente_id: row.agente_id,
-              actividad_id: row.actividad_id,
-            }),
-            buildAuditPayload({
-              plan_id: planId,
-              borrador_id: borradorId,
-              fecha: a.fecha,
-              agente_id: a.agente_id,
-              actividad_id: a.actividad_id,
-            }),
-            userId
-          );
-          aprobados++;
-          auditados++;
-        }
-      }
+      aprobados++;
+      auditados++;
+      continue;
     }
 
-    // Marcar borrador como aprobado
-    const borradorPrevRes = await client.query(
-      'SELECT * FROM plan_borrador WHERE id = $1',
-      [borradorId]
-    );
-    const borradorPrev = borradorPrevRes.rows[0] || null;
+    const row = existing.rows[0];
+    const actividadCambio = String(row.actividad_id) !== String(a.actividad_id);
+    const snapCambio =
+      JSON.stringify(row.agente_snapshot) !== JSON.stringify(agenteSnapshot);
 
-    const borradorUpdRes = await client.query(
-      `UPDATE plan_borrador
-         SET aprobado = TRUE,
-             aprobado_at = now(),
-             aprobado_by = $2,
-             estado = 'aprobado'
-       WHERE id = $1
-       RETURNING *`,
-      [borradorId, userId || null]
+    if (!actividadCambio && !snapCambio) continue;
+
+    await client.query(
+      `UPDATE plan_final_asignacion
+          SET actividad_id = $1,
+              agente_snapshot = $2,
+              approved_by_user_id = $3,
+              approved_at = now()
+        WHERE id = $4`,
+      [a.actividad_id, agenteSnapshot, userId || null, row.id]
     );
 
     await auditLog(
       client,
-      'plan_borrador',
-      borradorId,
+      'plan_final_asignacion',
+      row.id,
       'UPDATE',
       buildAuditPayload({
-        plan_id: borradorPrev ? borradorPrev.plan_id : planId,
+        plan_id: planId,
         borrador_id: borradorId,
+        fecha: row.fecha,
+        agente_id: row.agente_id,
+        actividad_id: row.actividad_id,
       }),
       buildAuditPayload({
-        plan_id:
-          (borradorUpdRes.rows[0] && borradorUpdRes.rows[0].plan_id) ||
-          (borradorPrev ? borradorPrev.plan_id : planId),
+        plan_id: planId,
         borrador_id: borradorId,
+        fecha: a.fecha,
+        agente_id: a.agente_id,
+        actividad_id: a.actividad_id,
       }),
       userId
     );
+    aprobados++;
+    auditados++;
+  }
 
-    const bRes = await client.query(
-      `SELECT pb.id, pb.nombre, pb.observaciones, pb.aprobado, pb.aprobado_at,
-              pb.aprobado_by,
-              COALESCE(NULLIF(u.nombre, ''), NULLIF(u.email, ''), 'usuario') AS aprobado_by_username
-         FROM plan_borrador pb
-         LEFT JOIN usuarios u ON u.id = pb.aprobado_by
-        WHERE pb.id = $1`,
-      [borradorId]
-    );
+  return {
+    procesadas: asignaciones.rows.length,
+    aprobados,
+    auditados,
+  };
+}
 
+async function marcarBorradorAprobado(client, { borradorId, planId, userId }) {
+  const borradorPrevRes = await client.query(
+    'SELECT * FROM plan_borrador WHERE id = $1',
+    [borradorId]
+  );
+  const borradorPrev = borradorPrevRes.rows[0] || null;
+
+  const borradorUpdRes = await client.query(
+    `UPDATE plan_borrador
+       SET aprobado = TRUE,
+           aprobado_at = now(),
+           aprobado_by = $2,
+           estado = 'aprobado'
+     WHERE id = $1
+     RETURNING *`,
+    [borradorId, userId || null]
+  );
+
+  await auditLog(
+    client,
+    'plan_borrador',
+    borradorId,
+    'UPDATE',
+    buildAuditPayload({
+      plan_id: borradorPrev ? borradorPrev.plan_id : planId,
+      borrador_id: borradorId,
+    }),
+    buildAuditPayload({
+      plan_id:
+        (borradorUpdRes.rows[0] && borradorUpdRes.rows[0].plan_id) ||
+        (borradorPrev ? borradorPrev.plan_id : planId),
+      borrador_id: borradorId,
+    }),
+    userId
+  );
+
+  const bRes = await client.query(
+    `SELECT pb.id, pb.nombre, pb.observaciones, pb.aprobado, pb.aprobado_at,
+            pb.aprobado_by,
+            COALESCE(NULLIF(u.nombre, ''), NULLIF(u.email, ''), 'usuario') AS aprobado_by_username
+       FROM plan_borrador pb
+       LEFT JOIN usuarios u ON u.id = pb.aprobado_by
+      WHERE pb.id = $1`,
+    [borradorId]
+  );
+
+  return bRes.rows[0] || null;
+}
+
+exports.aprobarChunkPrepare = async ({ versionId }) => {
+  const client = await db.connect();
+  try {
+    const ctx = await getAprobacionContext(client, versionId);
+    return {
+      total: ctx.total,
+      borrador_id: ctx.borradorId,
+      plan_id: ctx.planId,
+    };
+  } finally {
+    client.release();
+  }
+};
+
+exports.aprobarChunk = async ({ versionId, userId, offset, limit }) => {
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+    const ctx = await getAprobacionContext(client, versionId);
+    const result = await procesarAprobacionChunk(client, {
+      versionId,
+      planId: ctx.planId,
+      borradorId: ctx.borradorId,
+      userId,
+      offset,
+      limit,
+    });
     await client.query('COMMIT');
     return {
-      aprobados,
-      auditados,
-      borrador: bRes.rows[0] || null,
+      total: ctx.total,
+      offset: Math.max(0, Number(offset) || 0),
+      ...result,
     };
   } catch (err) {
     await client.query('ROLLBACK');
@@ -748,76 +872,81 @@ exports.aprobar = async ({ versionId, userId }) => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────
-// 7b. Aprobar versión con comentario (append sobre observaciones)
-// ─────────────────────────────────────────────────────────────
-exports.aprobarConComentario = async ({ versionId, userId, comentario }) => {
-  const text = String(comentario || '').trim();
+exports.aprobarChunkFinalize = async ({ versionId, userId, comentario }) => {
   const client = await db.connect();
   try {
     await client.query('BEGIN');
-
-    const vRes = await client.query(
-      `SELECT pbv.id, pbv.borrador_id, pb.plan_id, pb.observaciones,
-              COALESCE(NULLIF(u.nombre, ''), NULLIF(u.email, ''), 'usuario') AS actor_username
-         FROM plan_borrador_version pbv
-         JOIN plan_borrador pb ON pb.id = pbv.borrador_id
-         LEFT JOIN usuarios u ON u.id = $2
-        WHERE pbv.id = $1`,
-      [versionId, userId || null]
-    );
-    if (!vRes.rows.length) throw new Error('Versión no encontrada');
-
-    const prevObs = String(vRes.rows[0].observaciones || '').trim();
-    let mergedObs = prevObs;
-    if (text) {
-      let delta = text;
-      if (prevObs && text.indexOf(prevObs) === 0) {
-        delta = String(text.slice(prevObs.length)).trim();
-      }
-
-      if (delta) {
-        const stamp = DateTime.now().toFormat('dd/MM/yyyy HH:mm');
-        const actor = vRes.rows[0].actor_username || 'usuario';
-        const block = '[' + stamp + ' · ' + actor + ']\n' + delta;
-        mergedObs = prevObs ? prevObs + '\n\n' + block : block;
-      }
-    }
-
-    if (mergedObs !== prevObs) {
-      const updObs = await client.query(
-        'UPDATE plan_borrador SET observaciones = $1 WHERE id = $2 RETURNING *',
-        [mergedObs || null, vRes.rows[0].borrador_id]
-      );
-
-      await auditLog(
-        client,
-        'plan_borrador',
-        vRes.rows[0].borrador_id,
-        'UPDATE',
-        buildAuditPayload({
-          plan_id: vRes.rows[0].plan_id,
-          borrador_id: vRes.rows[0].borrador_id,
-        }),
-        buildAuditPayload({
-          plan_id:
-            (updObs.rows[0] && updObs.rows[0].plan_id) || vRes.rows[0].plan_id,
-          borrador_id: vRes.rows[0].borrador_id,
-        }),
-        userId
-      );
-    }
-
+    const ctx = await getAprobacionContext(client, versionId);
+    await aplicarComentarioAprobacion(client, { versionId, userId, comentario });
+    const borrador = await marcarBorradorAprobado(client, {
+      borradorId: ctx.borradorId,
+      planId: ctx.planId,
+      userId,
+    });
     await client.query('COMMIT');
+    return {
+      total: ctx.total,
+      borrador,
+    };
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
   } finally {
     client.release();
   }
+};
 
-  // Reutiliza el flujo consolidado actual para evitar duplicar lógica de UPSERT.
-  return exports.aprobar({ versionId, userId });
+exports.aprobar = async ({ versionId, userId }) => {
+  const prep = await exports.aprobarChunkPrepare({ versionId });
+  const chunkSize = 500;
+  let aprobados = 0;
+  let auditados = 0;
+
+  for (let offset = 0; offset < prep.total; offset += chunkSize) {
+    const partial = await exports.aprobarChunk({
+      versionId,
+      userId,
+      offset,
+      limit: chunkSize,
+    });
+    aprobados += Number(partial.aprobados || 0);
+    auditados += Number(partial.auditados || 0);
+  }
+
+  const fin = await exports.aprobarChunkFinalize({ versionId, userId, comentario: '' });
+  return {
+    aprobados,
+    auditados,
+    borrador: fin.borrador || null,
+  };
+};
+
+// ─────────────────────────────────────────────────────────────
+// 7b. Aprobar versión con comentario (compatibilidad)
+// ─────────────────────────────────────────────────────────────
+exports.aprobarConComentario = async ({ versionId, userId, comentario }) => {
+  const prep = await exports.aprobarChunkPrepare({ versionId });
+  const chunkSize = 500;
+  let aprobados = 0;
+  let auditados = 0;
+
+  for (let offset = 0; offset < prep.total; offset += chunkSize) {
+    const partial = await exports.aprobarChunk({
+      versionId,
+      userId,
+      offset,
+      limit: chunkSize,
+    });
+    aprobados += Number(partial.aprobados || 0);
+    auditados += Number(partial.auditados || 0);
+  }
+
+  const fin = await exports.aprobarChunkFinalize({ versionId, userId, comentario });
+  return {
+    aprobados,
+    auditados,
+    borrador: fin.borrador || null,
+  };
 };
 
 // ─────────────────────────────────────────────────────────────

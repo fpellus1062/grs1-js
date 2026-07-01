@@ -37,6 +37,19 @@
         </ul>
       </div>
 
+      <div class="d-flex align-items-center gap-1 ms-1" data-permiso="agentes-requisitos:leer">
+        <div class="form-check form-switch m-0 d-flex align-items-center gap-1">
+          <input class="form-check-input" type="checkbox" role="switch" id="reqPlantillaLockSwitch" checked>
+          <label class="form-check-label text-muted" for="reqPlantillaLockSwitch"
+            style="font-size:.72rem;white-space:nowrap;">Bloqueo Plantilla</label>
+        </div>
+        <span id="reqPlantillaLockState" class="badge text-bg-success" style="font-size:.62rem;">ON</span>
+      </div>
+      <span id="reqPlantillaLockHint" class="badge text-bg-warning d-none" style="font-size:.65rem;"
+        data-permiso="agentes-requisitos:leer">
+        Selección libre activa: Registrar deshabilitado
+      </span>
+
       <div class="dropdown" data-permiso="agentes-requisitos:editar">
         <button id="btnReqPlantillasMenu" type="button" class="btn btn-primary btn-sm py-1 px-2 dropdown-toggle"
           data-bs-toggle="dropdown" aria-expanded="false" style="font-size:.78rem" title="Plantillas">
@@ -66,6 +79,12 @@
           <li>
             <button id="btnReqExportExcel" class="dropdown-item" type="button" data-permiso="agentes-requisitos:leer">
               <i class="bi bi-file-earmark-excel me-2"></i>Exportar Excel (marcados)
+            </button>
+          </li>
+          <li>
+            <button id="btnReqExportHistoricoExcel" class="dropdown-item" type="button"
+              data-permiso="agentes-requisitos:leer">
+              <i class="bi bi-clock-history me-2"></i>Histórico de Requisitos (Excel)
             </button>
           </li>
         </ul>
@@ -297,6 +316,23 @@
     margin-left: auto;
   }
 
+  #reqEjecucionModal #reqEjecSubobjetivosBody .req-ejec-historial {
+    min-width: 260px;
+  }
+
+  #reqEjecucionModal #reqEjecSubobjetivosBody .req-ejec-hist-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: .12rem;
+    font-size: .66rem;
+    line-height: 1.2;
+  }
+
+  #reqEjecucionModal #reqEjecSubobjetivosBody .req-ejec-hist-item {
+    white-space: normal;
+    word-break: break-word;
+  }
+
   #reqEjecucionModal .modal-footer {
     padding: .52rem .8rem;
   }
@@ -476,7 +512,7 @@
   <div class="modal-dialog modal-lg">
     <div class="modal-content modal-notion">
       <div class="modal-header">
-        <h5 class="modal-title">Registrar aprobación</h5>
+        <h5 class="modal-title">Registro / Consulta Requisitos</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
       <div class="modal-body">
@@ -487,11 +523,12 @@
               <table class="table table-sm table-striped align-middle mb-0" id="reqEjecSubobjetivosTable">
                 <thead class="table-light">
                   <tr>
-                    <th style="width:28%">Subtipo</th>
-                    <th style="width:14%" class="text-end">Objetivo</th>
-                    <th style="width:14%" class="text-end">Completado</th>
-                    <th style="width:14%" class="text-end">Pendiente</th>
-                    <th style="width:30%">Registrar ahora</th>
+                    <th style="width:18%">Subtipo</th>
+                    <th style="width:9%" class="text-end">Objetivo</th>
+                    <th style="width:9%" class="text-end">Completado</th>
+                    <th style="width:9%" class="text-end">Pendiente</th>
+                    <th style="width:22%">Registrar ahora</th>
+                    <th id="reqEjecHistorialTh" style="width:33%">Histórico aprobados</th>
                   </tr>
                 </thead>
                 <tbody id="reqEjecSubobjetivosBody"></tbody>

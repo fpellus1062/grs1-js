@@ -3057,6 +3057,98 @@ exports.getHistorial = async (query, arsUnidadId) => {
   return { logs: paged, total, page, limit, allNonComunicadoIds };
 };
 
+function extractActividadIdsFromHistorialDayData(dayData) {
+  if (!dayData || typeof dayData !== 'object') return [];
+
+  const ids = [];
+  if (Array.isArray(dayData.actividad_ids)) {
+    dayData.actividad_ids.forEach((id) => {
+      const n = Number(id);
+      if (Number.isInteger(n) && n > 0) ids.push(n);
+    });
+  } else if (dayData.actividad_id != null) {
+    const n = Number(dayData.actividad_id);
+    if (Number.isInteger(n) && n > 0) ids.push(n);
+  }
+
+  return Array.from(new Set(ids));
+}
+
+exports.getHistorialCelda = async (query, arsUnidadId) => {
+  const arsId = requireArsId(arsUnidadId);
+  const anio = Number(query.anio);
+  const mes = Number(query.mes);
+  const borradorId = Number(query.borrador_id);
+  const agenteId = Number(query.agente_id);
+  const dayKey = normalizeHistorialDayKey(query.fecha);
+  const limit = Math.max(1, Math.min(300, Number(query.limit) || 100));
+
+  if (!dayKey) {
+    throw new Error('fecha inválida para historial de celda');
+  }
+
+  const params = [anio, mes, arsId, borradorId, agenteId, dayKey, limit];
+  const { rows } = await db.query(
+    `SELECT l.id,
+            l.accion,
+            l.fecha::text AS fecha,
+            l.created_at,
+            l.datos_anteriores,
+            l.datos_nuevos,
+            l.usuario_id,
+            COALESCE(NULLIF(u.nombre, ''), NULLIF(u.email, ''), 'usuario') AS usuario_nombre
+       FROM asignaciones_log l
+       LEFT JOIN usuarios u ON u.id = l.usuario_id
+      WHERE l.anio = $1
+        AND l.mes = $2
+        AND l.ars_unidad_id = $3
+        AND l.borrador_id = $4
+        AND l.agente_id = $5
+        AND (
+          l.fecha::text = $6
+          OR (jsonb_typeof(l.datos_anteriores) = 'object' AND l.datos_anteriores ? 'fechas' AND (l.datos_anteriores -> 'fechas') ? $6)
+          OR (jsonb_typeof(l.datos_nuevos) = 'object' AND l.datos_nuevos ? 'fechas' AND (l.datos_nuevos -> 'fechas') ? $6)
+        )
+      ORDER BY l.id DESC
+      LIMIT $7`,
+    params
+  );
+
+  const items = [];
+
+  rows.forEach((entry) => {
+    const beforeDay = pickHistorialDayData(
+      entry.datos_anteriores,
+      dayKey,
+      entry.fecha
+    );
+    const beforeActividadIds = extractActividadIdsFromHistorialDayData(beforeDay);
+    if (!beforeActividadIds.length) return;
+
+    beforeActividadIds.forEach((actividadId) => {
+      items.push({
+        log_id: Number(entry.id),
+        accion: entry.accion || null,
+        fecha_dia: dayKey,
+        fecha_cambio: entry.created_at,
+        actividad_id: actividadId,
+        usuario_id: entry.usuario_id ? Number(entry.usuario_id) : null,
+        usuario_nombre: entry.usuario_nombre || null,
+      });
+    });
+  });
+
+  return {
+    items,
+    total: items.length,
+    anio,
+    mes,
+    borrador_id: borradorId,
+    agente_id: agenteId,
+    fecha: dayKey,
+  };
+};
+
 exports.marcarHistorialComoComunicado = async (
   logIds,
   userId,
