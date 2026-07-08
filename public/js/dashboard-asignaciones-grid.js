@@ -181,14 +181,7 @@
   }
 
   function getSelectedHistorialAgentIdsSafe() {
-    let raw;
-    if (isAsigCellHistoryModeEnabled() && Array.isArray(app.asignacionesState.selectedAgenteIdsVistaHistorico)) {
-      raw = app.asignacionesState.selectedAgenteIdsVistaHistorico;
-    } else if (_ && typeof _.getSelectedHistorialAgentIds === 'function') {
-      raw = _.getSelectedHistorialAgentIds();
-    } else {
-      raw = app.asignacionesState.selectedAgenteIdsVista || [];
-    }
+    let raw = app.asignacionesState.selectedAgenteIdsVista || [];
     return Array.from(
       new Set(
         (Array.isArray(raw) ? raw : [])
@@ -204,9 +197,6 @@
 
   function clearHistoryAuditCache() {
     if (app.asignacionesState) {
-      if (app.asignacionesState._asigCellHistoryAuditCache) {
-        app.asignacionesState._asigCellHistoryAuditCache.clear();
-      }
       if (app.asignacionesState._asigCellHistoryBatchCache) {
         app.asignacionesState._asigCellHistoryBatchCache.clear();
       }
@@ -263,13 +253,8 @@
     }
 
     let batchState = app.asignacionesState._asigCellHistoryBatchState || null;
-    if (batchState && batchState.key === batchKey) {
-      if (batchState.status === 'pending' && batchState.promise) {
-        return batchState.promise;
-      }
-      if (batchState.status === 'ready') {
-        return batchState;
-      }
+    if (batchState && batchState.key === batchKey && batchState.promise) {
+      return batchState.promise;
     }
 
     clearHistoryAuditCache();
@@ -325,7 +310,6 @@
 
       let readyState = {
         key: batchKey,
-        status: 'ready',
         total: rows.length,
       };
       app.asignacionesState._asigCellHistoryBatchState = readyState;
@@ -334,7 +318,6 @@
 
     app.asignacionesState._asigCellHistoryBatchState = {
       key: batchKey,
-      status: 'pending',
       promise: requestPromise,
     };
 
@@ -360,7 +343,7 @@
     app.asignacionesState._asigGridRedrawRaf = requestAnimationFrame(function () {
       app.asignacionesState._asigGridRedrawRaf = 0;
       if (_.tabulator && typeof _.tabulator.redraw === 'function') {
-        _.tabulator.redraw(false);
+        _.tabulator.redraw(true);
       }
     });
   }
@@ -400,14 +383,7 @@
 
     app.asignacionesState._asigCellHistoryBatchRefreshRaf = requestAnimationFrame(function () {
       app.asignacionesState._asigCellHistoryBatchRefreshRaf = 0;
-      refreshHistoryAuditBatchView().catch(function () {
-        let current = app.asignacionesState._asigCellHistoryBatchState || {};
-        app.asignacionesState._asigCellHistoryBatchState = {
-          key: current.key || getHistoryAuditBatchKey(),
-          status: 'error',
-        };
-        scheduleGridRedraw();
-      });
+      refreshHistoryAuditBatchView().catch(function () {});
     });
   }
 
@@ -442,17 +418,15 @@
     }
 
     app.asignacionesState.asigCellHistoryMode = nextValue;
-    app.asignacionesState.selectedAgenteIdsVistaHistorico = nextValue
-      ? getSelectedHistorialAgentIdsSafe().slice()
-      : [];
     clearHistoryAuditCache();
-    syncAsigCellHistoryModeUi();
 
     if (nextValue) {
       scheduleHistoryAuditBatchRefresh();
     } else {
-      scheduleGridRedraw();
+      clearAsigSelection();
     }
+
+    syncAsigCellHistoryModeUi();
   }
 
   function compareServicioActividad(a, b, actividadGrupoMaps) {
@@ -1022,6 +996,9 @@
       data.control.estado !== 'sin_borrador'
     );
     let sourceRows = isBorrador ? data.borrador || [] : data.definitivo || [];
+    let serviciosByAsig = isBorrador
+      ? buildServiciosMapSafe(data.borradorServicios, 'asignacion_borrador_id')
+      : buildServiciosMapSafe(data.definitivoServicios, 'asignacion_id');
 
     let assignedByAgente = new Map();
     sourceRows.forEach(function (r) {
@@ -1033,25 +1010,32 @@
           String(r.mes).padStart(2, '0') +
           '-' +
           String(r.dia).padStart(2, '0');
+      let servicios = serviciosByAsig.get(Number(r.id)) || [];
+      let actividadIds = servicios.length
+        ? servicios.map(function (s) {
+            return Number(s && s.id);
+          })
+        : (Array.isArray(r.actividad_ids) ? r.actividad_ids : []).map(function (id) {
+            return Number(id);
+          });
+
+      actividadIds = actividadIds.filter(function (id) {
+        return Number.isInteger(id) && id > 0;
+      });
+
       if (!dayKeys.has(fecha)) return;
-      if (!assignedByAgente.has(agenteId))
+      if (!actividadIds.length) return;
+      if (!assignedByAgente.has(agenteId)) {
         assignedByAgente.set(agenteId, new Set());
+      }
       assignedByAgente.get(agenteId).add(fecha);
     });
 
-    let agentesMeta =
-      (app.asignacionesState.meta && app.asignacionesState.meta.agentes) || [];
-    let agenteIds = agentesMeta.length
-      ? agentesMeta.map(function (a) {
-          return _.normalizeAgenteId(a.id_agente);
-        })
-      : Array.from(assignedByAgente.keys());
-
     let completos = 0;
-    agenteIds.forEach(function (agenteId) {
-      let fechas = assignedByAgente.get(agenteId);
+    assignedByAgente.forEach(function (fechas) {
       if (fechas && fechas.size === totalDays) completos += 1;
     });
+
     return completos;
   }
 
@@ -1962,19 +1946,10 @@
         headerSort: false,
         cssClass: isWeekend ? 'asig-weekend-col' : '',
         titleFormatter: 'html',
-        formatter: function (cell, _formatterParams, onRendered) {
+        formatter: function (cell, _formatterParams) {
           let rawVal = cell.getValue();
           let val = rawVal && typeof rawVal === 'object' ? rawVal : {};
-          let historyBtn = document.getElementById('btnAsigVistaHistorialCelda');
-          let isHistoryMode =
-            isAsigCellHistoryModeEnabled() ||
-            !!(historyBtn && historyBtn.classList.contains('active'));
-          if (!isHistoryMode) {
-            let batchState = app.asignacionesState._asigCellHistoryBatchState || null;
-            if (batchState && (batchState.status === 'pending' || batchState.status === 'ready')) {
-              isHistoryMode = true;
-            }
-          }
+          let isHistoryMode = isAsigCellHistoryModeEnabled();
           let rowData = cell && typeof cell.getRow === 'function' ? cell.getRow().getData() : null;
           let agenteId = Number(rowData && rowData.agente_id);
           let selectedHistorialIds = getSelectedHistorialAgentIdsSafe();
@@ -1985,61 +1960,31 @@
 
           let historyItems = shouldShowHistory ? getGroupedAuditCacheForCell(cell) : null;
           let historyTitleText = '';
-          let serviciosHtml = renderServiciosCellHtml(
+          let currentServiciosHtml = renderServiciosCellHtml(
             val,
             actividadGrupoMaps,
-            shouldShowHistory
+            false
           );
+          let historyServiciosHtml = '';
 
-          if (shouldShowHistory) {
-            let legacyCache = getLegacyAuditCacheForCell(cell);
-
-            if (
-              !historyItems &&
-              legacyCache &&
-              legacyCache.status === 'ready' &&
-              Array.isArray(legacyCache.items) &&
-              legacyCache.items.length
-            ) {
-              historyItems = legacyCache;
-            }
-
-            if (!historyItems || !Array.isArray(historyItems.items) || !historyItems.items.length) {
-              if (!legacyCache || legacyCache.status !== 'pending') {
-                let runLegacyLoad = function () {
-                  ensureGroupedAuditCacheForCell(cell)
-                    .then(function () {
-                      try {
-                        let row = cell && typeof cell.getRow === 'function' ? cell.getRow() : null;
-                        if (row && typeof row.reformat === 'function') {
-                          row.reformat();
-                        }
-                      } catch (_e) {}
-                    })
-                    .catch(function () {});
-                };
-
-                if (typeof onRendered === 'function') {
-                  onRendered(runLegacyLoad);
-                } else {
-                  runLegacyLoad();
-                }
-              }
-
-              if (legacyCache && legacyCache.status === 'pending') {
-                serviciosHtml = '<span class="text-secondary">Cargando...</span>';
-              } else {
-                // Si aún no hay historial cargado, mantener al menos el contenido actual de la celda.
-                if (!rawVal) {
-                  serviciosHtml = '<span class="text-secondary">Cargando...</span>';
-                }
-              }
-            }
+          if (shouldShowHistory && (!historyItems || !Array.isArray(historyItems.items) || !historyItems.items.length)) {
+            currentServiciosHtml = '<span class="text-secondary">-</span>';
           }
 
           if (historyItems && historyItems.status === 'ready' && Array.isArray(historyItems.items) && historyItems.items.length) {
             historyTitleText = String(historyItems.items.length) + ' eventos de historial';
-            serviciosHtml = renderHistoryCellBadgesHtml(historyItems.items, historyTitleText);
+            historyServiciosHtml = renderHistoryCellBadgesHtml(historyItems.items, historyTitleText);
+          }
+
+          let serviciosHtml = currentServiciosHtml;
+          if (shouldShowHistory && historyServiciosHtml) {
+            serviciosHtml =
+              '<div class="d-flex flex-column gap-1">' +
+              currentServiciosHtml +
+              '<div class="border-top pt-1">' +
+              historyServiciosHtml +
+              '</div>' +
+              '</div>';
           }
 
           let html =
@@ -2565,13 +2510,6 @@
       return dt.toLocaleString('es-ES');
     }
 
-    function getHistoryAuditCacheStore() {
-      if (!app.asignacionesState._asigCellHistoryAuditCache) {
-        app.asignacionesState._asigCellHistoryAuditCache = new Map();
-      }
-      return app.asignacionesState._asigCellHistoryAuditCache;
-    }
-
     function isFechaInActiveCuadrante(fechaIso) {
       let fecha = String(fechaIso || '').slice(0, 10);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return false;
@@ -2595,52 +2533,15 @@
     }
 
     function getGroupedAuditCacheForCell(cell) {
-        let key = getHistoryAuditCacheKey(cell);
-        if (!key) return null;
-        let store = getHistoryBatchCacheStore();
-        let items = store.get(key) || [];
-        if (!Array.isArray(items) || !items.length) return null;
-        return {
-          status: 'ready',
-          items: items,
-        };
-    }
-
-    function getLegacyAuditCacheForCell(cell) {
       let key = getHistoryAuditCacheKey(cell);
       if (!key) return null;
-      let store = getHistoryAuditCacheStore();
-      return store.get(key) || null;
-    }
-
-    async function ensureGroupedAuditCacheForCell(cell) {
-      let key = getHistoryAuditCacheKey(cell);
-      if (!key) return null;
-
-      let store = getHistoryAuditCacheStore();
-      let current = store.get(key);
-      if (current) {
-        if (current.status === 'pending' && current.promise) {
-          return current.promise;
-        }
-        return current;
-      }
-
-      let loadPromise = (async function () {
-        try {
-          let prevItems = await fetchPreviousActividadEntriesFromAudit(cell);
-          let next = { status: 'ready', items: prevItems };
-          store.set(key, next);
-          return next;
-        } catch (_err) {
-          let next = { status: 'error', items: [] };
-          store.set(key, next);
-          return next;
-        }
-      })();
-
-      store.set(key, { status: 'pending', items: [], promise: loadPromise });
-      return loadPromise;
+      let store = getHistoryBatchCacheStore();
+      let items = store.get(key) || [];
+      if (!Array.isArray(items) || !items.length) return null;
+      return {
+        status: 'ready',
+        items: items,
+      };
     }
 
     function renderHistoryCellBadgesHtml(items, titleText) {
