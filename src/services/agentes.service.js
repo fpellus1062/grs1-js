@@ -180,6 +180,23 @@ exports.getAll = async (arsUnidadId) => {
 };
 
 /**
+ * Obtener solo agentes activos (sin fecha_baja)
+ * @returns {Promise<Array>} Lista de agentes activos
+ */
+exports.getAllActivos = async (arsUnidadId) => {
+  try {
+    const result = await db.query(
+      "SELECT * FROM agentes WHERE ars_unidad_id = $1 AND fecha_baja IS NULL AND COALESCE(situacion_id, '') <> 'REBASE' ORDER BY escalafon, apellido_1, apellido_2, nombre",
+      [arsUnidadId]
+    );
+    console.log(`Agentes activos encontrados: ${result.rows.length}`);
+    return result.rows;
+  } catch (error) {
+    throw new Error('Error al obtener los agentes activos: ' + error.message);
+  }
+};
+
+/**
  * Obtener agente por ID
  * @param {number} id - ID del agente
  * @returns {Promise<Object>} Agente encontrado

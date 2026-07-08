@@ -84,7 +84,7 @@
     },
 
     listAgentes: function () {
-      return request('/api/agentes');
+      return request('/api/agentes?activos=true');
     },
 
     getAgentesMeta: function () {
@@ -143,6 +143,22 @@
       return json('/api/planificacion/versiones/' + versionId + '/aprobar', 'POST', {
         modo: 'finalize',
         comentario: comentario || '',
+      });
+    },
+
+    traspasarCuadrantePrepare: function (versionId, cuadranteId) {
+      return json('/api/planificacion/versiones/' + versionId + '/traspasar-cuadrante', 'POST', {
+        modo: 'prepare',
+        cuadrante_id: Number(cuadranteId),
+      });
+    },
+
+    traspasarCuadranteChunk: function (versionId, cuadranteId, offset, limit) {
+      return json('/api/planificacion/versiones/' + versionId + '/traspasar-cuadrante', 'POST', {
+        modo: 'chunk',
+        cuadrante_id: Number(cuadranteId),
+        offset: Number(offset) || 0,
+        limit: Number(limit) || 1000,
       });
     },
 

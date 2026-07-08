@@ -85,6 +85,18 @@ function parseNumericCsv(value) {
   );
 }
 
+function parseDateCsv(value) {
+  if (!value) return [];
+  return Array.from(
+    new Set(
+      String(value)
+        .split(',')
+        .map((item) => String(item).trim())
+        .filter((item) => /^\d{4}-\d{2}-\d{2}$/.test(item))
+    )
+  );
+}
+
 async function getRequisitosResumenByAgente(client, arsId) {
   const { rows } = await client.query(
     `SELECT a.id AS agente_id,
@@ -146,6 +158,7 @@ async function getRequisitosResumenByAgente(client, arsId) {
        ) det ON TRUE
       WHERE a.ars_unidad_id = $1
         AND a.fecha_baja IS NULL
+        AND COALESCE(a.situacion_id, '') <> 'REBASE'
       GROUP BY a.id`,
     [arsId]
   );
@@ -859,7 +872,8 @@ async function obtenerFilasOrigen(
        LEFT JOIN asignaciones_borrador_servicios bs ON bs.asignacion_borrador_id = ab.id
        WHERE ab.borrador_id = $1
          AND ab.ars_unidad_id = $2
-         AND ag.fecha_baja IS NULL ${borrWhere}
+         AND ag.fecha_baja IS NULL
+         AND COALESCE(ag.situacion_id, '') <> 'REBASE' ${borrWhere}
        GROUP BY ab.agente_id, ab.fecha, ab.turno_id, ab.observaciones`,
       [origenBorrador.id, arsUnidadId, ...borrExtra]
     );
@@ -893,7 +907,8 @@ async function obtenerFilasOrigen(
      WHERE asig.anio = $1
        AND asig.mes = $2
        AND asig.ars_unidad_id = $3
-       AND ag.fecha_baja IS NULL ${defWhere}
+       AND ag.fecha_baja IS NULL
+       AND COALESCE(ag.situacion_id, '') <> 'REBASE' ${defWhere}
      GROUP BY asig.agente_id, asig.fecha, asig.turno_id, asig.observaciones`,
     [origen_anio, origen_mes, arsUnidadId, ...defExtra]
   );
@@ -1212,6 +1227,7 @@ exports.getCuadrante = (
          AND ab.dia = 1
          AND ab.ars_unidad_id = $2
          AND ag.fecha_baja IS NULL
+         AND COALESCE(ag.situacion_id, '') <> 'REBASE'
          ORDER BY ag.escalafon, ag.apellido_1, ag.apellido_2, ag.nombre, ab.fecha`,
         [borrador.id, arsId]
       );
@@ -1294,6 +1310,7 @@ exports.getCuadrante = (
          JOIN agentes ag ON ag.id = asig.agente_id
          WHERE asig.anio = $1 AND asig.mes = $2 AND asig.dia = 1 AND asig.ars_unidad_id = $3
            AND ag.fecha_baja IS NULL
+           AND COALESCE(ag.situacion_id, '') <> 'REBASE'
          ORDER BY ag.escalafon, ag.apellido_1, ag.apellido_2, ag.nombre, asig.fecha`,
       [anio, mes, arsId]
     );
@@ -3074,6 +3091,95 @@ function extractActividadIdsFromHistorialDayData(dayData) {
   return Array.from(new Set(ids));
 }
 
+function buildHistorialCeldaItemsFromLogs(rows, dayFilterSet = null) {
+  const items = [];
+
+  (rows || []).forEach((entry) => {
+    const days = extractHistorialDays(entry);
+    const effectiveDays = days.length ? days : ['__SIN_FECHA_MASIVO__'];
+
+    effectiveDays.forEach((dayKey) => {
+      if (dayFilterSet && !dayFilterSet.has(dayKey)) return;
+
+      const beforeDay = pickHistorialDayData(
+        entry.datos_anteriores,
+        dayKey,
+        entry.fecha
+      );
+      const beforeActividadIds = extractActividadIdsFromHistorialDayData(beforeDay);
+      if (!beforeActividadIds.length) return;
+
+      // Mostrar el log real: 1 item por fila de audit (y día), sin explotar por cada actividad.
+      const actividadId = Number(beforeActividadIds[0]);
+      if (!Number.isInteger(actividadId) || actividadId <= 0) return;
+
+      items.push({
+        log_id: Number(entry.id),
+        accion: entry.accion || null,
+        fecha_dia: dayKey,
+        fecha_cambio: entry.created_at,
+        actividad_id: actividadId,
+        usuario_id: entry.usuario_id ? Number(entry.usuario_id) : null,
+        usuario_nombre: entry.usuario_nombre || null,
+        agente_id: entry.agente_id ? Number(entry.agente_id) : null,
+      });
+    });
+  });
+
+  return items;
+}
+
+function buildActividadLabelFromRow(row) {
+  if (!row || typeof row !== 'object') return '';
+  const codigo = String(row.actividad_codigo || row.actividad || '').trim();
+  const nombre = String(row.actividad_nombre || row.nombre || '').trim();
+  return codigo && nombre ? `${codigo} - ${nombre}` : codigo || nombre || '';
+}
+
+async function attachActividadLabelsToHistorialItems(items) {
+  const rows = Array.isArray(items) ? items : [];
+  const actividadIds = Array.from(
+    new Set(
+      rows
+        .map((item) => Number(item && item.actividad_id))
+        .filter((id) => Number.isInteger(id) && id > 0)
+    )
+  );
+
+  if (!actividadIds.length) {
+    return rows.map((item) => ({
+      ...item,
+      actividad_label: String(item && item.actividad_id ? item.actividad_id : ''),
+    }));
+  }
+
+  const { rows: actividadRows } = await db.query(
+    `SELECT a.id_actividad,
+            a.actividad AS actividad_codigo,
+            a.nombre AS actividad_nombre
+       FROM actividades a
+      WHERE a.id_actividad = ANY($1::int[])`,
+    [actividadIds]
+  );
+
+  const labelMap = new Map();
+  actividadRows.forEach((row) => {
+    const id = Number(row && row.id_actividad);
+    if (Number.isInteger(id) && id > 0) {
+      labelMap.set(id, buildActividadLabelFromRow(row));
+    }
+  });
+
+  return rows.map((item) => {
+    const actividadId = Number(item && item.actividad_id);
+    return {
+      ...item,
+      actividad_label:
+        labelMap.get(actividadId) || String(item && item.actividad_id ? item.actividad_id : ''),
+    };
+  });
+}
+
 exports.getHistorialCelda = async (query, arsUnidadId) => {
   const arsId = requireArsId(arsUnidadId);
   const anio = Number(query.anio);
@@ -3114,29 +3220,9 @@ exports.getHistorialCelda = async (query, arsUnidadId) => {
     params
   );
 
-  const items = [];
-
-  rows.forEach((entry) => {
-    const beforeDay = pickHistorialDayData(
-      entry.datos_anteriores,
-      dayKey,
-      entry.fecha
-    );
-    const beforeActividadIds = extractActividadIdsFromHistorialDayData(beforeDay);
-    if (!beforeActividadIds.length) return;
-
-    beforeActividadIds.forEach((actividadId) => {
-      items.push({
-        log_id: Number(entry.id),
-        accion: entry.accion || null,
-        fecha_dia: dayKey,
-        fecha_cambio: entry.created_at,
-        actividad_id: actividadId,
-        usuario_id: entry.usuario_id ? Number(entry.usuario_id) : null,
-        usuario_nombre: entry.usuario_nombre || null,
-      });
-    });
-  });
+  const items = await attachActividadLabelsToHistorialItems(
+    buildHistorialCeldaItemsFromLogs(rows, new Set([dayKey]))
+  );
 
   return {
     items,
@@ -3146,6 +3232,94 @@ exports.getHistorialCelda = async (query, arsUnidadId) => {
     borrador_id: borradorId,
     agente_id: agenteId,
     fecha: dayKey,
+  };
+};
+
+exports.getHistorialCeldas = async (query, arsUnidadId) => {
+  const arsId = requireArsId(arsUnidadId);
+  const anio = Number(query.anio);
+  const mes = Number(query.mes);
+  const borradorId = Number(query.borrador_id);
+  const agenteIds = parseNumericCsv(query.agente_ids);
+  const dayKeys = parseDateCsv(query.fechas_cuadrante);
+  const parsedLimit = Number(query.limit);
+  const hasLimit = Number.isInteger(parsedLimit) && parsedLimit > 0;
+  const limit = hasLimit ? Math.max(1, Math.min(200000, parsedLimit)) : null;
+
+  if (!agenteIds.length) {
+    throw new Error('agente_ids es requerido para historial de celdas');
+  }
+  if (!dayKeys.length) {
+    throw new Error('fechas_cuadrante es requerido para historial de celdas');
+  }
+
+  const params = [anio, mes, arsId, borradorId];
+  let where = `WHERE l.anio = $1
+        AND l.mes = $2
+        AND l.ars_unidad_id = $3
+        AND l.borrador_id = $4`;
+
+  params.push(agenteIds);
+  where += `
+        AND l.agente_id = ANY($${params.length})`;
+
+  params.push(dayKeys);
+  where += `
+        AND (
+          l.fecha::text = ANY($${params.length}::text[])
+          OR (
+            jsonb_typeof(l.datos_anteriores) = 'object'
+            AND l.datos_anteriores ? 'fechas'
+            AND EXISTS (
+              SELECT 1
+                FROM unnest($${params.length}::text[]) AS dayKey
+               WHERE (l.datos_anteriores -> 'fechas') ? dayKey
+            )
+          )
+          OR (
+            jsonb_typeof(l.datos_nuevos) = 'object'
+            AND l.datos_nuevos ? 'fechas'
+            AND EXISTS (
+              SELECT 1
+                FROM unnest($${params.length}::text[]) AS dayKey
+               WHERE (l.datos_nuevos -> 'fechas') ? dayKey
+            )
+          )
+        )`;
+
+  let sql = `SELECT l.id,
+            l.accion,
+            l.fecha::text AS fecha,
+            l.created_at,
+            l.datos_anteriores,
+            l.datos_nuevos,
+            l.usuario_id,
+            l.agente_id,
+            COALESCE(NULLIF(u.nombre, ''), NULLIF(u.email, ''), 'usuario') AS usuario_nombre
+       FROM asignaciones_log l
+       LEFT JOIN usuarios u ON u.id = l.usuario_id
+     ${where}
+      ORDER BY l.id DESC`;
+
+  if (limit != null) {
+    params.push(limit);
+    sql += `\n      LIMIT $${params.length}`;
+  }
+
+  const { rows: rawLogs } = await db.query(sql, params);
+
+  const items = await attachActividadLabelsToHistorialItems(
+    buildHistorialCeldaItemsFromLogs(rawLogs, new Set(dayKeys))
+  );
+
+  return {
+    items,
+    total: items.length,
+    anio,
+    mes,
+    borrador_id: borradorId,
+    agente_ids: agenteIds,
+    fechas_cuadrante: dayKeys,
   };
 };
 
@@ -3383,6 +3557,7 @@ exports.getMeta = async (arsUnidadId) => {
          ${SQL_CATALOGO_JOINS}
          WHERE ag.ars_unidad_id = $1
            AND ag.fecha_baja IS NULL
+           AND COALESCE(ag.situacion_id, '') <> 'REBASE'
          ORDER BY ag.escalafon, ag.apellido_1, ag.apellido_2, ag.nombre`,
       [arsId]
     ),

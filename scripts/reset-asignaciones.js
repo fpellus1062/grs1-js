@@ -10,6 +10,21 @@ const TABLES = [
   'asignaciones_borradores',
   'asignaciones_log',
   'asignaciones_control',
+  'cuadrantes_planificacion',
+  'cuadrantes_planificacion_dias',
+  'asignaciones_ledger_movimientos',
+  'asignaciones_ledger_saldos_mensuales',
+  'plan',
+  'plan_audit_log',
+  'plan_borrador',
+  'plan_borrador_asignacion',
+  'plan_borrador_version',
+  'plan_final_asignacion',
+  'agentes_requisitos_ejecuciones',
+  'agentes_requisitos_periodos',
+  'agentes_requisitos_plantilla_objetivos',
+  'cuadrantes_planificacion_importaciones',
+  'audit_login'
 ];
 
 function hasYesFlag() {
@@ -68,11 +83,11 @@ async function truncateAll() {
    plan_borrador_asignacion,
    plan_borrador_version,
    plan_final_asignacion,
- agentes_requisitos_ejecuciones,
- agentes_requisitos_periodos,
- agentes_requisitos_plantilla_objetivos,
- cuadrantes_planificacion_importaciones,
- audit_login
+   agentes_requisitos_ejecuciones,
+   agentes_requisitos_periodos,
+   agentes_requisitos_plantilla_objetivos,
+   cuadrantes_planificacion_importaciones,
+   audit_login
     RESTART  IDENTITY
     CASCADE
   `);

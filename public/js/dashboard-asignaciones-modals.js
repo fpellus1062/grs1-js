@@ -805,8 +805,13 @@
         );
 
         let cellModalEl = document.getElementById('asigCellModal');
-        if (cellModalEl)
+        if (cellModalEl) {
+          let activeEl = document.activeElement;
+          if (activeEl && cellModalEl.contains(activeEl) && typeof activeEl.blur === 'function') {
+            activeEl.blur();
+          }
           bootstrap.Modal.getOrCreateInstance(cellModalEl).hide();
+        }
       } catch (e) {
         _.showAlert(e.message, 'danger');
       }

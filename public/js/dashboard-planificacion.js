@@ -147,7 +147,9 @@
         'planifBtnNuevaVersion',
         'planifBtnBorradorGuardar',
         'planifBtnAprobar',
+        'planifBtnTraspasar',
         'planifAprobarConfirmBtn',
+        'planifTraspasarConfirmBtn',
         'planifBtnBorrarMenu',
         'planifBtnDescartarBorrador',
         'planifDescartarConfirmBtn',
@@ -293,7 +295,7 @@
         return api('/api/calendarios/' + calendarioId + '/festivos');
       },
       listAgentes: function () {
-        return api('/api/agentes');
+        return api('/api/agentes?activos=true');
       },
       getAgentesMeta: function () {
         return api('/api/agentes/meta');
@@ -341,6 +343,20 @@
         return apiJson('/api/planificacion/versiones/' + versionId + '/aprobar', 'POST', {
           modo: 'finalize',
           comentario: comentario || '',
+        });
+      },
+      traspasarCuadrantePrepare: function (versionId, cuadranteId) {
+        return apiJson('/api/planificacion/versiones/' + versionId + '/traspasar-cuadrante', 'POST', {
+          modo: 'prepare',
+          cuadrante_id: Number(cuadranteId),
+        });
+      },
+      traspasarCuadranteChunk: function (versionId, cuadranteId, offset, limit) {
+        return apiJson('/api/planificacion/versiones/' + versionId + '/traspasar-cuadrante', 'POST', {
+          modo: 'chunk',
+          cuadrante_id: Number(cuadranteId),
+          offset: Number(offset) || 0,
+          limit: Number(limit) || 1000,
         });
       },
       descartarBorrador: function (borradorId) {
@@ -2819,6 +2835,369 @@
     );
   }
 
+  async function listarCuadrantesActivos() {
+    var response = await api('/api/cuadrantes');
+    var data = Array.isArray(response && response.data) ? response.data : [];
+    return data.filter(function (c) {
+      return String(c && c.estado || '').toLowerCase() === 'activo';
+    });
+  }
+
+  function renderListaCuadrantesActivos(items) {
+    var box = getEl('planifTraspasarListaActivos');
+    if (!box) return;
+    if (!Array.isArray(items) || !items.length) {
+      box.innerHTML = '<div class="text-muted small">No hay cuadrantes activos disponibles.</div>';
+      return;
+    }
+
+    var html = items
+      .map(function (c, idx) {
+        var id = Number(c.id);
+        var mes = Number(c.mes_referencia) || 0;
+        var anio = Number(c.anio_referencia) || 0;
+        var nombreMes = MESES[mes] || ('Mes ' + mes);
+        var checked = idx === 0 ? ' checked' : '';
+        return (
+          '<label class="d-flex align-items-start gap-2 py-1 px-1 border-bottom">' +
+          '<input type="radio" class="form-check-input mt-1 planif-traspasar-cuadrante" name="planifTraspasarCuadrante" value="' +
+          id +
+          '"' +
+          checked +
+          ' />' +
+          '<span style="font-size:.83rem;">' +
+          '<strong>' +
+          app.escapeHtml(String(c.nombre || ('Cuadrante ' + id))) +
+          '</strong>' +
+          '<br><span class="text-muted">' +
+          app.escapeHtml(nombreMes + ' ' + anio) +
+          '</span></span>' +
+          '</label>'
+        );
+      })
+      .join('');
+
+    box.innerHTML = html;
+  }
+
+  function getSelectedCuadranteTraspasoId() {
+    var checked = document.querySelector('input[name="planifTraspasarCuadrante"]:checked');
+    if (!checked) return null;
+    // @ts-ignore
+    var id = Number(checked.value);
+    return Number.isInteger(id) && id > 0 ? id : null;
+  }
+
+  function appendTraspasoLogLine(text, type) {
+    var box = getEl('planifTraspasarLog');
+    if (!box) return;
+    var cls = type === 'danger' ? 'text-danger' : type === 'warning' ? 'text-warning' : 'text-body';
+    var now = DateTime ? DateTime.now().toFormat('HH:mm:ss') : '';
+    var line = document.createElement('div');
+    line.className = cls + ' font-monospace';
+    line.textContent = (now ? '[' + now + '] ' : '') + text;
+    box.appendChild(line);
+
+    // Evita crecimiento infinito del DOM
+    while (box.childNodes.length > 500) {
+      box.removeChild(box.firstChild);
+    }
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function resetTraspasoProgressUi() {
+    var progressText = getEl('planifTraspasarProgressText');
+    var progressTotal = getEl('planifTraspasarProgressTotal');
+    var progressBar = getEl('planifTraspasarProgressBar');
+    var copiadasEl = getEl('planifTraspasarCopiadas');
+    var reemplazosEl = getEl('planifTraspasarReemplazos');
+    var erroresEl = getEl('planifTraspasarErrores');
+    var logBox = getEl('planifTraspasarLog');
+    var resultEl = getEl('planifTraspasarResultado');
+
+    if (progressText) progressText.textContent = '0';
+    if (progressTotal) progressTotal.textContent = '0';
+    if (progressBar) {
+      progressBar.style.width = '0%';
+      progressBar.setAttribute('aria-valuenow', '0');
+    }
+    if (copiadasEl) copiadasEl.textContent = '0';
+    if (reemplazosEl) reemplazosEl.textContent = '0';
+    if (erroresEl) erroresEl.textContent = '0';
+    if (logBox) logBox.innerHTML = '';
+    if (resultEl) {
+      resultEl.style.display = 'none';
+      resultEl.className = 'alert py-2 mb-2';
+      resultEl.textContent = '';
+    }
+  }
+
+  function setTraspasoResultado(msg, type) {
+    var resultEl = getEl('planifTraspasarResultado');
+    if (!resultEl) return;
+    var alertType = type || 'info';
+    resultEl.className = 'alert alert-' + alertType + ' py-2 mb-2';
+    resultEl.textContent = msg || '';
+    resultEl.style.display = msg ? '' : 'none';
+  }
+
+  function marcarBotonTraspasoTerminado(btnConfirm, btnCancel) {
+    if (btnConfirm) {
+      btnConfirm.textContent = 'Terminado';
+      btnConfirm.classList.remove('btn-primary');
+      btnConfirm.classList.add('btn-success');
+      btnConfirm.dataset.done = '1';
+      // @ts-ignore
+      btnConfirm.disabled = false;
+    }
+    if (btnCancel) {
+      // @ts-ignore
+      btnCancel.disabled = true;
+    }
+  }
+
+  function setTraspasoProgressUi(processed, total, copied, replaced, errors) {
+    var progressText = getEl('planifTraspasarProgressText');
+    var progressTotal = getEl('planifTraspasarProgressTotal');
+    var progressBar = getEl('planifTraspasarProgressBar');
+    var copiadasEl = getEl('planifTraspasarCopiadas');
+    var reemplazosEl = getEl('planifTraspasarReemplazos');
+    var erroresEl = getEl('planifTraspasarErrores');
+
+    var safeTotal = Math.max(0, Number(total) || 0);
+    var safeProcessed = Math.max(0, Math.min(Number(processed) || 0, safeTotal));
+    var pct = safeTotal > 0 ? Math.round((safeProcessed * 100) / safeTotal) : 100;
+
+    if (progressText) progressText.textContent = String(safeProcessed);
+    if (progressTotal) progressTotal.textContent = String(safeTotal);
+    if (progressBar) {
+      progressBar.style.width = pct + '%';
+      progressBar.setAttribute('aria-valuenow', String(pct));
+    }
+    if (copiadasEl) copiadasEl.textContent = String(Math.max(0, Number(copied) || 0));
+    if (reemplazosEl) reemplazosEl.textContent = String(Math.max(0, Number(replaced) || 0));
+    if (erroresEl) erroresEl.textContent = String(Math.max(0, Number(errors) || 0));
+  }
+
+  async function abrirModalTraspasar() {
+    if (guardReadOnlyAction()) return;
+    if (!state.activeVersionId) {
+      showAlert('No hay versión activa para traspasar.', 'warning');
+      return;
+    }
+
+    var confirmPanel = getEl('planifTraspasarConfirmPanel');
+    var progressPanel = getEl('planifTraspasarProgressPanel');
+    var btnConfirm = getEl('planifTraspasarConfirmBtn');
+    var btnCancel = getEl('planifTraspasarCancelBtn');
+    var logDetalladoSwitch = getEl('planifTraspasarLogDetallado');
+
+    if (confirmPanel) confirmPanel.style.display = '';
+    if (progressPanel) progressPanel.style.display = 'none';
+    if (btnConfirm) {
+      btnConfirm.textContent = 'Traspasar';
+      btnConfirm.classList.remove('btn-success');
+      btnConfirm.classList.add('btn-primary');
+      btnConfirm.dataset.done = '0';
+    }
+    // @ts-ignore
+    if (btnConfirm) btnConfirm.disabled = true;
+    // @ts-ignore
+    if (btnCancel) btnCancel.disabled = false;
+    // @ts-ignore
+    if (logDetalladoSwitch) logDetalladoSwitch.checked = false;
+    resetTraspasoProgressUi();
+
+    try {
+      var activos = await listarCuadrantesActivos();
+      renderListaCuadrantesActivos(activos);
+      // @ts-ignore
+      if (btnConfirm) btnConfirm.disabled = !activos.length;
+    } catch (e) {
+      renderListaCuadrantesActivos([]);
+      showAlert(e.message || 'No se pudieron cargar los cuadrantes activos.', 'danger');
+    }
+
+    bootstrap.Modal.getOrCreateInstance(getEl('planifModalTraspasar')).show();
+  }
+
+  async function confirmarTraspasoCuadrante() {
+    if (guardReadOnlyAction()) return;
+    if (!state.activeVersionId) {
+      showAlert('No hay versión activa para traspasar.', 'warning');
+      return;
+    }
+
+    var cuadranteId = getSelectedCuadranteTraspasoId();
+    if (!cuadranteId) {
+      showAlert('Selecciona un cuadrante activo.', 'warning');
+      return;
+    }
+
+    var confirmPanel = getEl('planifTraspasarConfirmPanel');
+    var progressPanel = getEl('planifTraspasarProgressPanel');
+    var btnConfirm = getEl('planifTraspasarConfirmBtn');
+    var btnCancel = getEl('planifTraspasarCancelBtn');
+    var logDetalladoSwitch = getEl('planifTraspasarLogDetallado');
+    if (btnConfirm && btnConfirm.dataset && btnConfirm.dataset.done === '1') {
+      bootstrap.Modal.getOrCreateInstance(getEl('planifModalTraspasar')).hide();
+      return;
+    }
+    // @ts-ignore
+    var logDetallado = Boolean(logDetalladoSwitch && logDetalladoSwitch.checked);
+
+    // @ts-ignore
+    if (btnConfirm) btnConfirm.disabled = true;
+    // @ts-ignore
+    if (btnCancel) btnCancel.disabled = true;
+    if (confirmPanel) confirmPanel.style.display = 'none';
+    if (progressPanel) progressPanel.style.display = '';
+    resetTraspasoProgressUi();
+
+    try {
+      var apiClient = getPlanifApiClient();
+      var prep = await apiClient.traspasarCuadrantePrepare(state.activeVersionId, cuadranteId);
+      var total = Math.max(0, Number(prep.total) || 0);
+      var totalVersion = Math.max(0, Number(prep.total_version) || total);
+      var omitidas = Math.max(0, Number(prep.omitidas_fuera_cuadrante) || (totalVersion - total));
+      var chunkSize = 1000;
+      var processed = 0;
+      var copied = 0;
+      var replaced = 0;
+      var errors = 0;
+      var chunkNum = 0;
+
+      setTraspasoProgressUi(0, total, 0, 0, 0);
+      appendTraspasoLogLine('Inicio de traspaso al cuadrante ' + (prep.cuadrante && prep.cuadrante.nombre ? prep.cuadrante.nombre : '#' + cuadranteId), 'info');
+      if (omitidas > 0) {
+        appendTraspasoLogLine(
+          'Se omiten ' + omitidas + ' fila(s) por no estar dentro de las fechas del cuadrante.',
+          'warning'
+        );
+      }
+
+      if (total === 0) {
+        setTraspasoResultado('No hay filas para copiar: ninguna fecha de la versión coincide con el cuadrante seleccionado.', 'warning');
+        showAlert('No hay fechas coincidentes con el cuadrante. No se realizaron inserciones.', 'warning');
+        appendTraspasoLogLine('Finalizado sin inserciones (0 filas coincidentes).', 'warning');
+        marcarBotonTraspasoTerminado(btnConfirm, btnCancel);
+        return;
+      }
+
+      for (var offset = 0; offset < total; offset += chunkSize) {
+        chunkNum += 1;
+        var partial = await apiClient.traspasarCuadranteChunk(
+          state.activeVersionId,
+          cuadranteId,
+          offset,
+          chunkSize
+        );
+
+        processed += Number(partial.procesadas || 0);
+        copied += Number(partial.copiadas || 0);
+        replaced += Number(partial.reemplazadas || 0);
+        errors += Number(partial.errores || 0);
+
+        setTraspasoProgressUi(processed, total, copied, replaced, errors);
+
+        if (partial.borrador_cuadrante && partial.borrador_cuadrante.created) {
+          appendTraspasoLogLine(
+            'Borrador de cuadrante autocreado: #' +
+              partial.borrador_cuadrante.id +
+              ' (' +
+              (partial.borrador_cuadrante.nombre || 'Borrador') +
+              ' v' +
+              (partial.borrador_cuadrante.version || 1) +
+              ')',
+            'warning'
+          );
+        }
+
+        appendTraspasoLogLine(
+          'Chunk ' +
+            chunkNum +
+            ': +' +
+            (Number(partial.copiadas || 0)) +
+            ' copiadas, +' +
+            (Number(partial.reemplazadas || 0)) +
+            ' reemplazos, +' +
+            (Number(partial.errores || 0)) +
+            ' errores. Progreso ' +
+            processed +
+            '/' +
+            total +
+            '.',
+          Number(partial.errores || 0) > 0 ? 'warning' : 'info'
+        );
+
+        var detalles = Array.isArray(partial.detalles) ? partial.detalles : [];
+        if (logDetallado) {
+          var okShown = 0;
+          var okOmitted = 0;
+          detalles.forEach(function (d) {
+            var fecha = d.fecha || 's/f';
+            var agente = d.agente_nombre || ('agente ' + (d.agente_id || '?'));
+            if (d.accion === 'error') {
+              appendTraspasoLogLine(fecha + ' · ' + agente + ' · ERROR: ' + (d.error || 'fallo'), 'danger');
+              return;
+            }
+            if (okShown >= 8) {
+              okOmitted += 1;
+              return;
+            }
+            okShown += 1;
+            var actividad = d.actividad_nombre || ('actividad ' + (d.actividad_id || '?'));
+            appendTraspasoLogLine(fecha + ' · ' + agente + ' · ' + actividad + ' · ' + (d.accion || 'insercion'), 'info');
+          });
+          if (okOmitted > 0) {
+            appendTraspasoLogLine('... ' + okOmitted + ' líneas de detalle omitidas en este chunk.', 'info');
+          }
+        } else {
+          var errorCount = 0;
+          detalles.forEach(function (d) {
+            if (d.accion === 'error') {
+              errorCount += 1;
+              var fechaErr = d.fecha || 's/f';
+              appendTraspasoLogLine(
+                fechaErr + ' · agente ' + (d.agente_id || '?') + ' · ERROR: ' + (d.error || 'fallo'),
+                'danger'
+              );
+            }
+          });
+          if (errorCount === 0) {
+            appendTraspasoLogLine('Detalle por fila desactivado. Actívalo con el switch para ver cada inserción.', 'info');
+          }
+        }
+      }
+
+      setTraspasoProgressUi(total, total, copied, replaced, errors);
+      appendTraspasoLogLine('Proceso finalizado.', 'info');
+
+      setTraspasoResultado(
+        'Traspaso finalizado. Copiadas: ' + copied + ', reemplazos: ' + replaced + ', errores: ' + errors +
+          (omitidas > 0 ? ', omitidas fuera de cuadrante: ' + omitidas : '') + '.',
+        errors ? 'warning' : 'success'
+      );
+
+      showAlert(
+        'Traspaso completado. Copiadas: ' + copied + ', reemplazos: ' + replaced + ', errores: ' + errors + '.',
+        errors ? 'warning' : 'success'
+      );
+
+      marcarBotonTraspasoTerminado(btnConfirm, btnCancel);
+    } catch (e) {
+      showAlert(e.message || 'Error al traspasar a cuadrante.', 'danger');
+      appendTraspasoLogLine('ERROR GENERAL: ' + (e.message || e), 'danger');
+      setTraspasoResultado('Traspaso con error: ' + (e.message || e), 'danger');
+    } finally {
+      var doneState = Boolean(btnConfirm && btnConfirm.dataset && btnConfirm.dataset.done === '1');
+      // @ts-ignore
+      if (btnConfirm) btnConfirm.disabled = false;
+      // @ts-ignore
+      if (btnCancel) btnCancel.disabled = doneState;
+    }
+  }
+
   // ── Aprobar versión ───────────────────────────────────────
   function aprobarVersion() {
     if (guardReadOnlyAction()) return;
@@ -3320,9 +3699,14 @@
     // Botón aprobar
     var btnAprobar = getEl('planifBtnAprobar');
     if (btnAprobar) btnAprobar.addEventListener('click', aprobarVersion);
+    var btnTraspasar = getEl('planifBtnTraspasar');
+    if (btnTraspasar) btnTraspasar.addEventListener('click', abrirModalTraspasar);
     var btnAprobarConfirm = getEl('planifAprobarConfirmBtn');
     if (btnAprobarConfirm)
       btnAprobarConfirm.addEventListener('click', confirmarAprobacion);
+    var btnTraspasarConfirm = getEl('planifTraspasarConfirmBtn');
+    if (btnTraspasarConfirm)
+      btnTraspasarConfirm.addEventListener('click', confirmarTraspasoCuadrante);
     var btnDescartarConfirm = getEl('planifDescartarConfirmBtn');
     if (btnDescartarConfirm)
       btnDescartarConfirm.addEventListener('click', confirmarDescarteBorrador);

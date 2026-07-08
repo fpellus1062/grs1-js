@@ -60,6 +60,12 @@ router.post(
 );
 
 router.post(
+  '/versiones/:versionId/traspasar-cuadrante',
+  authorize('planificacion:aprobar'),
+  controller.traspasarCuadrante
+);
+
+router.post(
   '/borradores/:borradorId/descartar',
   authorize('planificacion:editar'),
   controller.descartarBorrador

@@ -3,6 +3,11 @@
   overflow-y: auto !important;
 }
 
+#asignacionesSection .tabulator .tabulator-row .tabulator-cell {
+  white-space: normal !important;
+  overflow: visible !important;
+}
+
 /* CLS guardrails: reservar layout estable durante carga inicial */
 html {
   scrollbar-gutter: stable;
@@ -73,7 +78,7 @@ h2 {
 
 .main-content {
   margin-left: 250px;
-  transition: margin-left 0.3s ease;
+  transition: none;
 }
 
 .main-content > .dashboard-topbar {
@@ -206,6 +211,12 @@ h2 {
   background-color: transparent;
   margin-top: 2px;
   padding: 0;
+}
+
+/* Evita reflow/INP alto al abrir/cerrar menús del sidebar */
+.sidebar .accordion-collapse,
+.sidebar .collapsing {
+  transition: none !important;
 }
 
 .sidebar .collapse .nav {

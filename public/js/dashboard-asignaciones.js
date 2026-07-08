@@ -3278,6 +3278,47 @@
       }
 
       applyConsultaReadOnlyUi();
+
+      let btnVistaNormal = document.getElementById('btnAsigVistaNormal');
+      if (btnVistaNormal && btnVistaNormal.dataset.bound !== '1') {
+        btnVistaNormal.dataset.bound = '1';
+        btnVistaNormal.addEventListener('click', function () {
+          if (typeof _.setAsigCellHistoryMode === 'function') {
+            _.setAsigCellHistoryMode(false);
+          }
+        });
+      }
+
+      let btnVistaHistorialCelda = document.getElementById(
+        'btnAsigVistaHistorialCelda'
+      );
+      if (
+        btnVistaHistorialCelda &&
+        btnVistaHistorialCelda.dataset.bound !== '1'
+      ) {
+        btnVistaHistorialCelda.dataset.bound = '1';
+        btnVistaHistorialCelda.addEventListener('click', function () {
+          let selectedHistorialIds =
+            typeof _.getSelectedHistorialAgentIds === 'function'
+              ? _.getSelectedHistorialAgentIds()
+              : [];
+          if (!selectedHistorialIds.length) {
+            _.showAlert(
+              'Marca al menos un agente para ver el historial en celdas.',
+              'warning'
+            );
+            return;
+          }
+          if (typeof _.setAsigCellHistoryMode === 'function') {
+            _.setAsigCellHistoryMode(true);
+          }
+        });
+      }
+
+      if (typeof _.syncAsigCellHistoryModeUi === 'function') {
+        _.syncAsigCellHistoryModeUi();
+      }
+
       // ── Historial ──
       let btnHistorialAsig = document.getElementById('btnAsigHistorial');
       if (btnHistorialAsig && btnHistorialAsig.dataset.bound !== '1') {

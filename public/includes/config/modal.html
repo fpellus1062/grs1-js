@@ -1,5 +1,6 @@
 <!-- Modal Nueva ARS -->
-<div class="modal fade" id="modalNuevoArs" tabindex="-1" role="dialog" aria-labelledby="modalNuevoArsLabel" aria-modal="true">
+<div class="modal fade" id="modalNuevoArs" tabindex="-1" role="dialog" aria-labelledby="modalNuevoArsLabel"
+  aria-modal="true">
   <div class="modal-dialog" role="document">
     <div class="modal-content modal-notion">
       <div class="modal-header">
@@ -11,14 +12,17 @@
           <div class="row mb-3">
             <div class="col-8">
               <label for="nuevoArsUnidadId" class="form-label">Código Unidad *</label>
-              <input type="text" class="form-control" id="nuevoArsUnidadId" required maxlength="12" placeholder="Ej: ARS-001">
+              <input type="text" class="form-control" id="nuevoArsUnidadId" required maxlength="12"
+                placeholder="Ej: ARS-001">
               <div class="form-text">Máx. 12 caracteres. No se puede modificar después.</div>
             </div>
             <div class="col-4">
               <label for="nuevoArsColorHex" class="form-label">Color</label>
               <div class="notion-color-picker">
-                <input type="color" class="form-control form-control-color" id="nuevoArsColor" value="#6c757d" title="Color ARS">
-                <input type="text" class="form-control notion-color-hex" id="nuevoArsColorHex" maxlength="7" placeholder="#RRGGBB" pattern="^#[0-9a-fA-F]{6}$" value="#6c757d">
+                <input type="color" class="form-control form-control-color" id="nuevoArsColor" value="#6c757d"
+                  title="Color ARS">
+                <input type="text" class="form-control notion-color-hex" id="nuevoArsColorHex" maxlength="7"
+                  placeholder="#RRGGBB" pattern="^#[0-9a-fA-F]{6}$" value="#6c757d">
               </div>
             </div>
           </div>
@@ -33,7 +37,8 @@
             </div>
             <div class="col-4">
               <label for="nuevoArsCp" class="form-label">C.P.</label>
-              <input type="text" class="form-control" id="nuevoArsCp" maxlength="5" pattern="[0-9]{5}" placeholder="28001">
+              <input type="text" class="form-control" id="nuevoArsCp" maxlength="5" pattern="[0-9]{5}"
+                placeholder="28001">
             </div>
           </div>
           <div class="row mb-3">
@@ -56,7 +61,8 @@
             <label class="form-label">Oficial al Mando</label>
             <input type="hidden" id="nuevoArsOficialMando" value="">
             <div class="dropdown" id="dropdownOficialMando">
-              <button class="form-select text-start dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="true" aria-expanded="false" id="btnDropdownOficialMando">
+              <button class="form-select text-start dropdown-toggle" type="button" data-bs-toggle="dropdown"
+                data-bs-auto-close="true" aria-expanded="false" id="btnDropdownOficialMando">
                 <span class="text-muted">— Sin asignar —</span>
               </button>
               <ul class="dropdown-menu w-100 overflow-auto" style="max-height:260px" id="menuOficialMando">
@@ -75,7 +81,8 @@
 </div>
 
 <!-- Modal Nuevo Empleo -->
-<div class="modal fade" id="modalNuevoEmpleo" tabindex="-1" role="dialog" aria-labelledby="modalNuevoEmpleoLabel" aria-modal="true">
+<div class="modal fade" id="modalNuevoEmpleo" tabindex="-1" role="dialog" aria-labelledby="modalNuevoEmpleoLabel"
+  aria-modal="true">
   <div class="modal-dialog" role="document">
     <div class="modal-content modal-notion">
       <div class="modal-header">
@@ -104,14 +111,17 @@
           </div>
           <div class="mb-3">
             <label for="nuevoEmpleoJerarquia" class="form-label">Jerarquía *</label>
-            <input type="text" class="form-control" id="nuevoEmpleoJerarquia" required maxlength="32" pattern="^(?:[0-9]{7}|\d+(?:\.\d+)*)$" placeholder="Ej: 1210000 o 0.1.1.2">
+            <input type="text" class="form-control" id="nuevoEmpleoJerarquia" required maxlength="32"
+              pattern="^(?:[0-9]{7}|\d+(?:\.\d+)*)$" placeholder="Ej: 1210000 o 0.1.1.2">
             <div class="form-text">Admite 7 dígitos o formato por niveles con puntos.</div>
           </div>
           <div class="mb-3">
             <label for="nuevoEmpleoColorHex" class="form-label">Color</label>
             <div class="notion-color-picker">
-              <input type="color" class="form-control form-control-color" id="nuevoEmpleoColor" value="#6c757d" title="Color empleo">
-              <input type="text" class="form-control notion-color-hex" id="nuevoEmpleoColorHex" maxlength="7" placeholder="#RRGGBB" pattern="^#[0-9a-fA-F]{6}$" value="#6c757d">
+              <input type="color" class="form-control form-control-color" id="nuevoEmpleoColor" value="#6c757d"
+                title="Color empleo">
+              <input type="text" class="form-control notion-color-hex" id="nuevoEmpleoColorHex" maxlength="7"
+                placeholder="#RRGGBB" pattern="^#[0-9a-fA-F]{6}$" value="#6c757d">
             </div>
           </div>
         </form>
@@ -125,7 +135,8 @@
 </div>
 
 <!-- Modal Nuevo Pelotón -->
-<div class="modal fade" id="modalNuevoPeloton" tabindex="-1" role="dialog" aria-labelledby="modalNuevoPelotonLabel" aria-modal="true">
+<div class="modal fade" id="modalNuevoPeloton" tabindex="-1" role="dialog" aria-labelledby="modalNuevoPelotonLabel"
+  aria-modal="true">
   <div class="modal-dialog" role="document">
     <div class="modal-content modal-notion">
       <div class="modal-header">
@@ -146,8 +157,10 @@
           <div class="mb-3">
             <label for="nuevoPelotonColorHex" class="form-label">Color</label>
             <div class="notion-color-picker">
-              <input type="color" class="form-control form-control-color" id="nuevoPelotonColor" value="#6c757d" title="Color pelotón">
-              <input type="text" class="form-control notion-color-hex" id="nuevoPelotonColorHex" maxlength="7" placeholder="#RRGGBB" pattern="^#[0-9a-fA-F]{6}$" value="#6c757d">
+              <input type="color" class="form-control form-control-color" id="nuevoPelotonColor" value="#6c757d"
+                title="Color pelotón">
+              <input type="text" class="form-control notion-color-hex" id="nuevoPelotonColorHex" maxlength="7"
+                placeholder="#RRGGBB" pattern="^#[0-9a-fA-F]{6}$" value="#6c757d">
             </div>
           </div>
         </form>
@@ -161,7 +174,8 @@
 </div>
 
 <!-- Modal Nueva Situación -->
-<div class="modal fade" id="modalNuevaSituacion" tabindex="-1" role="dialog" aria-labelledby="modalNuevaSituacionLabel" aria-modal="true">
+<div class="modal fade" id="modalNuevaSituacion" tabindex="-1" role="dialog" aria-labelledby="modalNuevaSituacionLabel"
+  aria-modal="true">
   <div class="modal-dialog" role="document">
     <div class="modal-content modal-notion">
       <div class="modal-header">
@@ -172,8 +186,8 @@
         <form id="formNuevaSituacion" novalidate>
           <div class="mb-3">
             <label for="nuevaSituacionId" class="form-label">Código *</label>
-            <input type="text" class="form-control" id="nuevaSituacionId" required maxlength="10" placeholder="Ej: BAJA">
-            <div class="form-text">Máx. 10 caracteres. No se puede modificar después.</div>
+            <input type="text" class="form-control" id="nuevaSituacionId" required maxlength="6" placeholder="Ej: BAJA">
+            <div class="form-text">Máx. 6 caracteres. No se puede modificar después.</div>
           </div>
           <div class="mb-3">
             <label for="nuevaSituacionDesc" class="form-label">Descripción *</label>
@@ -182,8 +196,10 @@
           <div class="mb-3">
             <label for="nuevaSituacionColorHex" class="form-label">Color</label>
             <div class="notion-color-picker">
-              <input type="color" class="form-control form-control-color" id="nuevaSituacionColor" value="#6c757d" title="Color situación">
-              <input type="text" class="form-control notion-color-hex" id="nuevaSituacionColorHex" maxlength="7" placeholder="#RRGGBB" pattern="^#[0-9a-fA-F]{6}$" value="#6c757d">
+              <input type="color" class="form-control form-control-color" id="nuevaSituacionColor" value="#6c757d"
+                title="Color situación">
+              <input type="text" class="form-control notion-color-hex" id="nuevaSituacionColorHex" maxlength="7"
+                placeholder="#RRGGBB" pattern="^#[0-9a-fA-F]{6}$" value="#6c757d">
             </div>
           </div>
         </form>
@@ -197,7 +213,8 @@
 </div>
 
 <!-- Modal Nuevo Grupo -->
-<div class="modal fade" id="modalNuevoGrupo" tabindex="-1" role="dialog" aria-labelledby="modalNuevoGrupoLabel" aria-modal="true">
+<div class="modal fade" id="modalNuevoGrupo" tabindex="-1" role="dialog" aria-labelledby="modalNuevoGrupoLabel"
+  aria-modal="true">
   <div class="modal-dialog" role="document">
     <div class="modal-content modal-notion">
       <div class="modal-header">
@@ -213,8 +230,10 @@
           <div class="mb-3">
             <label for="nuevoGrupoColorHex" class="form-label">Color</label>
             <div class="notion-color-picker">
-              <input type="color" class="form-control form-control-color" id="nuevoGrupoColor" value="#6c757d" title="Color grupo">
-              <input type="text" class="form-control notion-color-hex" id="nuevoGrupoColorHex" maxlength="7" placeholder="#RRGGBB" pattern="^#[0-9a-fA-F]{6}$" value="#6c757d">
+              <input type="color" class="form-control form-control-color" id="nuevoGrupoColor" value="#6c757d"
+                title="Color grupo">
+              <input type="text" class="form-control notion-color-hex" id="nuevoGrupoColorHex" maxlength="7"
+                placeholder="#RRGGBB" pattern="^#[0-9a-fA-F]{6}$" value="#6c757d">
             </div>
           </div>
         </form>
@@ -228,7 +247,8 @@
 </div>
 
 <!-- Modal Nuevo Rol -->
-<div class="modal fade" id="modalNuevoRol" tabindex="-1" role="dialog" aria-labelledby="modalNuevoRolLabel" aria-modal="true">
+<div class="modal fade" id="modalNuevoRol" tabindex="-1" role="dialog" aria-labelledby="modalNuevoRolLabel"
+  aria-modal="true">
   <div class="modal-dialog" role="document">
     <div class="modal-content modal-notion">
       <div class="modal-header">
@@ -239,7 +259,8 @@
         <form id="formNuevoRol" novalidate>
           <div class="mb-3">
             <label for="nuevoRolNombre" class="form-label">Nombre *</label>
-            <input type="text" class="form-control" id="nuevoRolNombre" required maxlength="50" placeholder="Ej: editor">
+            <input type="text" class="form-control" id="nuevoRolNombre" required maxlength="50"
+              placeholder="Ej: editor">
             <div class="form-text">Identificador único, sin espacios.</div>
           </div>
           <div class="mb-3">
@@ -257,7 +278,8 @@
 </div>
 
 <!-- Modal Nuevo Permiso -->
-<div class="modal fade" id="modalNuevoPermiso" tabindex="-1" role="dialog" aria-labelledby="modalNuevoPermisoLabel" aria-modal="true">
+<div class="modal fade" id="modalNuevoPermiso" tabindex="-1" role="dialog" aria-labelledby="modalNuevoPermisoLabel"
+  aria-modal="true">
   <div class="modal-dialog" role="document">
     <div class="modal-content modal-notion">
       <div class="modal-header">
@@ -268,12 +290,14 @@
         <form id="formNuevoPermiso" novalidate>
           <div class="mb-3">
             <label for="nuevoPermisoRecurso" class="form-label">Recurso *</label>
-            <input type="text" class="form-control" id="nuevoPermisoRecurso" required maxlength="50" placeholder="Ej: informes">
+            <input type="text" class="form-control" id="nuevoPermisoRecurso" required maxlength="50"
+              placeholder="Ej: informes">
             <div class="form-text">Nombre del módulo o entidad.</div>
           </div>
           <div class="mb-3">
             <label for="nuevoPermisoAccion" class="form-label">Acción *</label>
-            <input type="text" class="form-control" id="nuevoPermisoAccion" required maxlength="50" placeholder="Ej: leer">
+            <input type="text" class="form-control" id="nuevoPermisoAccion" required maxlength="50"
+              placeholder="Ej: leer">
             <div class="form-text">Se generará la clave <strong>recurso:acción</strong> automáticamente.</div>
           </div>
           <div class="mb-3">
@@ -291,7 +315,8 @@
 </div>
 
 <!-- Modal Confirmar Eliminación (compartido por todos los CRUD de configuración) -->
-<div class="modal fade" id="modalConfirmDeleteConfig" tabindex="-1" role="dialog" aria-labelledby="modalConfirmDeleteConfigLabel" aria-modal="true">
+<div class="modal fade" id="modalConfirmDeleteConfig" tabindex="-1" role="dialog"
+  aria-labelledby="modalConfirmDeleteConfigLabel" aria-modal="true">
   <div class="modal-dialog modal-sm" role="document">
     <div class="modal-content modal-notion">
       <div class="modal-header bg-danger text-white">
@@ -323,7 +348,8 @@
           <input type="hidden" id="calEditId">
           <div class="mb-3">
             <label for="calNombre" class="form-label">Nombre *</label>
-            <input type="text" class="form-control" id="calNombre" required maxlength="100" placeholder="Ej: Calendario Nacional 2026">
+            <input type="text" class="form-control" id="calNombre" required maxlength="100"
+              placeholder="Ej: Calendario Nacional 2026">
           </div>
           <div class="mb-3">
             <label for="calAmbito" class="form-label">Ámbito *</label>
@@ -344,7 +370,8 @@
             <label class="form-label">Unidad ARS</label>
             <input type="hidden" id="calArsUnidad" value="">
             <div class="dropdown" id="dropdownCalArs">
-              <button class="form-select text-start dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="true" aria-expanded="false" id="btnDropdownCalArs">
+              <button class="form-select text-start dropdown-toggle" type="button" data-bs-toggle="dropdown"
+                data-bs-auto-close="true" aria-expanded="false" id="btnDropdownCalArs">
                 <span class="text-muted">— Sin asignar —</span>
               </button>
               <ul class="dropdown-menu w-100 overflow-auto" style="max-height:260px" id="menuCalArs">
@@ -382,7 +409,8 @@
           </div>
           <div class="mb-3">
             <label for="festNombre" class="form-label">Nombre *</label>
-            <input type="text" class="form-control" id="festNombre" required maxlength="150" placeholder="Ej: Día de la Constitución">
+            <input type="text" class="form-control" id="festNombre" required maxlength="150"
+              placeholder="Ej: Día de la Constitución">
           </div>
           <div class="mb-3">
             <label for="festDescripcion" class="form-label">Descripción</label>

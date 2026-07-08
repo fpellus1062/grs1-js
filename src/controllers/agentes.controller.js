@@ -64,7 +64,10 @@ exports.uploadAvatar = async (req, res, next) => {
  */
 exports.getAll = async (req, res, next) => {
   try {
-    const agentes = await service.getAll(req.arsId);
+    const soloActivos = req.query.activos === 'true';
+    const agentes = soloActivos
+      ? await service.getAllActivos(req.arsId)
+      : await service.getAll(req.arsId);
     res.json({
       ok: true,
       agentes: agentes,

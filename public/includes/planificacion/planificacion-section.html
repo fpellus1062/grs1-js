@@ -42,12 +42,13 @@
     </div>
     <span class="vr mx-1 opacity-25 flex-shrink-0"></span>
 
-    <!-- Selector de borrador/versión -->
-    <select id="planifVersionSel" class="form-select form-select-sm w-auto py-1 flex-shrink-0"
-      style="font-size: 0.78rem; max-width: 170px" title="Versión activa"></select>
+
 
     <!-- Acciones derecha -->
     <div class="ms-auto d-flex align-items-center gap-1 flex-shrink-0">
+      <!-- Selector de borrador/versión -->
+      <select id="planifVersionSel" class="form-select form-select-sm w-auto py-1 flex-shrink-0"
+        style="font-size: 0.78rem; max-width: 170px" title="Versión activa"></select>
       <!-- Info fechas del plan -->
       <small id="planifFechasLabel" class="text-muted flex-shrink-0"
         style="font-size: 0.73rem; white-space: nowrap;"></small>
@@ -55,42 +56,49 @@
       <button id="planifBtnNuevo" data-permiso="planificacion:editar" type="button"
         class="btn btn-primary btn-sm py-1 px-2 flex-shrink-0" style="font-size: 0.76rem; white-space: nowrap;"
         title="Nuevo plan">
-        <i class="bi bi-plus-circle"></i> Nuevo
+        <i class="bi bi-plus-circle"></i> NP
+      </button>
+      <button id="planifBtnNuevaVersion" data-permiso="planificacion:editar" type="button"
+        class="btn btn-secondary btn-sm py-1 px-2 flex-shrink-0" style="font-size: 0.76rem; white-space: nowrap;"
+        title="Nuevo Borrador">
+        <i class="bi bi-file-earmark-plus"></i> NB
       </button>
       <button id="planifBtnCopiar" data-permiso="planificacion:copiar" type="button"
         class="btn btn-outline-secondary btn-sm py-1 px-2 flex-shrink-0" title="Copiar desde plan anterior">
         <i class="bi bi-copy"></i>
       </button>
-      <button id="planifBtnNuevaVersion" data-permiso="planificacion:editar" type="button"
-        class="btn btn-outline-secondary btn-sm py-1 px-2 flex-shrink-0" title="Nueva versión de borrador">
-        <i class="bi bi-file-earmark-plus"></i>
-      </button>
+
       <button id="planifBtnAprobar" data-permiso="planificacion:aprobar" type="button"
         class="btn btn-success btn-sm py-1 px-2 flex-shrink-0" style="font-size: 0.76rem; white-space: nowrap;"
         title="Aprobar versión activa">
-        <i class="bi bi-check2-all"></i> Aprobar
+        <i class="bi bi-check2-all"></i>
       </button>
+      <span class="vr mx-1 opacity-25 flex-shrink-0"></span>
       <!-- Borrado ordenado -->
-      <div class="dropdown flex-shrink-0">
+      <button id="planifBtnTraspasar" data-permiso="planificacion:aprobar" type="button"
+        class="btn btn-outline-warning btn-sm py-1 px-2 flex-shrink-0" title="Traspasar a Cuadrante">
+        <i class="bi bi-calendar3-range-fill"></i>
+      </button>
+      <div class="dropdown flex-shrink-0" style="position:static">
         <button id="planifBtnBorrarMenu" data-permiso="planificacion:editar" type="button"
           class="btn btn-outline-danger btn-sm py-1 px-2" title="Borrar versión / borrador / plan"
           data-bs-toggle="dropdown" aria-expanded="false">
           <i class="bi bi-trash"></i>
         </button>
-        <ul class="dropdown-menu dropdown-menu-end" style="min-width:210px;font-size:.84rem">
+        <ul class="dropdown-menu dropdown-menu-end" style="min-width:210px;font-size:.84rem;position:fixed">
           <li>
             <h6 class="dropdown-header py-1">Borrado ordenado</h6>
           </li>
           <li>
             <button class="dropdown-item text-danger py-1" id="planifBtnBorrarVersion" type="button"
               data-permiso="planificacion:editar">
-              <i class="bi bi-file-earmark-x me-2"></i>Borrar versión activa
+              <i class="bi bi-file-earmark-x me-2"></i>Eliminar versión activa
             </button>
           </li>
           <li>
             <button class="dropdown-item text-danger py-1" id="planifBtnDescartarBorrador" type="button"
               data-permiso="planificacion:editar">
-              <i class="bi bi-journal-x me-2"></i>Descartar borrador activo
+              <i class="bi bi-journal-x me-2"></i>Eliminar borrador activo
             </button>
           </li>
           <li>
@@ -99,7 +107,7 @@
           <li>
             <button class="dropdown-item text-danger fw-semibold py-1" id="planifBtnBorrarPlan" type="button"
               data-permiso="planificacion:editar">
-              <i class="bi bi-calendar-x me-2"></i>Borrar plan del mes
+              <i class="bi bi-calendar-x me-2"></i>Eliminar plan del mes
             </button>
           </li>
         </ul>
@@ -340,6 +348,60 @@
         <button type="button" id="planifDescartarConfirmBtn" class="btn btn-danger btn-sm">
           Descartar
         </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal confirmar traspaso a cuadrante -->
+<div class="modal fade" id="planifModalTraspasar" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content modal-notion shadow-sm">
+      <div class="modal-header py-2" style="background: var(--primary-gc-color, #276836); color: #fff">
+        <h5 class="modal-title" style="font-size: 0.9rem">
+          <i class="bi bi-calendar3-range-fill me-2"></i>Traspasar a cuadrante activo
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <div id="planifTraspasarConfirmPanel">
+          <p class="mb-2" style="font-size: 0.9rem">
+            Se copiarán las actividades de la versión activa al cuadrante seleccionado.
+          </p>
+          <div class="alert alert-warning py-2 mb-2" style="font-size:.82rem">
+            Si una asignación ya existe para el mismo agente y fecha, se eliminará y se insertará de nuevo.
+          </div>
+          <div class="form-check form-switch mb-2">
+            <input class="form-check-input" type="checkbox" role="switch" id="planifTraspasarLogDetallado">
+            <label class="form-check-label" for="planifTraspasarLogDetallado" style="font-size:.82rem;">
+              Log detallado por fila (puede ser lento en masivas)
+            </label>
+          </div>
+          <div id="planifTraspasarListaActivos" class="border rounded p-2" style="max-height: 220px; overflow:auto;">
+          </div>
+        </div>
+
+        <div id="planifTraspasarResultado" class="alert py-2 mb-2" style="display:none; font-size:.84rem;"></div>
+
+        <div id="planifTraspasarProgressPanel" style="display: none;">
+          <div class="mb-2 d-flex justify-content-between align-items-center">
+            <small class="text-muted"><span id="planifTraspasarProgressText">0</span> / <span
+                id="planifTraspasarProgressTotal">0</span> fila(s)</small>
+            <small class="text-muted">Copiadas: <span id="planifTraspasarCopiadas">0</span> · Reemplazos: <span
+                id="planifTraspasarReemplazos">0</span> · Errores: <span id="planifTraspasarErrores">0</span></small>
+          </div>
+          <div class="progress mb-2" style="height: 22px;">
+            <div id="planifTraspasarProgressBar" class="progress-bar progress-bar-striped progress-bar-animated"
+              role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+          </div>
+          <div id="planifTraspasarLog" class="border rounded p-2 bg-light"
+            style="max-height: 200px; overflow: auto; font-size: .78rem;"></div>
+        </div>
+      </div>
+      <div class="modal-footer py-2">
+        <button type="button" id="planifTraspasarCancelBtn" class="btn btn-outline-secondary btn-sm"
+          data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" id="planifTraspasarConfirmBtn" class="btn btn-primary btn-sm">Traspasar</button>
       </div>
     </div>
   </div>

@@ -456,7 +456,7 @@ exports.crearBorrador = async ({ planId, nombre, descripcion, userId }) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// 5. Listar asignaciones de una versión (para pintar el grid)
+// 5. Listar asignaciones de una versión (para pintar el grid). Solo agentes de Alta.
 // ─────────────────────────────────────────────────────────────
 exports.listarAsignaciones = async (versionId) => {
   const { rows } = await db.query(
@@ -474,6 +474,8 @@ exports.listarAsignaciones = async (versionId) => {
      LEFT JOIN agentes_situacion s ON a.situacion_id = s.id_situacion
      LEFT JOIN actividades act ON act.id_actividad = pba.actividad_id
      WHERE pba.version_id = $1
+       AND a.fecha_baja IS NULL
+       AND COALESCE(a.situacion_id, '') <> 'REBASE'
      ORDER BY a.apellido_1, a.apellido_2, a.nombre, pba.fecha`,
     [versionId]
   );
@@ -947,6 +949,542 @@ exports.aprobarConComentario = async ({ versionId, userId, comentario }) => {
     auditados,
     borrador: fin.borrador || null,
   };
+};
+
+// ─────────────────────────────────────────────────────────────
+// 7c. Traspasar versión al cuadrante activo (chunked)
+//     Regla: si existe (agente+fecha) en cuadrante, borrar e insertar de nuevo.
+// ─────────────────────────────────────────────────────────────
+async function getTraspasoCuadranteContext(client, { versionId, cuadranteId, arsId }) {
+  const versionRes = await client.query(
+    `SELECT pbv.id AS version_id,
+            pbv.borrador_id,
+            pb.plan_id
+       FROM plan_borrador_version pbv
+       JOIN plan_borrador pb ON pb.id = pbv.borrador_id
+      WHERE pbv.id = $1`,
+    [versionId]
+  );
+  if (!versionRes.rows.length) {
+    throw new Error('Versión no encontrada');
+  }
+
+  const cuadranteRes = await client.query(
+    `SELECT cp.id, cp.estado, cp.nombre, cp.anio_referencia, cp.mes_referencia
+       FROM cuadrantes_planificacion cp
+      WHERE cp.id = $1
+        AND cp.ars_unidad_id = $2`,
+    [cuadranteId, arsId]
+  );
+  if (!cuadranteRes.rows.length) {
+    throw new Error('Cuadrante no encontrado para la unidad activa');
+  }
+  const cuadrante = cuadranteRes.rows[0];
+  if (String(cuadrante.estado || '').toLowerCase() !== 'activo') {
+    throw new Error('El cuadrante seleccionado no está en estado activo');
+  }
+
+  const totalRes = await client.query(
+    `SELECT COUNT(*)::int AS total
+       FROM plan_borrador_asignacion pba
+       JOIN cuadrantes_planificacion_dias cpd
+         ON cpd.cuadrante_id = $2
+        AND cpd.fecha::date = pba.fecha::date
+      WHERE pba.version_id = $1
+        AND pba.actividad_id IS NOT NULL`,
+    [versionId, cuadranteId]
+  );
+
+  const totalVersionRes = await client.query(
+    `SELECT COUNT(*)::int AS total
+       FROM plan_borrador_asignacion pba
+      WHERE pba.version_id = $1
+        AND pba.actividad_id IS NOT NULL`,
+    [versionId]
+  );
+
+  const totalEnCuadrante = Number(totalRes.rows[0] && totalRes.rows[0].total) || 0;
+  const totalVersion = Number(totalVersionRes.rows[0] && totalVersionRes.rows[0].total) || 0;
+
+  return {
+    versionId: Number(versionRes.rows[0].version_id),
+    borradorId: Number(versionRes.rows[0].borrador_id),
+    planId: Number(versionRes.rows[0].plan_id),
+    cuadrante,
+    total: totalEnCuadrante,
+    totalVersion,
+    omitidasFueraCuadrante: Math.max(0, totalVersion - totalEnCuadrante),
+  };
+}
+
+async function resolveDefaultTurnoId(client) {
+  const res = await client.query(
+    `SELECT t.id_turno
+       FROM turnos t
+      WHERE t.baja_at IS NULL
+      ORDER BY t.id_turno
+      LIMIT 1`
+  );
+  if (!res.rows.length) {
+    throw new Error('No hay turnos activos para realizar el traspaso');
+  }
+  return Number(res.rows[0].id_turno);
+}
+
+async function buildActividadTurnoMap(client, actividadIds, defaultTurnoId) {
+  if (!Array.isArray(actividadIds) || !actividadIds.length) {
+    return {};
+  }
+
+  const res = await client.query(
+    `SELECT a.id_actividad,
+            COALESCE(tc.id_turno, th.id_turno, $2::int) AS turno_id
+       FROM actividades a
+       LEFT JOIN LATERAL (
+         SELECT t.id_turno
+           FROM turnos t
+          WHERE t.baja_at IS NULL
+            AND lower(trim(COALESCE(t.codigo, ''))) = lower(trim(COALESCE(a.actividad, '')))
+          ORDER BY t.id_turno
+          LIMIT 1
+       ) tc ON TRUE
+       LEFT JOIN LATERAL (
+         SELECT t.id_turno
+           FROM turnos t
+          WHERE t.baja_at IS NULL
+            AND t.hora_inicio IS NOT NULL
+            AND t.hora_fin IS NOT NULL
+            AND a.hora_inicio IS NOT NULL
+            AND a.hora_fin IS NOT NULL
+            AND t.hora_inicio = a.hora_inicio
+            AND t.hora_fin = a.hora_fin
+          ORDER BY t.id_turno
+          LIMIT 1
+       ) th ON TRUE
+      WHERE a.id_actividad = ANY($1::int[])`,
+    [actividadIds, defaultTurnoId]
+  );
+
+  const map = {};
+  res.rows.forEach((row) => {
+    map[Number(row.id_actividad)] = Number(row.turno_id) || defaultTurnoId;
+  });
+  return map;
+}
+
+async function ensureCuadranteBorradorExists(client, {
+  arsId,
+  anio,
+  mes,
+  userId,
+}) {
+  const existingRes = await client.query(
+    `SELECT id, nombre, version, estado
+       FROM asignaciones_borradores
+      WHERE ars_unidad_id = $1
+        AND anio = $2
+        AND mes = $3
+        AND estado <> 'archivado'
+      ORDER BY updated_at DESC NULLS LAST, created_at DESC, id DESC
+      LIMIT 1`,
+    [arsId, anio, mes]
+  );
+
+  if (existingRes.rows.length) {
+    return {
+      created: false,
+      id: Number(existingRes.rows[0].id),
+      nombre: existingRes.rows[0].nombre,
+      version: Number(existingRes.rows[0].version) || 1,
+      estado: existingRes.rows[0].estado,
+    };
+  }
+
+  const baseNombre = 'Borrador Traspaso';
+  const nextVersionRes = await client.query(
+    `SELECT COALESCE(MAX(version), 0) + 1 AS next_version
+       FROM asignaciones_borradores
+      WHERE ars_unidad_id = $1
+        AND anio = $2
+        AND mes = $3
+        AND nombre = $4`,
+    [arsId, anio, mes, baseNombre]
+  );
+  const nextVersion = Number(nextVersionRes.rows[0] && nextVersionRes.rows[0].next_version) || 1;
+
+  try {
+    const insRes = await client.query(
+      `INSERT INTO asignaciones_borradores
+         (ars_unidad_id, anio, mes, nombre, version, estado, propietario_id, observaciones, created_at, updated_at)
+       VALUES
+         ($1, $2, $3, $4, $5, 'borrador', $6, $7, now(), now())
+       RETURNING id, nombre, version, estado`,
+      [
+        arsId,
+        anio,
+        mes,
+        baseNombre,
+        nextVersion,
+        userId,
+        'Autocreado por traspaso desde planificación',
+      ]
+    );
+
+    return {
+      created: true,
+      id: Number(insRes.rows[0].id),
+      nombre: insRes.rows[0].nombre,
+      version: Number(insRes.rows[0].version) || nextVersion,
+      estado: insRes.rows[0].estado,
+    };
+  } catch (error) {
+    if (String(error && error.code) !== '23505') {
+      throw error;
+    }
+
+    const fallbackRes = await client.query(
+      `SELECT id, nombre, version, estado
+         FROM asignaciones_borradores
+        WHERE ars_unidad_id = $1
+          AND anio = $2
+          AND mes = $3
+          AND estado <> 'archivado'
+        ORDER BY updated_at DESC NULLS LAST, created_at DESC, id DESC
+        LIMIT 1`,
+      [arsId, anio, mes]
+    );
+
+    if (!fallbackRes.rows.length) throw error;
+    return {
+      created: false,
+      id: Number(fallbackRes.rows[0].id),
+      nombre: fallbackRes.rows[0].nombre,
+      version: Number(fallbackRes.rows[0].version) || 1,
+      estado: fallbackRes.rows[0].estado,
+    };
+  }
+}
+
+exports.traspasarCuadrantePrepare = async ({ versionId, cuadranteId, arsId }) => {
+  const client = await db.connect();
+  try {
+    const ctx = await getTraspasoCuadranteContext(client, {
+      versionId,
+      cuadranteId,
+      arsId,
+    });
+
+    return {
+      total: ctx.total,
+      total_version: ctx.totalVersion,
+      omitidas_fuera_cuadrante: ctx.omitidasFueraCuadrante,
+      version_id: ctx.versionId,
+      borrador_id: ctx.borradorId,
+      plan_id: ctx.planId,
+      cuadrante: {
+        id: Number(ctx.cuadrante.id),
+        nombre: ctx.cuadrante.nombre,
+        estado: ctx.cuadrante.estado,
+        anio_referencia: Number(ctx.cuadrante.anio_referencia),
+        mes_referencia: Number(ctx.cuadrante.mes_referencia),
+      },
+    };
+  } finally {
+    client.release();
+  }
+};
+
+exports.traspasarCuadranteChunk = async ({
+  versionId,
+  cuadranteId,
+  arsId,
+  userId,
+  offset,
+  limit,
+}) => {
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+
+    const ctx = await getTraspasoCuadranteContext(client, {
+      versionId,
+      cuadranteId,
+      arsId,
+    });
+
+    const safeOffset = Math.max(0, Number(offset) || 0);
+    const safeLimit = Math.max(1, Math.min(2000, Number(limit) || 1000));
+
+    const cuadranteBorrador = await ensureCuadranteBorradorExists(client, {
+      arsId,
+      anio: Number(ctx.cuadrante.anio_referencia),
+      mes: Number(ctx.cuadrante.mes_referencia),
+      userId,
+    });
+
+    const rowsRes = await client.query(
+      `SELECT pba.id,
+              pba.fecha,
+              pba.agente_id,
+              pba.actividad_id,
+              COALESCE(a.nombre, '') AS actividad_nombre,
+              COALESCE(ag.apellido_1, '') AS agente_apellido_1,
+              COALESCE(ag.apellido_2, '') AS agente_apellido_2,
+              COALESCE(ag.nombre, '') AS agente_nombre
+         FROM plan_borrador_asignacion pba
+         JOIN cuadrantes_planificacion_dias cpd
+           ON cpd.cuadrante_id = $2
+          AND cpd.fecha::date = pba.fecha::date
+         LEFT JOIN actividades a ON a.id_actividad = pba.actividad_id
+         LEFT JOIN agentes ag ON ag.id = pba.agente_id
+        WHERE pba.version_id = $1
+          AND pba.actividad_id IS NOT NULL
+        ORDER BY pba.fecha ASC, pba.agente_id ASC, pba.id ASC
+        OFFSET $3
+        LIMIT $4`,
+      [versionId, cuadranteId, safeOffset, safeLimit]
+    );
+
+    const rows = rowsRes.rows;
+    const processed = rows.length;
+
+    if (!processed) {
+      await client.query('COMMIT');
+      return {
+        total: ctx.total,
+        offset: safeOffset,
+        procesadas: 0,
+        copiadas: 0,
+        reemplazadas: 0,
+        errores: 0,
+        borrador_cuadrante: cuadranteBorrador,
+        detalles: [],
+      };
+    }
+
+    const defaultTurnoId = await resolveDefaultTurnoId(client);
+    const actividadIds = Array.from(
+      new Set(
+        rows
+          .map((r) => Number(r.actividad_id))
+          .filter((id) => Number.isInteger(id) && id > 0)
+      )
+    );
+    const actividadTurnoMap = await buildActividadTurnoMap(
+      client,
+      actividadIds,
+      defaultTurnoId
+    );
+
+    let copiadas = 0;
+    let reemplazadas = 0;
+    let errores = 0;
+    const detalles = [];
+    const prevByAgent = new Map();
+    const nextByAgent = new Map();
+
+    for (const row of rows) {
+      await client.query('SAVEPOINT sp_traspaso_row');
+      try {
+        const fechaIso = String(row.fecha).slice(0, 10);
+        const fecha = DateTime.fromISO(fechaIso);
+        if (!fecha.isValid) {
+          throw new Error('Fecha inválida en asignación de planificación');
+        }
+
+        const agenteId = Number(row.agente_id);
+        const actividadId = Number(row.actividad_id);
+        if (!Number.isInteger(agenteId) || agenteId <= 0) {
+          throw new Error('agente_id inválido');
+        }
+        if (!Number.isInteger(actividadId) || actividadId <= 0) {
+          throw new Error('actividad_id inválido');
+        }
+
+        const existingRes = await client.query(
+          `SELECT id, turno_id
+             FROM asignaciones_borrador
+            WHERE borrador_id = $1
+              AND ars_unidad_id = $2
+              AND agente_id = $3
+              AND fecha = $4
+            LIMIT 1`,
+          [Number(cuadranteBorrador.id), arsId, agenteId, fechaIso]
+        );
+        const existing = existingRes.rows[0] || null;
+        const wasReplace = Boolean(existing && existing.id);
+
+        let prevActividadIds = [];
+        if (wasReplace) {
+          const prevServiciosRes = await client.query(
+            `SELECT actividad_id
+               FROM asignaciones_borrador_servicios
+              WHERE ars_unidad_id = $1
+                AND asignacion_borrador_id = $2
+              ORDER BY actividad_id ASC`,
+            [arsId, Number(existing.id)]
+          );
+          prevActividadIds = prevServiciosRes.rows.map((r) => Number(r.actividad_id)).filter(Boolean);
+        }
+
+        const turnoId =
+          (existing && Number(existing.turno_id)) ||
+          actividadTurnoMap[actividadId] ||
+          defaultTurnoId;
+
+        const insBorrador = await client.query(
+          `INSERT INTO asignaciones_borrador
+             (borrador_id, anio, mes, dia, fecha, agente_id, turno_id,
+              observaciones, propietario_id, ars_unidad_id, created_at, updated_at)
+           VALUES
+             ($1, $2, $3, 1, $4, $5, $6, $7, $8, $9, now(), now())
+           ON CONFLICT (borrador_id, agente_id, fecha)
+           DO UPDATE SET anio = EXCLUDED.anio,
+                         mes = EXCLUDED.mes,
+                         dia = EXCLUDED.dia,
+                         turno_id = EXCLUDED.turno_id,
+                         observaciones = EXCLUDED.observaciones,
+                         propietario_id = EXCLUDED.propietario_id,
+                         ars_unidad_id = EXCLUDED.ars_unidad_id,
+                         revision = asignaciones_borrador.revision + 1,
+                         updated_at = now()
+           RETURNING id`,
+          [
+            Number(cuadranteBorrador.id),
+            fecha.year,
+            fecha.month,
+            fechaIso,
+            agenteId,
+            turnoId,
+            null,
+            userId || null,
+            arsId,
+          ]
+        );
+        const asignacionBorradorId = Number(insBorrador.rows[0].id);
+
+        await client.query(
+          `DELETE FROM asignaciones_borrador_servicios
+            WHERE ars_unidad_id = $1
+              AND asignacion_borrador_id = $2`,
+          [arsId, asignacionBorradorId]
+        );
+
+        await client.query(
+          `INSERT INTO asignaciones_borrador_servicios (ars_unidad_id, asignacion_borrador_id, actividad_id)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (asignacion_borrador_id, actividad_id) DO NOTHING`,
+          [arsId, asignacionBorradorId, actividadId]
+        );
+
+        if (!prevByAgent.has(agenteId)) prevByAgent.set(agenteId, {});
+        if (!nextByAgent.has(agenteId)) nextByAgent.set(agenteId, {});
+        prevByAgent.get(agenteId)[fechaIso] = wasReplace
+          ? {
+              turno_id: Number(existing.turno_id) || null,
+              observaciones: null,
+              actividad_ids: prevActividadIds,
+            }
+          : null;
+        nextByAgent.get(agenteId)[fechaIso] = {
+          turno_id: Number(turnoId) || null,
+          observaciones: null,
+          actividad_ids: [actividadId],
+        };
+
+        copiadas += 1;
+        if (wasReplace) reemplazadas += 1;
+
+        detalles.push({
+          fecha: fechaIso,
+          agente_id: agenteId,
+          agente_nombre: [
+            row.agente_apellido_1,
+            row.agente_apellido_2,
+            row.agente_nombre,
+          ]
+            .filter(Boolean)
+            .join(' ')
+            .trim(),
+          actividad_id: actividadId,
+          actividad_nombre: row.actividad_nombre || '',
+          accion: wasReplace ? 'reemplazo' : 'insercion',
+        });
+
+        await client.query('RELEASE SAVEPOINT sp_traspaso_row');
+      } catch (err) {
+        errores += 1;
+        await client.query('ROLLBACK TO SAVEPOINT sp_traspaso_row');
+        detalles.push({
+          fecha: String(row.fecha).slice(0, 10),
+          agente_id: Number(row.agente_id),
+          actividad_id: Number(row.actividad_id),
+          accion: 'error',
+          error: err.message || 'Error al copiar fila',
+        });
+      }
+    }
+
+    await client.query(
+      `UPDATE asignaciones_borradores
+          SET updated_at = now()
+        WHERE id = $1
+          AND ars_unidad_id = $2`,
+      [Number(cuadranteBorrador.id), arsId]
+    );
+
+    for (const [agenteId, nextFechas] of nextByAgent.entries()) {
+      if (!nextFechas || !Object.keys(nextFechas).length) continue;
+      const prevFechas = prevByAgent.get(agenteId) || {};
+
+      await client.query(
+        `INSERT INTO asignaciones_log
+           (ars_unidad_id, anio, mes, borrador_id, accion, agente_id, dia, fecha, turno_id, observaciones,
+            datos_anteriores, datos_nuevos, detalle, usuario_id, usuario_nombre, created_at)
+         VALUES
+           ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, clock_timestamp())`,
+        [
+          arsId,
+          Number(ctx.cuadrante.anio_referencia),
+          Number(ctx.cuadrante.mes_referencia),
+          Number(cuadranteBorrador.id),
+          'BORRADOR_CREAR_MASIVO',
+          Number(agenteId),
+          1,
+          null,
+          null,
+          null,
+          JSON.stringify({ fechas: prevFechas }),
+          JSON.stringify({ fechas: nextFechas }),
+          'Traspaso masivo desde planificación a borrador [' +
+            (cuadranteBorrador.nombre || 'Borrador') +
+            ' v' +
+            (cuadranteBorrador.version || 1) +
+            ']',
+          userId || null,
+          null,
+        ]
+      );
+    }
+
+    await client.query('COMMIT');
+
+    return {
+      total: ctx.total,
+      offset: safeOffset,
+      procesadas: processed,
+      copiadas,
+      reemplazadas,
+      errores,
+      borrador_cuadrante: cuadranteBorrador,
+      detalles,
+    };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 };
 
 // ─────────────────────────────────────────────────────────────

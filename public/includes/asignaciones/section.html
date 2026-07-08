@@ -88,6 +88,24 @@
         <button class="btn btn-outline-info btn-sm" id="btnAsigHistorial" type="button" title="Historial de cambios">
           <i class="bi bi-clock-history"></i>
         </button>
+        <div class="dropdown" id="asigVistaDropdown">
+          <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown"
+            aria-label="Vista de celda" aria-expanded="false" title="Vista de celdas">
+            <i class="bi bi-layout-text-window-reverse"></i>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li>
+              <button class="dropdown-item" id="btnAsigVistaNormal" type="button">
+                <i class="bi bi-grid-3x3-gap me-2"></i>Vista normal
+              </button>
+            </li>
+            <li>
+              <button class="dropdown-item" id="btnAsigVistaHistorialCelda" type="button">
+                <i class="bi bi-clock-history me-2"></i>Historial en celdas
+              </button>
+            </li>
+          </ul>
+        </div>
 
         <button class="btn btn-outline-warning btn-sm" id="btnAsigConsolidarDevengos" data-permiso="asignaciones:crear"
           type="button" title="Consolidar devengos (recalcular)">

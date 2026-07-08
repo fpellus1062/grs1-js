@@ -168,6 +168,46 @@ exports.aprobar = async (req, res, next) => {
 };
 
 // ─────────────────────────────────────────────
+// POST /api/planificacion/versiones/:versionId/traspasar-cuadrante
+// ─────────────────────────────────────────────
+exports.traspasarCuadrante = async (req, res, next) => {
+  try {
+    const { versionId } = req.params;
+    const body = req.body || {};
+    const modo = String(body.modo || '').trim().toLowerCase() || 'prepare';
+    const cuadranteId = Number(body.cuadrante_id);
+
+    if (!Number.isInteger(cuadranteId) || cuadranteId <= 0) {
+      return next(new ApiError(400, 'cuadrante_id inválido'));
+    }
+
+    let result;
+    if (modo === 'prepare') {
+      result = await service.traspasarCuadrantePrepare({
+        versionId: Number(versionId),
+        cuadranteId,
+        arsId: req.arsId,
+      });
+    } else if (modo === 'chunk') {
+      result = await service.traspasarCuadranteChunk({
+        versionId: Number(versionId),
+        cuadranteId,
+        arsId: req.arsId,
+        userId: req.user.id,
+        offset: body.offset,
+        limit: body.limit,
+      });
+    } else {
+      return next(new ApiError(400, 'modo inválido'));
+    }
+
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    next(new ApiError(400, err.message || 'Error al traspasar a cuadrante', err));
+  }
+};
+
+// ─────────────────────────────────────────────
 // POST /api/planificacion/borradores/:borradorId/descartar
 // ─────────────────────────────────────────────
 exports.descartarBorrador = async (req, res, next) => {

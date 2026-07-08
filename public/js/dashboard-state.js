@@ -133,6 +133,7 @@ window.GRS1Dashboard = {
     selectedActividadIds: [],
     actividadFechaInicio: '',
     actividadFechaFin: '',
+    asigCellHistoryMode: false,
     columnFilterFocus: null,
     selectedAgenteIdsVista: [],
   },

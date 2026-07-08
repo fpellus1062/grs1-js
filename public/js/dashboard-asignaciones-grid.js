@@ -176,6 +176,386 @@
     return luminance > 160 ? '#111' : '#fff';
   }
 
+  function isAsigCellHistoryModeEnabled() {
+    return !!(app.asignacionesState && app.asignacionesState.asigCellHistoryMode);
+  }
+
+  function getSelectedHistorialAgentIdsSafe() {
+    let raw;
+    if (isAsigCellHistoryModeEnabled() && Array.isArray(app.asignacionesState.selectedAgenteIdsVistaHistorico)) {
+      raw = app.asignacionesState.selectedAgenteIdsVistaHistorico;
+    } else if (_ && typeof _.getSelectedHistorialAgentIds === 'function') {
+      raw = _.getSelectedHistorialAgentIds();
+    } else {
+      raw = app.asignacionesState.selectedAgenteIdsVista || [];
+    }
+    return Array.from(
+      new Set(
+        (Array.isArray(raw) ? raw : [])
+          .map(function (id) {
+            return Number(id);
+          })
+          .filter(function (id) {
+            return Number.isInteger(id) && id > 0;
+          })
+      )
+    );
+  }
+
+  function clearHistoryAuditCache() {
+    if (app.asignacionesState) {
+      if (app.asignacionesState._asigCellHistoryAuditCache) {
+        app.asignacionesState._asigCellHistoryAuditCache.clear();
+      }
+      if (app.asignacionesState._asigCellHistoryBatchCache) {
+        app.asignacionesState._asigCellHistoryBatchCache.clear();
+      }
+      app.asignacionesState._asigCellHistoryBatchState = null;
+    }
+  }
+
+  function getHistoryBatchCacheStore() {
+    if (!app.asignacionesState._asigCellHistoryBatchCache) {
+      app.asignacionesState._asigCellHistoryBatchCache = new Map();
+    }
+    return app.asignacionesState._asigCellHistoryBatchCache;
+  }
+
+  function getHistoryAuditBatchKey() {
+    let borradorId = Number(_.getSelectedBorradorId() || 0);
+    let anioSel = Number(app.asignacionesState.anio || 0);
+    let mesSel = Number(app.asignacionesState.mes || 0);
+    let selectedIds = getSelectedHistorialAgentIdsSafe().slice().sort(function (a, b) {
+      return a - b;
+    });
+    let planningDays = getPlanningDaysSafe(anioSel, mesSel);
+    let dayKeys = planningDays
+      .map(function (day) {
+        return String(day && day.key ? day.key : '').trim();
+      })
+      .filter(function (dayKey) {
+        return /^\d{4}-\d{2}-\d{2}$/.test(dayKey);
+      });
+
+    if (!borradorId || !anioSel || !mesSel || !selectedIds.length || !dayKeys.length) {
+      return '';
+    }
+
+    return [
+      String(borradorId),
+      String(anioSel),
+      String(mesSel),
+      selectedIds.join(','),
+      dayKeys.join(','),
+    ].join('|');
+  }
+
+  function getHistoryAuditCellKey(borradorId, agenteId, fechaDia) {
+    if (!borradorId || !agenteId || !fechaDia) return '';
+    return [String(borradorId), String(agenteId), String(fechaDia)].join('|');
+  }
+
+  async function loadHistoryAuditBatchForCurrentView() {
+    let batchKey = getHistoryAuditBatchKey();
+    if (!batchKey) {
+      clearHistoryAuditCache();
+      return null;
+    }
+
+    let batchState = app.asignacionesState._asigCellHistoryBatchState || null;
+    if (batchState && batchState.key === batchKey) {
+      if (batchState.status === 'pending' && batchState.promise) {
+        return batchState.promise;
+      }
+      if (batchState.status === 'ready') {
+        return batchState;
+      }
+    }
+
+    clearHistoryAuditCache();
+
+    let selectedIds = getSelectedHistorialAgentIdsSafe();
+    let planningDays = getPlanningDaysSafe(app.asignacionesState.anio, app.asignacionesState.mes)
+      .map(function (day) {
+        return String(day && day.key ? day.key : '').trim();
+      })
+      .filter(function (dayKey) {
+        return /^\d{4}-\d{2}-\d{2}$/.test(dayKey);
+      });
+
+    let params = new URLSearchParams({
+      anio: String(app.asignacionesState.anio || ''),
+      mes: String(app.asignacionesState.mes || ''),
+      borrador_id: String(_.getSelectedBorradorId() || ''),
+      agente_ids: selectedIds.join(','),
+      fechas_cuadrante: planningDays.join(','),
+    });
+
+    let borradorId = Number(_.getSelectedBorradorId() || 0);
+
+    let requestPromise = (async function () {
+      let headers =
+        typeof _.headers === 'function'
+          ? _.headers()
+          : { Authorization: 'Bearer ' + app.globalState.token };
+      let res = await fetch('/api/asignaciones/historial/celdas?' + params.toString(), {
+        headers: headers,
+      });
+      if (!res.ok) {
+        throw new Error('No se pudo cargar el historial de celdas');
+      }
+
+      let json = await res.json();
+      let rows = Array.isArray(json && json.items) ? json.items : [];
+      let store = getHistoryBatchCacheStore();
+      store.clear();
+
+      rows.forEach(function (entry) {
+        let agenteId = Number(entry && entry.agente_id);
+        let fechaDia = String(entry && entry.fecha_dia ? entry.fecha_dia : '').slice(0, 10);
+        let key = getHistoryAuditCellKey(borradorId, agenteId, fechaDia);
+        if (!key) return;
+        let list = store.get(key);
+        if (!list) {
+          list = [];
+          store.set(key, list);
+        }
+        list.push(entry);
+      });
+
+      let readyState = {
+        key: batchKey,
+        status: 'ready',
+        total: rows.length,
+      };
+      app.asignacionesState._asigCellHistoryBatchState = readyState;
+      return readyState;
+    })();
+
+    app.asignacionesState._asigCellHistoryBatchState = {
+      key: batchKey,
+      status: 'pending',
+      promise: requestPromise,
+    };
+
+    return requestPromise;
+  }
+
+  function refreshHistoryAuditBatchView() {
+    if (!isAsigCellHistoryModeEnabled()) {
+      return Promise.resolve(null);
+    }
+
+    return loadHistoryAuditBatchForCurrentView().then(function () {
+      scheduleHistoryRowsRefresh();
+      return true;
+    });
+  }
+
+  function scheduleGridRedraw() {
+    if (app.asignacionesState._asigGridRedrawRaf) {
+      cancelAnimationFrame(app.asignacionesState._asigGridRedrawRaf);
+    }
+
+    app.asignacionesState._asigGridRedrawRaf = requestAnimationFrame(function () {
+      app.asignacionesState._asigGridRedrawRaf = 0;
+      if (_.tabulator && typeof _.tabulator.redraw === 'function') {
+        _.tabulator.redraw(false);
+      }
+    });
+  }
+
+  function scheduleHistoryRowsRefresh() {
+    if (app.asignacionesState._asigHistoryRowsRefreshRaf) {
+      cancelAnimationFrame(app.asignacionesState._asigHistoryRowsRefreshRaf);
+    }
+
+    app.asignacionesState._asigHistoryRowsRefreshRaf = requestAnimationFrame(function () {
+      app.asignacionesState._asigHistoryRowsRefreshRaf = 0;
+      if (!_.tabulator) return;
+
+      try {
+        let visibleRows = _.tabulator.getRows('visible') || [];
+        if (visibleRows.length) {
+          visibleRows.forEach(function (row) {
+            if (!row || typeof row.reformat !== 'function') return;
+            try {
+              row.reformat();
+            } catch (_e) {}
+          });
+          return;
+        }
+      } catch (_err) {}
+
+      if (typeof _.tabulator.redraw === 'function') {
+        _.tabulator.redraw(false);
+      }
+    });
+  }
+
+  function scheduleHistoryAuditBatchRefresh() {
+    if (app.asignacionesState._asigCellHistoryBatchRefreshRaf) {
+      cancelAnimationFrame(app.asignacionesState._asigCellHistoryBatchRefreshRaf);
+    }
+
+    app.asignacionesState._asigCellHistoryBatchRefreshRaf = requestAnimationFrame(function () {
+      app.asignacionesState._asigCellHistoryBatchRefreshRaf = 0;
+      refreshHistoryAuditBatchView().catch(function () {
+        let current = app.asignacionesState._asigCellHistoryBatchState || {};
+        app.asignacionesState._asigCellHistoryBatchState = {
+          key: current.key || getHistoryAuditBatchKey(),
+          status: 'error',
+        };
+        scheduleGridRedraw();
+      });
+    });
+  }
+
+  function syncAsigCellHistoryModeUi() {
+    let normalBtn = document.getElementById('btnAsigVistaNormal');
+    let historyBtn = document.getElementById('btnAsigVistaHistorialCelda');
+    let enabled = isAsigCellHistoryModeEnabled();
+
+    if (normalBtn) {
+      normalBtn.classList.toggle('active', !enabled);
+      normalBtn.setAttribute('aria-pressed', !enabled ? 'true' : 'false');
+    }
+    if (historyBtn) {
+      historyBtn.classList.toggle('active', enabled);
+      historyBtn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+    }
+  }
+
+  function setAsigCellHistoryMode(enabled) {
+    let nextValue = !!enabled;
+    if (nextValue) {
+      let selectedIds = getSelectedHistorialAgentIdsSafe();
+      if (!selectedIds.length) {
+        syncAsigCellHistoryModeUi();
+        return;
+      }
+    }
+
+    if (app.asignacionesState.asigCellHistoryMode === nextValue) {
+      syncAsigCellHistoryModeUi();
+      return;
+    }
+
+    app.asignacionesState.asigCellHistoryMode = nextValue;
+    app.asignacionesState.selectedAgenteIdsVistaHistorico = nextValue
+      ? getSelectedHistorialAgentIdsSafe().slice()
+      : [];
+    clearHistoryAuditCache();
+    syncAsigCellHistoryModeUi();
+
+    if (nextValue) {
+      scheduleHistoryAuditBatchRefresh();
+    } else {
+      scheduleGridRedraw();
+    }
+  }
+
+  function compareServicioActividad(a, b, actividadGrupoMaps) {
+    let aId = Number(a && a.id);
+    let bId = Number(b && b.id);
+
+    let aNivel = Number(actividadGrupoMaps.actividadToSortNivel.get(aId));
+    let bNivel = Number(actividadGrupoMaps.actividadToSortNivel.get(bId));
+    let aNivelSort = Number.isFinite(aNivel) ? aNivel : 9999;
+    let bNivelSort = Number.isFinite(bNivel) ? bNivel : 9999;
+    if (aNivelSort !== bNivelSort) return aNivelSort - bNivelSort;
+
+    let aGrupo = String(
+      actividadGrupoMaps.actividadToGrupo.get(aId) || 'Sin grupo'
+    );
+    let bGrupo = String(
+      actividadGrupoMaps.actividadToGrupo.get(bId) || 'Sin grupo'
+    );
+    let cmpGrupo = aGrupo.localeCompare(bGrupo, 'es', {
+      sensitivity: 'base',
+    });
+    if (cmpGrupo !== 0) return cmpGrupo;
+
+    let aCodigo = String(
+      actividadGrupoMaps.actividadToCodigo.get(aId) || ''
+    ).trim();
+    let bCodigo = String(
+      actividadGrupoMaps.actividadToCodigo.get(bId) || ''
+    ).trim();
+    let aNombre = String(
+      actividadGrupoMaps.actividadToNombre.get(aId) || ''
+    ).trim();
+    let bNombre = String(
+      actividadGrupoMaps.actividadToNombre.get(bId) || ''
+    ).trim();
+    let aLabel =
+      aCodigo && aNombre ? aCodigo + ' - ' + aNombre : aCodigo || aNombre;
+    let bLabel =
+      bCodigo && bNombre ? bCodigo + ' - ' + bNombre : bCodigo || bNombre;
+    return aLabel.localeCompare(bLabel, 'es', {
+      sensitivity: 'base',
+    });
+  }
+
+  function sortServiciosForCell(servicios, actividadGrupoMaps, isDesc) {
+    let ordered = Array.isArray(servicios) ? servicios.slice() : [];
+    ordered.sort(function (a, b) {
+      let cmp = compareServicioActividad(a, b, actividadGrupoMaps);
+      return isDesc ? -cmp : cmp;
+    });
+    return ordered;
+  }
+
+  function renderServicioBadgeHtml(servicio, actividadGrupoMaps) {
+    let actId = Number(servicio && servicio.id);
+    let tooltip =
+      actividadGrupoMaps.actividadToTooltip.get(actId) ||
+      String(servicio && servicio.label ? servicio.label : 'Actividad');
+    let actividadLabel =
+      String(servicio && servicio.actividad != null ? servicio.actividad : '').trim() ||
+      (Number.isFinite(actId) && actId > 0 ? String(actId) : '');
+    let actividadBg =
+      actividadGrupoMaps.actividadToColor.get(actId) || '#6c757d';
+
+    return (
+      '' +
+      '<span class="d-inline-flex" title="' +
+      app.escapeHtml(tooltip) +
+      '" style="max-width:100%;">' +
+      window.GRS1Utils.renderColorBadgeHtml(actividadLabel, actividadBg, {
+        escapeHtmlFn: app.escapeHtml,
+        className: 'badge',
+        fontSize: '.68em',
+        lineHeight: '1.0',
+        padding: '.14rem .26rem',
+        contrastThreshold: 0.6,
+      }) +
+      '</span>'
+    );
+  }
+
+  function renderServiciosCellHtml(val, actividadGrupoMaps, isDesc) {
+    if (!val || !Array.isArray(val.servicios) || !val.servicios.length) {
+      return '-';
+    }
+
+    let ordered = sortServiciosForCell(
+      val.servicios,
+      actividadGrupoMaps,
+      !!isDesc
+    );
+
+    return ordered
+      .map(function (servicio) {
+        return (
+          '<span class="d-inline-flex me-1 mb-1" style="line-height:1.05;">' +
+          renderServicioBadgeHtml(servicio, actividadGrupoMaps) +
+          '</span>'
+        );
+      })
+      .join('');
+  }
+
   function getAsigColumnFilterDefaults() {
     return {
       tip: '',
@@ -370,9 +750,6 @@
     return searchable;
   }
 
-  function getRequisitoPctBadgeColors(pct) {
-    return window.GRS1Utils.getRequisitoPctBadgeColors(pct);
-  }
 
   function getRequisitosDetalleVisible(rowData) {
     return window.GRS1Utils.getRequisitosDetalleVisible(rowData);
@@ -1272,8 +1649,17 @@
         )
       );
       app.asignacionesState.selectedAgenteIdsVista = uniqueIds;
+      clearHistoryAuditCache();
+      if (app.asignacionesState.asigCellHistoryMode && !uniqueIds.length) {
+        setAsigCellHistoryMode(false);
+        syncHeaderSelectAllActiveCheckbox();
+        return;
+      }
       if (_.tabulator && typeof _.tabulator.redraw === 'function') {
         _.tabulator.redraw(true);
+      }
+      if (app.asignacionesState.asigCellHistoryMode && uniqueIds.length) {
+        scheduleHistoryAuditBatchRefresh();
       }
       syncHeaderSelectAllActiveCheckbox();
     }
@@ -1571,113 +1957,97 @@
         maxWidth: 52,
         widthGrow: 0,
         widthShrink: 2,
+        variableHeight: true,
         hozAlign: 'center',
         headerSort: false,
         cssClass: isWeekend ? 'asig-weekend-col' : '',
         titleFormatter: 'html',
-        formatter: function (cell) {
-          let val = cell.getValue();
-          if (!val) return '<span class="text-muted">—</span>';
-          let serviciosHtml = '-';
-          if (val.servicios && val.servicios.length) {
-            let serviciosOrdenados = val.servicios
-              .slice()
-              .sort(function (a, b) {
-                let aId = Number(a && a.id);
-                let bId = Number(b && b.id);
-
-                let aNivel = Number(
-                  actividadGrupoMaps.actividadToSortNivel.get(aId)
-                );
-                let bNivel = Number(
-                  actividadGrupoMaps.actividadToSortNivel.get(bId)
-                );
-                let aNivelSort = Number.isFinite(aNivel) ? aNivel : 9999;
-                let bNivelSort = Number.isFinite(bNivel) ? bNivel : 9999;
-                if (aNivelSort !== bNivelSort) return aNivelSort - bNivelSort;
-
-                let aGrupo = String(
-                  actividadGrupoMaps.actividadToGrupo.get(aId) || 'Sin grupo'
-                );
-                let bGrupo = String(
-                  actividadGrupoMaps.actividadToGrupo.get(bId) || 'Sin grupo'
-                );
-                let cmpGrupo = aGrupo.localeCompare(bGrupo, 'es', {
-                  sensitivity: 'base',
-                });
-                if (cmpGrupo !== 0) return cmpGrupo;
-
-                let aCodigo = String(
-                  actividadGrupoMaps.actividadToCodigo.get(aId) || ''
-                ).trim();
-                let bCodigo = String(
-                  actividadGrupoMaps.actividadToCodigo.get(bId) || ''
-                ).trim();
-                let aNombre = String(
-                  actividadGrupoMaps.actividadToNombre.get(aId) || ''
-                ).trim();
-                let bNombre = String(
-                  actividadGrupoMaps.actividadToNombre.get(bId) || ''
-                ).trim();
-                let aLabel =
-                  aCodigo && aNombre
-                    ? aCodigo + ' - ' + aNombre
-                    : aCodigo || aNombre;
-                let bLabel =
-                  bCodigo && bNombre
-                    ? bCodigo + ' - ' + bNombre
-                    : bCodigo || bNombre;
-                return aLabel.localeCompare(bLabel, 'es', {
-                  sensitivity: 'base',
-                });
-              });
-
-            serviciosHtml = serviciosOrdenados
-              .map(function (s) {
-                let actId = Number(s && s.id);
-                let tooltip =
-                  actividadGrupoMaps.actividadToTooltip.get(actId) ||
-                  String(s.label || 'Actividad');
-                // En celdas de asignación, el badge muestra solo el campo actividad.
-                let actividadLabel =
-                  String(s && s.actividad != null ? s.actividad : '').trim() ||
-                  (Number.isFinite(actId) && actId > 0 ? String(actId) : '');
-                let actividadBg =
-                  actividadGrupoMaps.actividadToColor.get(actId) || '#6c757d';
-
-                // Mantener este bloque comentado por si se vuelve a necesitar
-                // mostrar nivel+grupo en una linea superior.
-                // var grupoBg = actividadGrupoMaps.grupoToColor.get(grupoKey) || "#6c757d";
-                // var grupoFg = getTextColorForBackground(grupoBg);
-                // var nivelGrupoHtml = '' +
-                //   '<span class="d-inline-flex align-items-center" style="gap:2px;flex-wrap:wrap;">' +
-                //     '<span class="badge" style="background:' + app.escapeHtml(nivelBg) + ';color:' + app.escapeHtml(nivelFg) + ';font-size:.58em;line-height:1.05;padding:.18rem .32rem;">' + app.escapeHtml(nivelNombre) + '</span>' +
-                //     '<span class="badge" style="background:' + app.escapeHtml(grupoBg) + ';color:' + app.escapeHtml(grupoFg) + ';font-size:.58em;line-height:1.05;padding:.18rem .32rem;">' + app.escapeHtml(grupoNombre) + '</span>' +
-                //   '</span>';
-
-                return (
-                  '' +
-                  '<span class="d-inline-flex me-1 mb-1" title="' +
-                  app.escapeHtml(tooltip) +
-                  '" style="max-width:100%;">' +
-                  window.GRS1Utils.renderColorBadgeHtml(
-                    actividadLabel,
-                    actividadBg,
-                    {
-                      escapeHtmlFn: app.escapeHtml,
-                      className: 'badge',
-                      fontSize: '.68em',
-                      lineHeight: '1.0',
-                      padding: '.14rem .26rem',
-                      contrastThreshold: 0.6,
-                    }
-                  ) +
-                  '</span>'
-                );
-              })
-              .join('');
+        formatter: function (cell, _formatterParams, onRendered) {
+          let rawVal = cell.getValue();
+          let val = rawVal && typeof rawVal === 'object' ? rawVal : {};
+          let historyBtn = document.getElementById('btnAsigVistaHistorialCelda');
+          let isHistoryMode =
+            isAsigCellHistoryModeEnabled() ||
+            !!(historyBtn && historyBtn.classList.contains('active'));
+          if (!isHistoryMode) {
+            let batchState = app.asignacionesState._asigCellHistoryBatchState || null;
+            if (batchState && (batchState.status === 'pending' || batchState.status === 'ready')) {
+              isHistoryMode = true;
+            }
           }
-          let html = '<div class="d-flex flex-column gap-1">';
+          let rowData = cell && typeof cell.getRow === 'function' ? cell.getRow().getData() : null;
+          let agenteId = Number(rowData && rowData.agente_id);
+          let selectedHistorialIds = getSelectedHistorialAgentIdsSafe();
+          let shouldShowHistory = isHistoryMode && selectedHistorialIds.indexOf(agenteId) !== -1;
+          if (!rawVal && !shouldShowHistory) {
+            return '<span class="text-muted">—</span>';
+          }
+
+          let historyItems = shouldShowHistory ? getGroupedAuditCacheForCell(cell) : null;
+          let historyTitleText = '';
+          let serviciosHtml = renderServiciosCellHtml(
+            val,
+            actividadGrupoMaps,
+            shouldShowHistory
+          );
+
+          if (shouldShowHistory) {
+            let legacyCache = getLegacyAuditCacheForCell(cell);
+
+            if (
+              !historyItems &&
+              legacyCache &&
+              legacyCache.status === 'ready' &&
+              Array.isArray(legacyCache.items) &&
+              legacyCache.items.length
+            ) {
+              historyItems = legacyCache;
+            }
+
+            if (!historyItems || !Array.isArray(historyItems.items) || !historyItems.items.length) {
+              if (!legacyCache || legacyCache.status !== 'pending') {
+                let runLegacyLoad = function () {
+                  ensureGroupedAuditCacheForCell(cell)
+                    .then(function () {
+                      try {
+                        let row = cell && typeof cell.getRow === 'function' ? cell.getRow() : null;
+                        if (row && typeof row.reformat === 'function') {
+                          row.reformat();
+                        }
+                      } catch (_e) {}
+                    })
+                    .catch(function () {});
+                };
+
+                if (typeof onRendered === 'function') {
+                  onRendered(runLegacyLoad);
+                } else {
+                  runLegacyLoad();
+                }
+              }
+
+              if (legacyCache && legacyCache.status === 'pending') {
+                serviciosHtml = '<span class="text-secondary">Cargando...</span>';
+              } else {
+                // Si aún no hay historial cargado, mantener al menos el contenido actual de la celda.
+                if (!rawVal) {
+                  serviciosHtml = '<span class="text-secondary">Cargando...</span>';
+                }
+              }
+            }
+          }
+
+          if (historyItems && historyItems.status === 'ready' && Array.isArray(historyItems.items) && historyItems.items.length) {
+            historyTitleText = String(historyItems.items.length) + ' eventos de historial';
+            serviciosHtml = renderHistoryCellBadgesHtml(historyItems.items, historyTitleText);
+          }
+
+          let html =
+            '<div class="d-flex flex-column gap-1"' +
+            (historyTitleText
+              ? ' title="' + app.escapeHtml(historyTitleText) + '"'
+              : '') +
+            '>';
           let obsIconHtml = '';
           if (
             val.observaciones &&
@@ -1688,11 +2058,15 @@
               app.escapeHtml(val.observaciones) +
               '" style="cursor:pointer;" title="Ver observación"><i class="bi bi-chat-dots-fill"></i></span>';
           }
+          let contentStyle =
+            shouldShowHistory
+              ? 'line-height:1.2;display:block;min-height:34px;'
+              : 'line-height:1.2;display:block;min-height:20px;';
           html +=
-            '<small class="text-muted" style="line-height:1.2">' +
+            '<div class="text-muted" style="' + contentStyle + '">' +
             serviciosHtml +
             obsIconHtml +
-            '</small></div>';
+            '</div></div>';
           return html;
         },
         cellContext: function (e, cell) {
@@ -1933,32 +2307,6 @@
 
       asigClipboardMatrix = matrix;
       return matrix;
-    }
-
-    function pasteMatrixAtCell(anchorCell, matrix) {
-      if (!anchorCell || !matrix || !matrix.length) return 0;
-      let rows = _.tabulator.getRows();
-      let cols = _.tabulator.getColumns();
-      let anchorRowIndex = rows.indexOf(anchorCell.getRow());
-      let anchorColIndex = cols.indexOf(anchorCell.getColumn());
-      if (anchorRowIndex < 0 || anchorColIndex < 0) return 0;
-
-      let applied = 0;
-      matrix.forEach(function (matrixRow, rOffset) {
-        matrixRow.forEach(function (entry, cOffset) {
-          let targetRow = rows[anchorRowIndex + rOffset];
-          let targetCol = cols[anchorColIndex + cOffset];
-          if (!targetRow || !targetCol || !targetCol.getField) return;
-          let targetField = String(targetCol.getField() || '');
-          if (targetField.indexOf('dia_') !== 0) return;
-          let targetCell = targetRow.getCell(targetField);
-          if (!targetCell) return;
-          targetCell.setValue(cloneCellValue(entry ? entry.value : null));
-          applied++;
-        });
-      });
-
-      return applied;
     }
 
     function buildPasteTargets(anchorCell, matrix) {
@@ -2210,12 +2558,6 @@
       return field.slice(4, 14);
     }
 
-    function fmtShortDate(isoDate) {
-      let raw = String(isoDate || '').slice(0, 10);
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-      return raw.slice(8, 10) + '/' + raw.slice(5, 7) + '/' + raw.slice(0, 4);
-    }
-
     function fmtShortDateTime(value) {
       if (!value) return '-';
       let dt = new Date(String(value));
@@ -2223,11 +2565,119 @@
       return dt.toLocaleString('es-ES');
     }
 
-    function fmtShortDateFromTimestamp(value) {
-      if (!value) return '-';
-      let dt = new Date(String(value));
-      if (Number.isNaN(dt.getTime())) return '-';
-      return dt.toLocaleDateString('es-ES');
+    function getHistoryAuditCacheStore() {
+      if (!app.asignacionesState._asigCellHistoryAuditCache) {
+        app.asignacionesState._asigCellHistoryAuditCache = new Map();
+      }
+      return app.asignacionesState._asigCellHistoryAuditCache;
+    }
+
+    function isFechaInActiveCuadrante(fechaIso) {
+      let fecha = String(fechaIso || '').slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return false;
+      let days = Array.isArray(app.asignacionesState.cuadranteDays)
+        ? app.asignacionesState.cuadranteDays
+        : [];
+      if (!days.length) return false;
+      return days.some(function (d) {
+        return String(d && d.key ? d.key : '') === fecha;
+      });
+    }
+
+    function getHistoryAuditCacheKey(cell) {
+      if (!cell || !cell.getRow) return '';
+      let rowData = cell.getRow().getData() || {};
+      let agenteId = Number(rowData.agente_id);
+      let fechaDia = getFechaFromDayCell(cell);
+      let borradorId = Number(_.getSelectedBorradorId() || 0);
+      if (!agenteId || !fechaDia || !borradorId) return '';
+      return [String(borradorId), String(agenteId), String(fechaDia)].join('|');
+    }
+
+    function getGroupedAuditCacheForCell(cell) {
+        let key = getHistoryAuditCacheKey(cell);
+        if (!key) return null;
+        let store = getHistoryBatchCacheStore();
+        let items = store.get(key) || [];
+        if (!Array.isArray(items) || !items.length) return null;
+        return {
+          status: 'ready',
+          items: items,
+        };
+    }
+
+    function getLegacyAuditCacheForCell(cell) {
+      let key = getHistoryAuditCacheKey(cell);
+      if (!key) return null;
+      let store = getHistoryAuditCacheStore();
+      return store.get(key) || null;
+    }
+
+    async function ensureGroupedAuditCacheForCell(cell) {
+      let key = getHistoryAuditCacheKey(cell);
+      if (!key) return null;
+
+      let store = getHistoryAuditCacheStore();
+      let current = store.get(key);
+      if (current) {
+        if (current.status === 'pending' && current.promise) {
+          return current.promise;
+        }
+        return current;
+      }
+
+      let loadPromise = (async function () {
+        try {
+          let prevItems = await fetchPreviousActividadEntriesFromAudit(cell);
+          let next = { status: 'ready', items: prevItems };
+          store.set(key, next);
+          return next;
+        } catch (_err) {
+          let next = { status: 'error', items: [] };
+          store.set(key, next);
+          return next;
+        }
+      })();
+
+      store.set(key, { status: 'pending', items: [], promise: loadPromise });
+      return loadPromise;
+    }
+
+    function renderHistoryCellBadgesHtml(items, titleText) {
+      let rows = Array.isArray(items) ? items : [];
+      if (!rows.length) return '';
+
+      return rows
+        .map(function (entry) {
+          let bg =
+            (actividadGrupoMaps &&
+            actividadGrupoMaps.actividadToColor &&
+            typeof actividadGrupoMaps.actividadToColor.get === 'function'
+              ? actividadGrupoMaps.actividadToColor.get(Number(entry.actividad_id))
+              : null) || '#6c757d';
+          let fg = getTextColorForBackground(bg);
+          let rawLabel = String(entry.actividad_label || entry.actividad_id || '').trim();
+          let sepIdx = rawLabel.indexOf(' - ');
+          let activityLabel = sepIdx > 0 ? rawLabel.slice(0, sepIdx).trim() : rawLabel;
+          let usuarioTxt = String(entry.usuario_nombre || 'usuario').trim();
+          let badgeTitle = usuarioTxt + ' · ' + fmtShortDateTime(entry.fecha_cambio);
+          return (
+            '<div class="d-flex mb-1" title="' +
+            app.escapeHtml(badgeTitle) +
+            '">' +
+            '<span class="badge" style="display:inline-flex;align-items:center;justify-content:flex-start;max-width:100%;width:100%;background:' +
+            app.escapeHtml(bg) +
+            ';color:' +
+            app.escapeHtml(fg) +
+            ';font-size:.64em;line-height:1.05;padding:.16rem .3rem;">' +
+            '<span>' +
+            app.escapeHtml(activityLabel || String(entry.actividad_id || '')) +
+            '</span>' +
+            '</span>' +
+            '</div>'
+          );
+        })
+        .join('');
     }
 
     async function fetchPreviousActividadEntriesFromAudit(cell) {
@@ -2235,6 +2685,9 @@
       let rowData = cell.getRow().getData() || {};
       let agenteId = Number(rowData.agente_id);
       let fechaDia = getFechaFromDayCell(cell);
+      if (!isFechaInActiveCuadrante(fechaDia)) {
+        return [];
+      }
       let borradorId = _.getSelectedBorradorId();
       let anioSel = Number(app.asignacionesState.anio || String(fechaDia).slice(0, 4));
       let mesSel = Number(app.asignacionesState.mes || String(fechaDia).slice(5, 7));
@@ -2321,18 +2774,15 @@
       badge.style.background = bg;
       badge.style.color = fg;
       badge.innerHTML =
-        '<span>' +
-        app.escapeHtml(fmtShortDateFromTimestamp(entry.fecha_cambio)) +
-        '</span>' +
-        ' · ' +
-        app.escapeHtml(shortLabel || String(entry.actividad_id || '')) +
-        '<span style="margin-left:6px;padding:1px 6px;border-radius:10px;font-size:11px;line-height:1;background:' +
+        app.escapeHtml(shortLabel || String(entry.actividad_id || '')) + ' - ' + fmtShortDateTime(entry.fecha_cambio) +
+          
+        ' <span style="margin-left:6px;padding:1px 6px;border-radius:10px;font-size:11px;line-height:1;background:' +
         '#ffffff' +
         ';color:' +
         '#111111' +
         ';border:1px solid rgba(0,0,0,.2)' +
         ';">' +
-        app.escapeHtml(String(entry.count || 1)) +
+        app.escapeHtml(String(entry.count || 1)) + 
         '</span>';
       let usuarioNombre = String(entry && entry.usuario_nombre ? entry.usuario_nombre : '').trim();
       badge.title = (usuarioNombre || 'usuario') + ' · ' + fmtShortDateTime(entry.fecha_cambio);
@@ -2679,22 +3129,17 @@
       // CERRAR AL HACER CLICK FUERA
       // ==========================================
   
-      setTimeout(() => {
-  
-          document.addEventListener("click", function closeMenu() {
-  
-              const currentMenu =
-                  document.getElementById("custom-context-menu");
-  
-              if (currentMenu) {
-                  currentMenu.remove();
-              }
-  
-              document.removeEventListener("click", closeMenu);
-  
-          });
-  
-      }, 0);
+      document.addEventListener(
+        'click',
+        function closeMenu() {
+          const currentMenu = document.getElementById('custom-context-menu');
+          if (currentMenu) {
+            currentMenu.remove();
+          }
+          document.removeEventListener('click', closeMenu, true);
+        },
+        true
+      );
   }
     // @ts-ignore
     _.tabulator.on('dataFiltered', function (filters, rows) {
@@ -2714,6 +3159,9 @@
       restoreAsigHeaderFiltersFromState();
       _.pendingAdvancedFilters = false;
       syncHeaderSelectAllActiveCheckbox();
+      if (isAsigCellHistoryModeEnabled()) {
+        refreshHistoryAuditBatchView().catch(function () {});
+      }
       if (typeof _.applyAsigAdvancedFilters === 'function') {
         _.applyAsigAdvancedFilters();
       }
@@ -2721,16 +3169,17 @@
 
     _.triggerAsigHeaderQbeSync = function () {
       if (app.asignacionesState._asigHeaderQbeSyncTimer) {
-        clearTimeout(app.asignacionesState._asigHeaderQbeSyncTimer);
+        cancelAnimationFrame(app.asignacionesState._asigHeaderQbeSyncTimer);
       }
-      app.asignacionesState._asigHeaderQbeSyncTimer = setTimeout(function () {
+      app.asignacionesState._asigHeaderQbeSyncTimer = requestAnimationFrame(function () {
+        app.asignacionesState._asigHeaderQbeSyncTimer = 0;
         if (!_.tabulator) return;
         syncAsigColumnFiltersFromHeader();
         clearAsigSelection();
         if (typeof _.applyAsigAdvancedFilters === 'function') {
           _.applyAsigAdvancedFilters();
         }
-      }, 0);
+      });
     };
 
     // ── Event delegation (once per container) ──
@@ -2858,9 +3307,7 @@
 
   function clearAsigSelection() {
     app.asignacionesState.selectedAgenteIdsVista = [];
-    if (_.tabulator && typeof _.tabulator.redraw === 'function') {
-      _.tabulator.redraw(true);
-    }
+    scheduleGridRedraw();
     let headerCheckbox = document.querySelector('#asigGridContainer .asig-select-all-active');
     if (headerCheckbox) {
       headerCheckbox.checked = false;
@@ -2874,4 +3321,6 @@
   _.renderGridTabulator = renderGridTabulator;
   _.applyAsigAdvancedFilters = applyAsigAdvancedFilters;
   _.clearAsigSelection = clearAsigSelection;
+  _.setAsigCellHistoryMode = setAsigCellHistoryMode;
+  _.syncAsigCellHistoryModeUi = syncAsigCellHistoryModeUi;
 })();

@@ -94,7 +94,38 @@ function Test-CoreSchemaPresent {
   return (($result | Out-String).Trim() -eq "1")
 }
 
-if ($EnsureUp) {
+function Get-RunningServices {
+  $runningRaw = ComposeOut ps --services --status running
+  return @($runningRaw | ForEach-Object { ($_ | Out-String).Trim() } | Where-Object { $_ })
+}
+
+function Test-RequiredServicesRunning([string[]]$RequiredServices) {
+  $required = @($RequiredServices | Where-Object { $_ })
+  if (-not $required.Count) {
+    return $true
+  }
+
+  $running = Get-RunningServices
+  foreach ($svc in $required) {
+    if (-not ($running -contains $svc)) {
+      return $false
+    }
+  }
+
+  return $true
+}
+
+$RequiredCoreServices = @("nginx", "app", "postgres")
+$EffectiveEnsureUp = $EnsureUp
+
+if (-not $EffectiveEnsureUp) {
+  if (-not (Test-RequiredServicesRunning $RequiredCoreServices)) {
+    Warn "Servicios core no estan running. Se activa auto-ensure (equivalente a -EnsureUp)."
+    $EffectiveEnsureUp = $true
+  }
+}
+
+if ($EffectiveEnsureUp) {
   if (-not $env:DB_PUBLISHED_PORT) {
     $fallbackPort = Get-FirstFreeLoopbackPort @(5432, 15432, 25432, 35432)
     if (-not $fallbackPort) {
