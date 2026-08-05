@@ -17,6 +17,7 @@
     "docker:go-no-go": "powershell -NoProfile -Command \"$env:DB_PUBLISHED_PORT='15432'; powershell -ExecutionPolicy Bypass -File scripts/predeploy-go-no-go.ps1 -EnsureUp -AppUrl 'http://localhost:18080/login.html'; $code=$LASTEXITCODE; Remove-Item Env:DB_PUBLISHED_PORT -ErrorAction SilentlyContinue; exit $code\"",
     "docker:go-no-go:strict": "powershell -NoProfile -Command \"$env:DB_PUBLISHED_PORT='15432'; powershell -ExecutionPolicy Bypass -File scripts/predeploy-go-no-go.ps1 -EnsureUp -Strict -AppUrl 'http://localhost:18080/login.html'; $code=$LASTEXITCODE; Remove-Item Env:DB_PUBLISHED_PORT -ErrorAction SilentlyContinue; exit $code\"",
     "docker:pack-usb": "powershell -ExecutionPolicy Bypass -File scripts/docker/package-release-usb.ps1",
+    "docker:pack-app": "powershell -ExecutionPolicy Bypass -File scripts/docker/package-release-usb.ps1 -OnlyApp",
     "docker:pack-usb:offline-strict": "powershell -ExecutionPolicy Bypass -File scripts/docker/package-release-usb.ps1 -OfflineStrict"
   },
   "keywords": [],
