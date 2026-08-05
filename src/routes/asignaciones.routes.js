@@ -14,6 +14,7 @@ const {
   previewReglasEspecialesSchema,
   consolidarDevengosSchema,
   historialQuerySchema,
+  historialInsightsQuerySchema,
   historialCeldaQuerySchema,
   historialCeldasQuerySchema,
   borradoresParamsSchema,
@@ -55,6 +56,12 @@ router.get(
   authorize('asignaciones:historial'),
   validate(historialQuerySchema, 'query'),
   controller.getHistorial
+);
+router.get(
+  '/historial/insights',
+  authorize('asignaciones:historial', 'informes:auditoria'),
+  validate(historialInsightsQuerySchema, 'query'),
+  controller.getHistorialInsights
 );
 router.get(
   '/historial/celda',

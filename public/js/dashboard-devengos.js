@@ -1215,6 +1215,7 @@
       },
       'Todos los agentes'
     );
+
   }
 
   async function loadReglas() {
@@ -2097,6 +2098,7 @@
       'devPreviewActividadBuscar'
     );
     if (previewActividadBuscar) previewActividadBuscar.value = '';
+
   }
 
   app.initializeDevengos = async function initializeDevengos() {

@@ -2311,8 +2311,52 @@ h2 {
   background-color: inherit !important;
 }
 
-.ledger-tabulator-wrap .tabulator-row.tabulator-selected .tabulator-cell {
-  background-color: #cfe2ff !important;
+/* En ledger saldos, el check no debe pintar la fila */
+#ledgerSaldosPanel .tabulator .tabulator-row.tabulator-selected,
+#ledgerSaldosPanel .tabulator .tabulator-row.tabulator-selected:hover,
+#ledgerSaldosPanel .tabulator .tabulator-row.tabulator-row-odd.tabulator-selected,
+#ledgerSaldosPanel .tabulator .tabulator-row.tabulator-row-even.tabulator-selected {
+  background-color: inherit !important;
+}
+
+#ledgerSaldosPanel .tabulator .tabulator-row.tabulator-selected .tabulator-cell,
+#ledgerSaldosPanel
+  .tabulator
+  .tabulator-row.tabulator-selected:hover
+  .tabulator-cell,
+#ledgerSaldosPanel
+  .tabulator
+  .tabulator-row.tabulator-row-odd.tabulator-selected
+  .tabulator-cell,
+#ledgerSaldosPanel
+  .tabulator
+  .tabulator-row.tabulator-row-even.tabulator-selected
+  .tabulator-cell {
+  background-color: inherit !important;
+}
+
+/* En ledger saldos, el click de fila marca la activa y carga movimientos */
+#ledgerSaldosPanel .tabulator .tabulator-row.ledger-row-active,
+#ledgerSaldosPanel .tabulator .tabulator-row.ledger-row-active:hover,
+#ledgerSaldosPanel .tabulator .tabulator-row.tabulator-row-odd.ledger-row-active,
+#ledgerSaldosPanel .tabulator .tabulator-row.tabulator-row-even.ledger-row-active {
+  background-color: #bbfae2 !important;
+}
+
+#ledgerSaldosPanel .tabulator .tabulator-row.ledger-row-active .tabulator-cell,
+#ledgerSaldosPanel
+  .tabulator
+  .tabulator-row.ledger-row-active:hover
+  .tabulator-cell,
+#ledgerSaldosPanel
+  .tabulator
+  .tabulator-row.tabulator-row-odd.ledger-row-active
+  .tabulator-cell,
+#ledgerSaldosPanel
+  .tabulator
+  .tabulator-row.tabulator-row-even.ledger-row-active
+  .tabulator-cell {
+  background-color: #bbfae2 !important;
 }
 
 /* ── Asignaciones grid: sin zebra, sin highlight de selección ── */
@@ -3048,6 +3092,41 @@ h2 {
 
 #turnoModal .modal-footer {
   padding: 0.5rem 0.75rem;
+}
+
+/* Ledger saldos: override final anti-pisado Tabulator */
+#ledgerSaldosTabulatorHost
+  .tabulator-tableholder
+  .tabulator-row.tabulator-selected,
+#ledgerSaldosTabulatorHost
+  .tabulator-tableholder
+  .tabulator-row.tabulator-selected:hover,
+#ledgerSaldosTabulatorHost
+  .tabulator-tableholder
+  .tabulator-row.tabulator-row-odd.tabulator-selected,
+#ledgerSaldosTabulatorHost
+  .tabulator-tableholder
+  .tabulator-row.tabulator-row-even.tabulator-selected {
+  background: #9fd0ff !important;
+}
+
+#ledgerSaldosTabulatorHost
+  .tabulator-tableholder
+  .tabulator-row.tabulator-selected
+  > .tabulator-cell,
+#ledgerSaldosTabulatorHost
+  .tabulator-tableholder
+  .tabulator-row.tabulator-selected:hover
+  > .tabulator-cell,
+#ledgerSaldosTabulatorHost
+  .tabulator-tableholder
+  .tabulator-row.tabulator-row-odd.tabulator-selected
+  > .tabulator-cell,
+#ledgerSaldosTabulatorHost
+  .tabulator-tableholder
+  .tabulator-row.tabulator-row-even.tabulator-selected
+  > .tabulator-cell {
+  background: #9fd0ff !important;
 }
 
 #turnoModal .modal-footer .btn {

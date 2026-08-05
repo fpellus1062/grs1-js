@@ -1294,7 +1294,25 @@ exports.getCuadrante = (
       saldosDevengoDeltaVentana
     );
 
+    const fechaInicioRaw = String(
+      (options && options.fecha_inicio) || ''
+    ).slice(0, 10);
+    const fechaFinRaw = String((options && options.fecha_fin) || '').slice(
+      0,
+      10
+    );
+    const hasFechaRangoDefinitivo =
+      /^\d{4}-\d{2}-\d{2}$/.test(fechaInicioRaw) &&
+      /^\d{4}-\d{2}-\d{2}$/.test(fechaFinRaw);
+
     // ── Definitivo rows ──
+    const defWhere = hasFechaRangoDefinitivo
+      ? 'asig.fecha >= $2::date AND asig.fecha <= $3::date'
+      : 'asig.anio = $2 AND asig.mes = $3';
+    const defParams = hasFechaRangoDefinitivo
+      ? [arsId, fechaInicioRaw, fechaFinRaw]
+      : [arsId, anio, mes];
+
     const defRes = await client.query(
       `SELECT
             asig.id, asig.anio, asig.mes, asig.dia,
@@ -1308,11 +1326,13 @@ exports.getCuadrante = (
          FROM asignaciones asig
          JOIN turnos  t  ON t.id_turno = asig.turno_id
          JOIN agentes ag ON ag.id = asig.agente_id
-         WHERE asig.anio = $1 AND asig.mes = $2 AND asig.dia = 1 AND asig.ars_unidad_id = $3
+         WHERE asig.ars_unidad_id = $1
+           AND ${defWhere}
+           AND asig.dia = 1
            AND ag.fecha_baja IS NULL
            AND COALESCE(ag.situacion_id, '') <> 'REBASE'
          ORDER BY ag.escalafon, ag.apellido_1, ag.apellido_2, ag.nombre, asig.fecha`,
-      [anio, mes, arsId]
+      defParams
     );
 
     let definitivoServicios = [];
@@ -2643,19 +2663,21 @@ exports.validar = (data, user, arsUnidadId) => {
           `INSERT INTO asignaciones
           (ars_unidad_id, anio, mes, dia, fecha, agente_id, turno_id, observaciones,
            propietario_id, validado_por, validado_at, created_at)
-      SELECT $1::varchar, anio, mes, 1, fecha, agente_id, turno_id, observaciones,
-        propietario_id, $2::int, now(), now()
+      SELECT $1::varchar, $2::int, $3::int, 1, fecha, agente_id, turno_id, observaciones,
+        propietario_id, $4::int, now(), now()
        FROM asignaciones_borrador
-      WHERE borrador_id = $3::int
-        AND dia = 1
-        AND ars_unidad_id = $4::varchar
+      WHERE borrador_id = $5::int
+        AND ars_unidad_id = $1::varchar
       ON CONFLICT (ars_unidad_id, agente_id, fecha)
-       DO UPDATE SET turno_id      = EXCLUDED.turno_id,
+       DO UPDATE SET anio          = EXCLUDED.anio,
+                     mes           = EXCLUDED.mes,
+                     dia           = EXCLUDED.dia,
+                     turno_id      = EXCLUDED.turno_id,
                      observaciones = EXCLUDED.observaciones,
                      validado_por  = EXCLUDED.validado_por,
                      validado_at   = now()
        RETURNING id, agente_id, fecha`,
-          [arsId, user.id, borrador.id, arsId]
+          [arsId, anio, mes, user.id, borrador.id]
         );
 
         // ── Purge: eliminar asignaciones que ya no existen en el borrador ──
@@ -2691,7 +2713,6 @@ exports.validar = (data, user, arsUnidadId) => {
          FROM asignaciones def
          JOIN asignaciones_borrador ab
            ON ab.borrador_id = $1
-          AND ab.dia         = 1
           AND ab.ars_unidad_id = $2
           AND ab.agente_id   = def.agente_id
           AND ab.fecha       = def.fecha
@@ -2810,6 +2831,100 @@ function normalizeHistorialDayKey(value) {
   ].join('-');
 }
 
+function parseHistorialPayload(value, depth = 0) {
+  if (value == null || depth > 2) return value;
+  if (typeof value !== 'string') return value;
+
+  const raw = String(value).trim();
+  if (!raw) return value;
+
+  const looksLikeJson =
+    (raw.startsWith('{') && raw.endsWith('}')) ||
+    (raw.startsWith('[') && raw.endsWith(']')) ||
+    (raw.startsWith('"{') && raw.endsWith('}"')) ||
+    (raw.startsWith('"[') && raw.endsWith(']"'));
+  if (!looksLikeJson) return value;
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed === 'string') {
+      return parseHistorialPayload(parsed, depth + 1);
+    }
+    return parsed;
+  } catch (_err) {
+    return value;
+  }
+}
+
+function isIsoDateLike(value) {
+  return /^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(String(value || '').trim());
+}
+
+function collectHistorialDaysFromPayload(payload, outSet, depth = 0, parentKey = '') {
+  if (!payload || depth > 6) return;
+
+  const normalizedPayload = parseHistorialPayload(payload);
+  if (normalizedPayload !== payload) {
+    collectHistorialDaysFromPayload(normalizedPayload, outSet, depth, parentKey);
+    return;
+  }
+
+  if (typeof payload === 'string') {
+    if (isIsoDateLike(payload)) {
+      const day = normalizeHistorialDayKey(payload);
+      if (day) outSet.add(day);
+    }
+    return;
+  }
+
+  if (Array.isArray(payload)) {
+    payload.forEach((item) =>
+      collectHistorialDaysFromPayload(item, outSet, depth + 1, parentKey)
+    );
+    return;
+  }
+
+  if (typeof payload !== 'object') return;
+
+  Object.entries(payload).forEach(([key, value]) => {
+    const keyDay = normalizeHistorialDayKey(key);
+    if (keyDay) outSet.add(keyDay);
+
+    const lowerKey = String(key || '').toLowerCase();
+
+    if (
+      lowerKey === 'fecha' ||
+      lowerKey === 'fecha_cuadrante' ||
+      lowerKey === 'from' ||
+      lowerKey === 'to'
+    ) {
+      const day = normalizeHistorialDayKey(value);
+      if (day) outSet.add(day);
+    }
+
+    if (lowerKey === 'fechas') {
+      if (Array.isArray(value)) {
+        value.forEach((entry) => {
+          const day = normalizeHistorialDayKey(entry);
+          if (day) outSet.add(day);
+          if (entry && typeof entry === 'object') {
+            collectHistorialDaysFromPayload(entry, outSet, depth + 1, lowerKey);
+          }
+        });
+      } else if (value && typeof value === 'object') {
+        Object.keys(value).forEach((entryKey) => {
+          const day = normalizeHistorialDayKey(entryKey);
+          if (day) outSet.add(day);
+        });
+        collectHistorialDaysFromPayload(value, outSet, depth + 1, lowerKey);
+      }
+      return;
+    }
+
+    collectHistorialDaysFromPayload(value, outSet, depth + 1, lowerKey);
+  });
+}
+
 function extractHistorialDays(entry) {
   const days = new Set();
   const add = (v) => {
@@ -2819,8 +2934,10 @@ function extractHistorialDays(entry) {
 
   add(entry.fecha);
 
-  const before = entry && entry.datos_anteriores;
-  const after = entry && entry.datos_nuevos;
+  if (entry && entry.historial_day_key) add(entry.historial_day_key);
+
+  const before = parseHistorialPayload(entry && entry.datos_anteriores);
+  const after = parseHistorialPayload(entry && entry.datos_nuevos);
 
   if (before && typeof before === 'object' && before.fechas && typeof before.fechas === 'object') {
     Object.keys(before.fechas).forEach(add);
@@ -2829,57 +2946,55 @@ function extractHistorialDays(entry) {
     Object.keys(after.fechas).forEach(add);
   }
 
+  // Compatibilidad con formatos históricos/alternativos en logs masivos.
+  collectHistorialDaysFromPayload(before, days);
+  collectHistorialDaysFromPayload(after, days);
+
   return Array.from(days);
 }
 
 function pickHistorialDayData(datos, dayKey, fallbackFecha) {
-  if (!datos || typeof datos !== 'object') return null;
+  const normalizedDatos = parseHistorialPayload(datos);
+  if (!normalizedDatos || typeof normalizedDatos !== 'object') return null;
 
-  if (datos.fechas && typeof datos.fechas === 'object') {
-    if (!(dayKey in datos.fechas)) return null;
-    return datos.fechas[dayKey] || null;
+  if (normalizedDatos.fechas && typeof normalizedDatos.fechas === 'object') {
+    if (Array.isArray(normalizedDatos.fechas)) {
+      const match = normalizedDatos.fechas.find((item) => {
+        if (typeof item === 'string') {
+          return normalizeHistorialDayKey(item) === dayKey;
+        }
+        if (item && typeof item === 'object') {
+          return normalizeHistorialDayKey(item.fecha || item.fecha_cuadrante) === dayKey;
+        }
+        return false;
+      });
+      if (match == null) return null;
+      if (typeof match === 'string') return { fecha: dayKey };
+      return match;
+    }
+
+    if (!(dayKey in normalizedDatos.fechas)) return null;
+    return normalizedDatos.fechas[dayKey] || null;
   }
 
-  const ownDay = normalizeHistorialDayKey(datos.fecha || fallbackFecha);
+  if (dayKey in normalizedDatos && normalizedDatos[dayKey] && typeof normalizedDatos[dayKey] === 'object') {
+    return normalizedDatos[dayKey];
+  }
+
+  const ownDay = normalizeHistorialDayKey(normalizedDatos.fecha || fallbackFecha);
   if (ownDay !== dayKey) return null;
   return {
-    turno_id: datos.turno_id,
-    observaciones: datos.observaciones,
-    actividad_ids: datos.actividad_ids,
+    turno_id: normalizedDatos.turno_id,
+    observaciones: normalizedDatos.observaciones,
+    actividad_ids: normalizedDatos.actividad_ids,
   };
 }
 
-function explodeHistorialByAgentDay(logs) {
-  const exploded = [];
-
-  (logs || []).forEach((entry) => {
-    const days = extractHistorialDays(entry);
-
-    if (!days.length) {
-      exploded.push({
-        ...entry,
-        fecha: null,
-        historial_day_key: '__SIN_FECHA_MASIVO__',
-      });
-      return;
-    }
-
-    days.forEach((dayKey) => {
-      exploded.push({
-        ...entry,
-        fecha: dayKey,
-        historial_day_key: dayKey,
-        datos_anteriores: pickHistorialDayData(
-          entry.datos_anteriores,
-          dayKey,
-          entry.fecha
-        ),
-        datos_nuevos: pickHistorialDayData(entry.datos_nuevos, dayKey, entry.fecha),
-      });
-    });
-  });
-
-  return exploded;
+function isHistorialMassiveAction(accion) {
+  const value = String(accion || '').trim().toUpperCase();
+  return value === 'BORRADOR_CREAR_MASIVO' ||
+    value === 'BORRADOR_EDITAR_MASIVO' ||
+    value === 'BORRADOR_BULK';
 }
 
 function keepLatestPerAgentDay(logs) {
@@ -2906,8 +3021,32 @@ function keepLatestPerAgentDay(logs) {
   return Array.from(byKey.values());
 }
 
-exports.getHistorial = async (query, arsUnidadId) => {
-  const arsId = requireArsId(arsUnidadId);
+function expandHistorialAcciones(accion, acciones, overrideAcciones) {
+  const accionList = (() => {
+    if (Array.isArray(overrideAcciones) && overrideAcciones.length) {
+      return overrideAcciones
+        .map((s) => String(s || '').trim())
+        .filter(Boolean);
+    }
+    if (acciones) {
+      return String(acciones)
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+    if (accion) return [String(accion).trim()];
+    return [];
+  })();
+
+  if (!accionList.length) return [];
+  const set = new Set(accionList);
+  if (set.has('BORRADOR_CREAR_MASIVO') || set.has('BORRADOR_EDITAR_MASIVO')) {
+    set.add('BORRADOR_BULK');
+  }
+  return Array.from(set);
+}
+
+function buildHistorialBaseWhere(query, arsId, options = {}) {
   const {
     anio,
     mes,
@@ -2919,34 +3058,18 @@ exports.getHistorial = async (query, arsUnidadId) => {
     usuario_id,
     fecha_cambio,
     fechas_cambio,
-    fechas_cuadrante,
+    estado_comunicado,
     repetir_comunicados,
-    page,
-    limit,
   } = query;
-  const offset = (page - 1) * limit;
+
   const agenteIds = parseNumericCsv(agente_ids);
   if (!agenteIds.length && agente_id) agenteIds.push(Number(agente_id));
 
-  // Admite filtro multi-acción (acciones=CSV) y también el antiguo accion=string
-  const accionList = (() => {
-    if (acciones)
-      return String(acciones)
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
-    if (accion) return [String(accion).trim()];
-    return [];
-  })();
-  const accionListExpanded = (() => {
-    if (!accionList.length) return [];
-    const set = new Set(accionList);
-    // Compatibilidad: los cambios masivos resumen se guardan como BORRADOR_BULK
-    if (set.has('BORRADOR_CREAR_MASIVO') || set.has('BORRADOR_EDITAR_MASIVO')) {
-      set.add('BORRADOR_BULK');
-    }
-    return Array.from(set);
-  })();
+  const accionListExpanded = expandHistorialAcciones(
+    accion,
+    acciones,
+    options.overrideAcciones
+  );
 
   const fechaCambioList = (() => {
     if (!fechas_cambio) return [];
@@ -2960,24 +3083,15 @@ exports.getHistorial = async (query, arsUnidadId) => {
     );
   })();
 
-  const fechasCuadranteList = (() => {
-    if (!fechas_cuadrante) return [];
-    return Array.from(
-      new Set(
-        String(fechas_cuadrante)
-          .split(',')
-          .map((s) => s.trim())
-          .filter(
-            (s) => /^\d{4}-\d{2}-\d{2}$/.test(s) || s === '__SIN_FECHA_MASIVO__'
-          )
-      )
-    );
-  })();
-
   let where = 'WHERE l.anio = $1 AND l.mes = $2 AND l.ars_unidad_id = $3';
   const params = [anio, mes, arsId];
 
-  if (repetir_comunicados) {
+  const estadoComunicado = String(estado_comunicado || '').toLowerCase();
+  if (estadoComunicado === 'comunicados') {
+    where += ' AND l.comunicado_at IS NOT NULL';
+  } else if (estadoComunicado === 'todos') {
+    // sin filtro por comunicado_at
+  } else if (repetir_comunicados === true || String(repetir_comunicados || '').toLowerCase() === 'true' || String(repetir_comunicados) === '1') {
     where += ' AND l.comunicado_at IS NOT NULL';
   } else {
     where += ' AND l.comunicado_at IS NULL';
@@ -3006,37 +3120,223 @@ exports.getHistorial = async (query, arsUnidadId) => {
     params.push(String(fecha_cambio));
     where += ` AND l.created_at::date = $${params.length}::date`;
   }
+
+  return { where, params, agenteIds, accionListExpanded };
+}
+
+async function getHistorialAdvancedKpis(query, arsUnidadId) {
+  const arsId = requireArsId(arsUnidadId);
+  const { where, params } = buildHistorialBaseWhere(query, arsId, {
+    overrideAcciones: ['BORRADOR_EDITAR', 'BORRADOR_EDITAR_MASIVO'],
+  });
+
+  const { rows } = await db.query(
+    `WITH base_logs AS (
+       SELECT l.id,
+              l.accion,
+              l.agente_id,
+              l.fecha::text AS fecha,
+              l.created_at,
+              l.datos_nuevos,
+              l.datos_anteriores
+         FROM asignaciones_log l
+         ${where}
+     ),
+     expanded_logs AS (
+       SELECT b.id,
+              b.accion,
+              b.agente_id,
+              COALESCE(day_keys.day_key::text, b.fecha::text, '__SIN_FECHA_MASIVO__') AS historial_day_key,
+              b.created_at
+         FROM base_logs b
+         LEFT JOIN LATERAL (
+           SELECT keys.day_key
+             FROM (
+               SELECT key::text AS day_key
+                 FROM jsonb_each(
+                   CASE
+                     WHEN jsonb_typeof(b.datos_nuevos) = 'object'
+                          AND b.datos_nuevos ? 'fechas'
+                          AND jsonb_typeof(b.datos_nuevos -> 'fechas') = 'object'
+                       THEN b.datos_nuevos -> 'fechas'
+                     ELSE '{}'::jsonb
+                   END
+                 )
+               UNION
+               SELECT key::text AS day_key
+                 FROM jsonb_each(
+                   CASE
+                     WHEN jsonb_typeof(b.datos_anteriores) = 'object'
+                          AND b.datos_anteriores ? 'fechas'
+                          AND jsonb_typeof(b.datos_anteriores -> 'fechas') = 'object'
+                       THEN b.datos_anteriores -> 'fechas'
+                     ELSE '{}'::jsonb
+                   END
+                 )
+             ) keys
+         ) day_keys ON TRUE
+     ),
+     slot_counts AS (
+       SELECT agente_id,
+              historial_day_key,
+              COUNT(*)::int AS slot_count
+         FROM expanded_logs
+        WHERE agente_id IS NOT NULL
+        GROUP BY agente_id, historial_day_key
+     )
+     SELECT (SELECT COUNT(*)::int FROM expanded_logs) AS cambios_efectivos,
+            (SELECT COUNT(*)::int FROM slot_counts) AS slots_tocados,
+            (SELECT COUNT(*)::int FROM slot_counts WHERE slot_count > 1) AS slots_con_retrabajo,
+            (SELECT COALESCE(SUM(GREATEST(slot_count - 1, 0)), 0)::int FROM slot_counts) AS retrabajos_adicionales`,
+    params
+  );
+
+  const row = rows[0] || {};
+  return {
+    cambios_efectivos: Number(row.cambios_efectivos || 0),
+    slots_tocados: Number(row.slots_tocados || 0),
+    slots_con_retrabajo: Number(row.slots_con_retrabajo || 0),
+    retrabajos_adicionales: Number(row.retrabajos_adicionales || 0),
+  };
+}
+
+exports.getHistorial = async (query, arsUnidadId) => {
+  const arsId = requireArsId(arsUnidadId);
+  const {
+    actividad_id,
+    actividad_ids,
+    fechas_cuadrante,
+    modo,
+    page,
+    limit,
+  } = query;
+  const requestedMode = String(modo || 'compact').toLowerCase();
+  const isRawMode = requestedMode === 'raw';
+  const parsedPage = Number(page);
+  const parsedLimit = Number(limit);
+  const hasPage = Number.isFinite(parsedPage) && parsedPage >= 1;
+  const hasLimit = Number.isFinite(parsedLimit) && parsedLimit >= 1;
+  const safePage = hasPage ? Math.max(1, Math.trunc(parsedPage)) : 1;
+  const safeLimit = hasLimit ? Math.max(1, Math.trunc(parsedLimit)) : null;
+  const offset = safeLimit != null ? (safePage - 1) * safeLimit : 0;
+  const { where, params } = buildHistorialBaseWhere(query, arsId);
+
+  const fechasCuadranteList = (() => {
+    if (!fechas_cuadrante) return [];
+    return Array.from(
+      new Set(
+        String(fechas_cuadrante)
+          .split(',')
+          .map((s) => s.trim())
+          .filter(
+            (s) => /^\d{4}-\d{2}-\d{2}$/.test(s) || s === '__SIN_FECHA_MASIVO__'
+          )
+      )
+    );
+  })();
+
+ // params.push(fetchLimit);
   const { rows: rawLogs } = await db.query(
-    `SELECT l.*,
-            l.fecha::text        AS fecha,
-            ag.tip               AS agente_tip,
-            ag.telefono          AS agente_telefono,
-          ag.escalafon         AS agente_escalafon,
-          ag.nif               AS agente_nif,
-          ag.aptitudes         AS agente_titulacion,
-            ag.nombre            AS agente_nombre,
-            ag.apellido_1        AS agente_apellido1,
-            ag.apellido_2        AS agente_apellido2,
-            e.descripcion        AS empleo_nombre,
-          p.id_peloton         AS peloton_codigo,
-          p.descripcion        AS peloton_nombre,
-            uc.nombre AS comunicado_nombre
-     FROM asignaciones_log l
-     LEFT JOIN agentes ag ON ag.id = l.agente_id
-     LEFT JOIN agentes_empleo e ON e.id_empleo = ag.empleo_id
-      LEFT JOIN agentes_peloton p ON p.id_peloton::text = ag.peloton_id::text
-     LEFT JOIN usuarios uc ON uc.id = l.comunicado_por
-     ${where}
-     ORDER BY l.id DESC
-     LIMIT 5000`,
+    `WITH base_logs AS (
+       SELECT l.*,
+              ag.tip               AS agente_tip,
+              ag.telefono          AS agente_telefono,
+              ag.escalafon         AS agente_escalafon,
+              ag.nif               AS agente_nif,
+              ag.aptitudes         AS agente_titulacion,
+              ag.nombre            AS agente_nombre,
+              ag.apellido_1        AS agente_apellido1,
+              ag.apellido_2        AS agente_apellido2,
+              e.descripcion        AS empleo_nombre,
+              p.id_peloton         AS peloton_codigo,
+              p.descripcion        AS peloton_nombre,
+              uc.nombre            AS comunicado_nombre
+         FROM asignaciones_log l
+         LEFT JOIN agentes ag ON ag.id = l.agente_id
+         LEFT JOIN agentes_empleo e ON e.id_empleo = ag.empleo_id
+         LEFT JOIN agentes_peloton p ON p.id_peloton::text = ag.peloton_id::text
+         LEFT JOIN usuarios uc ON uc.id = l.comunicado_por
+         ${where}
+         ORDER BY l.id DESC
+     )
+         SELECT b.*,
+           COALESCE(day_keys.day_key::text, b.fecha::text) AS fecha,
+           COALESCE(day_keys.day_key::text, b.fecha::text, '__SIN_FECHA_MASIVO__') AS historial_day_key,
+            CASE
+              WHEN day_keys.day_key IS NULL THEN b.datos_nuevos
+              WHEN jsonb_typeof(b.datos_nuevos) = 'object'
+                   AND b.datos_nuevos ? 'fechas'
+                   AND jsonb_typeof(b.datos_nuevos -> 'fechas') = 'object'
+                THEN b.datos_nuevos -> 'fechas' -> day_keys.day_key
+              ELSE NULL
+            END AS datos_nuevos,
+            CASE
+              WHEN day_keys.day_key IS NULL THEN b.datos_anteriores
+              WHEN jsonb_typeof(b.datos_anteriores) = 'object'
+                   AND b.datos_anteriores ? 'fechas'
+                   AND jsonb_typeof(b.datos_anteriores -> 'fechas') = 'object'
+                THEN b.datos_anteriores -> 'fechas' -> day_keys.day_key
+              ELSE NULL
+            END AS datos_anteriores
+       FROM base_logs b
+       LEFT JOIN LATERAL (
+         SELECT keys.day_key
+           FROM (
+             SELECT key::text AS day_key
+               FROM jsonb_each(
+                 CASE
+                   WHEN jsonb_typeof(b.datos_nuevos) = 'object'
+                        AND b.datos_nuevos ? 'fechas'
+                        AND jsonb_typeof(b.datos_nuevos -> 'fechas') = 'object'
+                     THEN b.datos_nuevos -> 'fechas'
+                   ELSE '{}'::jsonb
+                 END
+               )
+             UNION
+             SELECT key::text AS day_key
+               FROM jsonb_each(
+                 CASE
+                   WHEN jsonb_typeof(b.datos_anteriores) = 'object'
+                        AND b.datos_anteriores ? 'fechas'
+                        AND jsonb_typeof(b.datos_anteriores -> 'fechas') = 'object'
+                     THEN b.datos_anteriores -> 'fechas'
+                   ELSE '{}'::jsonb
+                 END
+               )
+           ) keys
+       ) day_keys ON TRUE
+      ORDER BY b.id DESC, day_keys.day_key`,
     params
   );
 
   // Todos los IDs no comunicados (antes de reducir a uno por agente+día)
   // Se usan para marcar TODOS los cambios del período, no sólo el último visible.
-  const allNonComunicadoIds = rawLogs.map((r) => r.id);
+  const allNonComunicadoIds = Array.from(new Set(rawLogs.map((r) => Number(r.id || 0)).filter(Boolean)));
 
-  let logs = keepLatestPerAgentDay(explodeHistorialByAgentDay(rawLogs));
+  let logs = rawLogs.map((entry) => ({
+    ...entry,
+    datos_nuevos: parseHistorialPayload(entry && entry.datos_nuevos),
+    datos_anteriores: parseHistorialPayload(entry && entry.datos_anteriores),
+  })).map((entry) => {
+    const isMassive = isHistorialMassiveAction(entry && entry.accion);
+    const fechaColumna = normalizeHistorialDayKey(entry && entry.fecha);
+
+    let historialDayKey = fechaColumna || '__SIN_FECHA_MASIVO__';
+    if (isMassive) {
+      const days = extractHistorialDays(entry);
+      const isoDay = days.find((d) => /^\d{4}-\d{2}-\d{2}$/.test(String(d || '')));
+      historialDayKey = isoDay || historialDayKey;
+    }
+
+    return {
+      ...entry,
+      fecha: fechaColumna || entry.fecha,
+      historial_day_key: historialDayKey,
+    };
+  });
+  if (!isRawMode) {
+    logs = keepLatestPerAgentDay(logs);
+  }
 
   if (fechasCuadranteList.length) {
     const includeNullCuadrante = fechasCuadranteList.includes(
@@ -3053,25 +3353,352 @@ exports.getHistorial = async (query, arsUnidadId) => {
     });
   }
 
-  logs.sort((a, b) => {
-    const nameA = [a.agente_apellido1, a.agente_apellido2, a.agente_nombre]
-      .filter(Boolean)
-      .join(' ');
-    const nameB = [b.agente_apellido1, b.agente_apellido2, b.agente_nombre]
-      .filter(Boolean)
-      .join(' ');
-    const cmpName = nameA.localeCompare(nameB, 'es', { sensitivity: 'base' });
-    if (cmpName !== 0) return cmpName;
-    const tA = new Date(a.created_at || 0).getTime();
-    const tB = new Date(b.created_at || 0).getTime();
-    if (tB !== tA) return tB - tA;
-    return Number(b.id || 0) - Number(a.id || 0);
-  });
+  const actividadIds = (() => {
+    const csv = parseNumericCsv(actividad_ids);
+    if (csv.length) {
+      return Array.from(new Set(csv.filter((id) => Number.isInteger(id) && id > 0)));
+    }
+    const single = Number(actividad_id || 0);
+    return Number.isInteger(single) && single > 0 ? [single] : [];
+  })();
+  if (actividadIds.length) {
+    logs = logs.filter((entry) =>
+      actividadIds.some((actividadId) => matchesActividadInHistorialLog(entry, actividadId))
+    );
+  }
+
+  if (isRawMode) {
+    logs.sort((a, b) => {
+      const tA = new Date(a.created_at || 0).getTime();
+      const tB = new Date(b.created_at || 0).getTime();
+      if (tB !== tA) return tB - tA;
+      return Number(b.id || 0) - Number(a.id || 0);
+    });
+  } else {
+    logs.sort((a, b) => {
+      const nameA = [a.agente_apellido1, a.agente_apellido2, a.agente_nombre]
+        .filter(Boolean)
+        .join(' ');
+      const nameB = [b.agente_apellido1, b.agente_apellido2, b.agente_nombre]
+        .filter(Boolean)
+        .join(' ');
+      const cmpName = nameA.localeCompare(nameB, 'es', {
+        sensitivity: 'base',
+      });
+      if (cmpName !== 0) return cmpName;
+      const tA = new Date(a.created_at || 0).getTime();
+      const tB = new Date(b.created_at || 0).getTime();
+      if (tB !== tA) return tB - tA;
+      return Number(b.id || 0) - Number(a.id || 0);
+    });
+  }
 
   const total = logs.length;
-  const paged = logs.slice(offset, offset + limit);
+  const paged = safeLimit != null ? logs.slice(offset, offset + safeLimit) : logs;
 
-  return { logs: paged, total, page, limit, allNonComunicadoIds };
+  return {
+    logs: paged,
+    total,
+    page: safePage,
+    limit: safeLimit,
+    mode: isRawMode ? 'raw' : 'compact',
+    allNonComunicadoIds,
+  };
+};
+
+exports.getHistorialInsights = async (query, arsUnidadId) => {
+  const topUsuarios = Math.max(1, Math.min(50, Number(query.top_usuarios) || 12));
+  const topAgentesHeatmap = Math.max(
+    1,
+    Math.min(80, Number(query.top_agentes_heatmap) || 40)
+  );
+  const includeLogs =
+    query.include_logs === true ||
+    String(query.include_logs || '').toLowerCase() === 'true' ||
+    String(query.include_logs || '') === '1';
+
+  const insightsLimit = Math.max(
+    10000,
+    Math.min(100000, Number(query.limit) || 50000)
+  );
+
+  const historialRaw = await exports.getHistorial(
+    {
+      ...query,
+      modo: 'raw',
+      page: 1,
+      limit: insightsLimit,
+    },
+    arsUnidadId
+  );
+  const advancedKpis = await getHistorialAdvancedKpis(query, arsUnidadId);
+
+  const logs = Array.isArray(historialRaw.logs) ? historialRaw.logs : [];
+  const byCreatedDate = new Map();
+  const byUser = new Map();
+  const byAction = new Map();
+  const distinctAgentes = new Map();
+  const distinctUsers = new Map();
+  const dayAgentActividadCounts = new Map();
+  const resumenAgenteDia = new Map();
+  const actividadIds = new Set();
+
+  logs.forEach((entry) => {
+    const createdDate = String(entry.created_at || '').slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(createdDate)) {
+      byCreatedDate.set(createdDate, (byCreatedDate.get(createdDate) || 0) + 1);
+    }
+
+    const usuarioId = Number(entry.usuario_id || 0);
+    const usuarioNombre = String(entry.usuario_nombre || '').trim() ||
+      (usuarioId > 0 ? `Usuario #${usuarioId}` : 'Sin usuario');
+    const userKey = usuarioId > 0 ? `id:${usuarioId}` : `name:${usuarioNombre}`;
+    if (!byUser.has(userKey)) {
+      byUser.set(userKey, {
+        usuario_id: usuarioId > 0 ? usuarioId : null,
+        usuario_nombre: usuarioNombre,
+        cambios: 0,
+      });
+    }
+    byUser.get(userKey).cambios += 1;
+    if (usuarioId > 0) {
+      distinctUsers.set(usuarioId, usuarioNombre);
+    }
+
+    const accion = String(entry.accion || '').trim() || 'SIN_ACCION';
+    byAction.set(accion, (byAction.get(accion) || 0) + 1);
+
+    const agenteId = Number(entry.agente_id || 0);
+    const agenteTip = String(entry.agente_tip || '').trim();
+    const agenteNombre = [entry.agente_apellido1, entry.agente_apellido2, entry.agente_nombre]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    if (agenteId > 0) {
+      distinctAgentes.set(agenteId, {
+        agente_tip: agenteTip,
+        agente_nombre: agenteNombre || `Agente #${agenteId}`,
+      });
+    }
+
+    const dayKey = entry.historial_day_key || '__SIN_FECHA_MASIVO__';
+    const beforeIds = extractActividadIdsFromHistorialDayData(
+      pickHistorialDayData(entry.datos_anteriores, dayKey, entry.fecha)
+    );
+    const afterIds = extractActividadIdsFromHistorialDayData(
+      pickHistorialDayData(entry.datos_nuevos, dayKey, entry.fecha)
+    );
+    const actividadIdsLog = Array.from(
+      new Set(beforeIds.concat(afterIds).filter((id) => Number.isInteger(Number(id)) && Number(id) > 0))
+    ).map((id) => Number(id));
+
+    actividadIdsLog.forEach((id) => actividadIds.add(Number(id)));
+
+    if (agenteId > 0) {
+      if (actividadIdsLog.length) {
+        actividadIdsLog.forEach((actividadId) => {
+          const heatKey = `${agenteId}|${dayKey}|${actividadId}`;
+          dayAgentActividadCounts.set(
+            heatKey,
+            (dayAgentActividadCounts.get(heatKey) || 0) + 1
+          );
+        });
+      }
+
+      const resumeKey = `${agenteId}|${dayKey}`;
+      if (!resumenAgenteDia.has(resumeKey)) {
+        const agenteMeta = distinctAgentes.get(agenteId) || null;
+        resumenAgenteDia.set(resumeKey, {
+          agente_id: agenteId,
+          agente_nombre: agenteMeta && agenteMeta.agente_nombre ? agenteMeta.agente_nombre : `Agente #${agenteId}`,
+          fecha_cuadrante: dayKey,
+          cambios: 0,
+          primer_cambio: entry.created_at || null,
+          ultimo_cambio: entry.created_at || null,
+          usuarios: new Set(),
+          acciones: new Map(),
+        });
+      }
+      const resume = resumenAgenteDia.get(resumeKey);
+      resume.cambios += 1;
+
+      const tEntry = new Date(entry.created_at || 0).getTime();
+      const tFirst = new Date(resume.primer_cambio || 0).getTime();
+      const tLast = new Date(resume.ultimo_cambio || 0).getTime();
+      if (tEntry < tFirst) resume.primer_cambio = entry.created_at || resume.primer_cambio;
+      if (tEntry > tLast) resume.ultimo_cambio = entry.created_at || resume.ultimo_cambio;
+
+      if (usuarioNombre) resume.usuarios.add(usuarioNombre);
+      resume.acciones.set(accion, (resume.acciones.get(accion) || 0) + 1);
+    }
+  });
+
+  let actividadMetaMap = new Map();
+  if (actividadIds.size) {
+    const { rows: actividadRows } = await db.query(
+      `SELECT a.id_actividad,
+              a.actividad AS actividad_codigo,
+              a.nombre AS actividad_nombre
+         FROM actividades a
+        WHERE a.id_actividad = ANY($1::int[])`,
+      [Array.from(actividadIds.values()).filter((id) => Number.isInteger(id) && id > 0)]
+    );
+    actividadRows.forEach((row) => {
+      const id = Number(row.id_actividad);
+      if (!Number.isInteger(id) || id <= 0) return;
+      const codigo = String(row.actividad_codigo || '').trim();
+      const nombre = String(row.actividad_nombre || '').trim();
+      actividadMetaMap.set(id, {
+        codigo,
+        nombre,
+        label: buildActividadLabelFromRow(row) || `Actividad ${id}`,
+      });
+    });
+  }
+
+  const lineaCambiosDia = Array.from(byCreatedDate.entries())
+    .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
+    .map((entry) => ({ fecha: entry[0], cambios: entry[1] }));
+
+  const barrasUsuarios = Array.from(byUser.values())
+    .sort((a, b) => b.cambios - a.cambios)
+    .slice(0, topUsuarios);
+
+  const topAgentes = Array.from(dayAgentActividadCounts.entries())
+    .reduce((acc, entry) => {
+      const key = String(entry[0] || '');
+      const agenteId = Number(key.split('|')[0]);
+      if (!Number.isInteger(agenteId) || agenteId <= 0) return acc;
+      acc.set(agenteId, (acc.get(agenteId) || 0) + Number(entry[1] || 0));
+      return acc;
+    }, new Map());
+
+  const topAgenteIds = Array.from(topAgentes.entries())
+    .sort((a, b) => Number(b[1]) - Number(a[1]))
+    .slice(0, topAgentesHeatmap)
+    .map((entry) => Number(entry[0]));
+  const topAgenteSet = new Set(topAgenteIds);
+
+  const heatmap = Array.from(dayAgentActividadCounts.entries())
+    .map((entry) => {
+      const parts = String(entry[0] || '').split('|');
+      const agenteId = Number(parts[0] || 0);
+      const fechaCuadrante = String(parts[1] || '__SIN_FECHA_MASIVO__');
+      const actividadId = Number(parts[2] || 0);
+      const actividadMeta = actividadMetaMap.get(actividadId) || {
+        codigo: '',
+        nombre: '',
+        label: `Actividad ${actividadId}`,
+      };
+      const agenteMeta = distinctAgentes.get(agenteId) || null;
+      return {
+        agente_id: agenteId,
+        agente_nombre: agenteMeta && agenteMeta.agente_nombre ? agenteMeta.agente_nombre : `Agente #${agenteId}`,
+        fecha_cuadrante: fechaCuadrante,
+        actividad_id: actividadId,
+        codigo_actividad: actividadMeta.codigo || `ACT-${actividadId}`,
+        actividad_label: actividadMeta.label,
+        cambios: Number(entry[1] || 0),
+      };
+    })
+    .filter(
+      (item) =>
+        topAgenteSet.has(item.agente_id) &&
+        Number.isInteger(Number(item.actividad_id)) &&
+        Number(item.actividad_id) > 0
+    )
+    .sort((a, b) => {
+      const cmpAg = String(a.agente_nombre || '').localeCompare(
+        String(b.agente_nombre || ''),
+        'es',
+        { sensitivity: 'base' }
+      );
+      if (cmpAg !== 0) return cmpAg;
+      const cmpFecha = String(a.fecha_cuadrante || '').localeCompare(
+        String(b.fecha_cuadrante || '')
+      );
+      if (cmpFecha !== 0) return cmpFecha;
+      return String(a.codigo_actividad || '').localeCompare(
+        String(b.codigo_actividad || ''),
+        'es',
+        { sensitivity: 'base' }
+      );
+    });
+
+  const resumen = Array.from(resumenAgenteDia.values())
+    .map((row) => ({
+      agente_id: row.agente_id,
+      agente_nombre: row.agente_nombre,
+      fecha_cuadrante: row.fecha_cuadrante,
+      cambios: row.cambios,
+      primer_cambio: row.primer_cambio,
+      ultimo_cambio: row.ultimo_cambio,
+      usuarios: Array.from(row.usuarios.values()).sort((a, b) =>
+        String(a).localeCompare(String(b), 'es', { sensitivity: 'base' })
+      ),
+      acciones: Array.from(row.acciones.entries())
+        .map((entry) => ({ accion: entry[0], cambios: entry[1] }))
+        .sort((a, b) => b.cambios - a.cambios),
+    }))
+    .sort((a, b) => {
+      const cmp = String(a.agente_nombre || '').localeCompare(
+        String(b.agente_nombre || ''),
+        'es',
+        { sensitivity: 'base' }
+      );
+      if (cmp !== 0) return cmp;
+      return String(a.fecha_cuadrante || '').localeCompare(String(b.fecha_cuadrante || ''));
+    });
+
+  return {
+    mode: 'raw',
+    total_logs: logs.length,
+    kpis: {
+      total_cambios: logs.length,
+      personas_afectadas: distinctAgentes.size,
+      usuarios_activos: distinctUsers.size,
+      dias_con_cambios: lineaCambiosDia.length,
+    },
+    kpis_avanzados: advancedKpis,
+    charts: {
+      linea_cambios_dia: lineaCambiosDia,
+      barras_usuarios: barrasUsuarios,
+      heatmap_dia_persona: heatmap,
+      acciones: Array.from(byAction.entries())
+        .map((entry) => ({ accion: entry[0], cambios: entry[1] }))
+        .sort((a, b) => b.cambios - a.cambios),
+    },
+    filtros: {
+      usuarios: Array.from(byUser.values())
+        .sort((a, b) => String(a.usuario_nombre || '').localeCompare(String(b.usuario_nombre || ''), 'es', { sensitivity: 'base' })),
+      acciones: Array.from(byAction.keys()).sort((a, b) =>
+        String(a).localeCompare(String(b), 'es', { sensitivity: 'base' })
+      ),
+      agentes: Array.from(distinctAgentes.entries())
+        .map((entry) => ({
+          agente_id: Number(entry[0]),
+          agente_tip: entry[1] && entry[1].agente_tip ? entry[1].agente_tip : '',
+          agente_nombre: entry[1] && entry[1].agente_nombre ? entry[1].agente_nombre : `Agente #${entry[0]}`,
+        }))
+        .sort((a, b) =>
+          String(a.agente_nombre || '').localeCompare(String(b.agente_nombre || ''), 'es', {
+            sensitivity: 'base',
+          })
+        ),
+      actividades: Array.from(actividadMetaMap.entries())
+        .map((entry) => ({
+          actividad_id: Number(entry[0]),
+          actividad_label: entry[1] && entry[1].label ? entry[1].label : `Actividad ${entry[0]}`,
+        }))
+        .sort((a, b) =>
+          String(a.actividad_label || '').localeCompare(String(b.actividad_label || ''), 'es', {
+            sensitivity: 'base',
+          })
+        ),
+    },
+    resumen_agente_dia: resumen,
+    logs: includeLogs ? logs : undefined,
+  };
 };
 
 function extractActividadIdsFromHistorialDayData(dayData) {
@@ -3089,6 +3716,22 @@ function extractActividadIdsFromHistorialDayData(dayData) {
   }
 
   return Array.from(new Set(ids));
+}
+
+function matchesActividadInHistorialLog(entry, actividadId) {
+  const dayKey = (entry && entry.historial_day_key) || '__SIN_FECHA_MASIVO__';
+  const beforeIds = extractActividadIdsFromHistorialDayData(
+    pickHistorialDayData(
+      entry && entry.datos_anteriores,
+      dayKey,
+      entry && entry.fecha
+    )
+  );
+  const afterIds = extractActividadIdsFromHistorialDayData(
+    pickHistorialDayData(entry && entry.datos_nuevos, dayKey, entry && entry.fecha)
+  );
+
+  return beforeIds.concat(afterIds).some((id) => Number(id) === Number(actividadId));
 }
 
 function buildHistorialCeldaItemsFromLogs(rows, dayFilterSet = null) {

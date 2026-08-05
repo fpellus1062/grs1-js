@@ -1,10 +1,13 @@
 (function () {
   const app = window.GRS1Dashboard;
+  const utils = window['GRS1Utils'] || {};
 
   function normalizeHexColor(value, fallback) {
-    let v = String(value || '').trim();
-    if (/^#[0-9a-fA-F]{6}$/.test(v)) return v.toLowerCase();
-    return fallback || '#6c757d';
+    let normalized =
+      typeof utils.normalizeHexColor === 'function'
+        ? utils.normalizeHexColor(value)
+        : '';
+    return normalized || fallback || '#6c757d';
   }
 
   function colorPickerEditor(cell, onRendered, success) {
@@ -500,25 +503,11 @@
   }
 
   function textColorFromBackground(bg) {
-    let hex = String(bg || '')
-      .trim()
-      .replace('#', '');
-    if (hex.length === 3) {
-      hex = hex
-        .split('')
-        .map(function (c) {
-          return c + c;
-        })
-        .join('');
-    }
-    if (!/^[0-9a-fA-F]{6}$/.test(hex)) {
-      return '#212529';
-    }
-    let r = parseInt(hex.slice(0, 2), 16);
-    let g = parseInt(hex.slice(2, 4), 16);
-    let b = parseInt(hex.slice(4, 6), 16);
-    let luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    return luminance > 0.6 ? '#212529' : '#ffffff';
+    let normalized = normalizeHexColor(bg, '');
+    if (!normalized) return '#212529';
+    return typeof utils.getTextColorForHexBackground === 'function'
+      ? utils.getTextColorForHexBackground(normalized, 0.6)
+      : '#212529';
   }
 
   function colorizedLabelFormatter(cell) {

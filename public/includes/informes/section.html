@@ -355,39 +355,309 @@
     0% {
       transform: translateX(-115%);
     }
+
     50% {
       transform: translateX(95%);
     }
+
     100% {
       transform: translateX(250%);
     }
+  }
+
+  .informes-audit-kpi {
+    border: 1px solid var(--notion-border);
+    border-radius: 8px;
+    padding: 0.6rem 0.75rem;
+    background: #fff;
+  }
+
+  .informes-audit-kpi-label {
+    font-size: 0.74rem;
+    color: #6c757d;
+    margin-bottom: 0.12rem;
+  }
+
+  .informes-audit-kpi-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1f3f2a;
+    line-height: 1.1;
+  }
+
+  .informes-audit-kpi-sub {
+    margin-top: 0.2rem;
+    font-size: 0.7rem;
+    color: #6c757d;
+    line-height: 1.2;
+    min-height: 1em;
+  }
+
+  .informes-audit-chart {
+    width: 100%;
+    min-height: 220px;
+  }
+
+  .informes-audit-chart-sm {
+    width: 100%;
+    min-height: 200px;
+  }
+
+  .informes-audit-table-wrap {
+    border: 1px solid var(--notion-border);
+    border-radius: 8px;
+    max-height: 52vh;
+    overflow: auto;
+    background: #fff;
+  }
+
+  .informes-audit-table {
+    margin-bottom: 0;
+    font-size: 0.82rem;
+  }
+
+  .informes-audit-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #f8f9fa;
+  }
+
+  .informes-audit-placeholder {
+    font-size: 0.82rem;
+    color: #6c757d;
+    text-align: center;
+    padding: 2rem 0.6rem;
+  }
+
+  #informesAuditoriaAsignaciones .informes-audit-loading {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.42rem 0.7rem 0.05rem;
+  }
+
+  #informesAuditoriaAsignaciones .informes-audit-loading .spinner-border {
+    width: 0.88rem;
+    height: 0.88rem;
+    border-width: 0.14rem;
+    color: #2f6e3b;
+  }
+
+  #informesAuditoriaAsignaciones .informes-audit-loading-text {
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: #40634b;
+  }
+
+  /* Tabulator compacto estilo Notion para Auditoria */
+  #informesAuditoriaAsignaciones .tabulator {
+    font-size: 0.72rem !important;
+    border: 1px solid var(--notion-border) !important;
+    border-radius: 8px !important;
+  }
+
+  #informesAuditoriaAsignaciones .tabulator .tabulator-header {
+    background: #f8f9fa !important;
+    border-bottom: 1px solid var(--notion-border) !important;
+    font-size: 0.71rem !important;
+  }
+
+  #informesAuditoriaAsignaciones .tabulator .tabulator-col {
+    border-right: 1px solid #eceff1 !important;
+  }
+
+  #informesAuditoriaAsignaciones .tabulator .tabulator-col .tabulator-col-content {
+    padding: 3px 6px !important;
+  }
+
+  #informesAuditoriaAsignaciones .tabulator .tabulator-header-filter input,
+  #informesAuditoriaAsignaciones .tabulator .tabulator-header-filter select {
+    height: 22px !important;
+    font-size: 0.69rem !important;
+    padding: 1px 5px !important;
+    border-radius: 5px !important;
+  }
+
+  #informesAuditoriaAsignaciones .tabulator .tabulator-row {
+    min-height: 22px !important;
+  }
+
+  #informesAuditoriaAsignaciones .tabulator .tabulator-cell {
+    padding: 3px 6px !important;
+    line-height: 1.18 !important;
+  }
+
+  #informesAuditoriaAsignaciones .tabulator .tabulator-footer {
+    padding: 4px 6px !important;
+    font-size: 0.69rem !important;
+    border-top: 1px solid var(--notion-border) !important;
+    background: #fff !important;
+  }
+
+  /* Card de filtros IA mas compacta */
+  #informesAuditoriaAsignaciones .informes-card-filtros {
+    padding: 0.65rem;
+    gap: 0.5rem;
+  }
+
+  #informesAuditoriaAsignaciones .informes-card-filtros .informes-filter-group {
+    gap: 0.22rem;
+  }
+
+  #informesAuditoriaAsignaciones .informes-card-filtros label {
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+  }
+
+  #informesAuditoriaAsignaciones .informes-card-filtros .form-select,
+  #informesAuditoriaAsignaciones .informes-card-filtros .form-control {
+    font-size: 0.78rem;
+    min-width: 0;
+    height: 1.95rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  #informesAuditoriaAsignaciones .informes-card-filtros .form-select[multiple] {
+    height: auto;
+    line-height: 1.2;
+    padding: 0.15rem 0.3rem;
+  }
+
+  #informesAuditoriaAsignaciones #iaAnio,
+  #informesAuditoriaAsignaciones #iaMes {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  #informesAuditoriaAsignaciones #iaFechaDesde,
+  #informesAuditoriaAsignaciones #iaFechaHasta {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  #informesAuditoriaAsignaciones .ia-edge-align-row {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    row-gap: 0.35rem;
+    column-gap: 0.5rem;
+  }
+
+  #informesAuditoriaAsignaciones .ia-edge-align-row>[class*="col-"] {
+    flex: 1 1 0;
+    width: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  #informesAuditoriaAsignaciones .informes-card-filtros .btn {
+    padding-top: 0.35rem;
+    padding-bottom: 0.35rem;
+    font-size: 0.84rem;
+  }
+
+  #informesAuditoriaAsignaciones .ia-checklist-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    position: relative;
+  }
+
+  #informesAuditoriaAsignaciones .ia-checklist-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    width: 100%;
+    border: 1px solid #d7dbe0;
+    background: #fff;
+    border-radius: 7px;
+    padding: 0.24rem 0.5rem;
+    font-size: 0.78rem;
+    color: #222;
+  }
+
+  #informesAuditoriaAsignaciones .ia-checklist-toggle-count {
+    color: #6b7280;
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  #informesAuditoriaAsignaciones .ia-checklist-panel {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 2px);
+    z-index: 15;
+    background: #fff;
+    border: 1px solid #d7dbe0;
+    border-radius: 8px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+    padding: 0.4rem;
+  }
+
+  #informesAuditoriaAsignaciones .ia-checklist-search {
+    width: 100%;
+    height: 1.75rem;
+    border: 1px solid #d7dbe0;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    padding: 0.15rem 0.45rem;
+    margin-bottom: 0.35rem;
+  }
+
+  #informesAuditoriaAsignaciones .ia-checklist-list {
+    border: 1px solid #eef1f4;
+    border-radius: 6px;
+    overflow: auto;
+    background: #fff;
+  }
+
+  #informesAuditoriaAsignaciones .ia-checklist-list.ia-checklist-rows-20 {
+    max-height: 440px;
+  }
+
+  #informesAuditoriaAsignaciones .ia-checklist-list.ia-checklist-rows-10 {
+    max-height: 220px;
+  }
+
+  #informesAuditoriaAsignaciones .ia-checklist-list.ia-checklist-rows-5 {
+    max-height: 110px;
+  }
+
+  #informesAuditoriaAsignaciones .ia-checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.18rem 0.38rem;
+    font-size: 0.74rem;
+    border-bottom: 1px solid #f1f3f5;
+    min-height: 22px;
+  }
+
+  #informesAuditoriaAsignaciones .ia-checklist-item:last-child {
+    border-bottom: none;
+  }
+
+  #informesAuditoriaAsignaciones .ia-checklist-empty {
+    padding: 0.35rem 0.45rem;
+    color: #6c757d;
+    font-size: 0.72rem;
   }
 </style>
 
 <div class="card shadow-sm mb-2">
   <!-- Notion-style compact toolbar -->
-  <div
-    class="d-flex align-items-center gap-2 px-3 py-2 border-bottom bg-white flex-wrap"
-  >
-    <i
-      class="bi bi-file-earmark-spreadsheet text-secondary"
-      style="font-size: 0.95rem"
-    ></i>
-    <span class="fw-semibold text-dark" style="font-size: 0.875rem"
-      >Informes y exportación</span
-    >
-    
+  <div class="d-flex align-items-center gap-2 px-3 py-2 border-bottom bg-white flex-wrap">
+    <i class="bi bi-file-earmark-spreadsheet text-secondary" style="font-size: 0.95rem"></i>
+    <span class="fw-semibold text-dark" style="font-size: 0.875rem">Informes y exportación</span>
+
     <span class="vr mx-1 opacity-25"></span>
-    <span class="text-muted" style="font-size: 0.75rem"
-      >Parte de servicios diarios y exportación por período</span
-    >
+    <span class="text-muted" style="font-size: 0.75rem">Diferentes Informes y Estadísticas de Servicios</span>
     <div class="ms-auto d-flex align-items-center gap-1">
-      <button
-        class="btn btn-outline-secondary btn-sm py-1 px-2"
-        data-section-trigger="dashboard"
-        type="button"
-        title="Ir al Dashboard"
-      >
+      <button class="btn btn-outline-secondary btn-sm py-1 px-2" data-section-trigger="dashboard" type="button"
+        title="Ir al Dashboard">
         <i class="bi bi-house"></i>
       </button>
     </div>
@@ -401,7 +671,7 @@
       <button class="accordion-button d-flex align-items-center gap-2" type="button" data-bs-toggle="collapse"
         data-bs-target="#informesParteServicios" aria-expanded="true">
         <i class="bi bi-people text-secondary" style="font-size: 0.86rem"></i>
-    
+
         <!-- Contenedor inline del texto + icono -->
         <span class="d-inline-flex align-items-center gap-1">
           <span class="fw-semibold text-dark" style="font-size: 0.82rem">
@@ -411,30 +681,24 @@
         </span>
       </button>
     </h2>
-    
-    
-    
-    <div
-      id="informesParteServicios"
-      class="accordion-collapse collapse show"
-      data-bs-parent="#informesAccordion"
-    >
+
+
+
+    <div id="informesParteServicios" class="accordion-collapse collapse show" data-bs-parent="#informesAccordion">
       <div class="accordion-body">
         <div class="row g-2">
           <!-- COLUMNA IZQUIERDA: Card compacta de filtros -->
           <div class="col-lg-6">
             <div class="informes-card-compact informes-card-filtros">
-              <h6 class="informes-section-title">Filtros y Período <span><button class="btn btn-link p-0 lh-1" type="button" data-help-context="informes-partes-diarios-help" title="Informe Partes Diarios - Ayuda">
-                <i class="bi bi-question-circle text-secondary" style="font-size: 0.8rem"></i>
-              </button></span></h6>
-              
+              <h6 class="informes-section-title">Filtros y Período <span><button class="btn btn-link p-0 lh-1"
+                    type="button" data-help-context="informes-partes-diarios-help"
+                    title="Informe Partes Diarios - Ayuda">
+                    <i class="bi bi-question-circle text-secondary" style="font-size: 0.8rem"></i>
+                  </button></span></h6>
+
               <div class="informes-filter-group">
                 <label for="informesTipo">Fuente de datos</label>
-                <select
-                  class="form-select form-select-sm informes-fuente-select"
-                  id="informesTipo"
-                  title="Fuente"
-                >
+                <select class="form-select form-select-sm informes-fuente-select" id="informesTipo" title="Fuente">
                   <option value="definitivo">Definitivo</option>
                   <option value="borrador">Borrador</option>
                 </select>
@@ -442,31 +706,19 @@
 
               <div class="informes-filter-group">
                 <label for="informesAnio">Año</label>
-                <select
-                  class="form-select form-select-sm informes-anio-select"
-                  id="informesAnio"
-                  title="Año"
-                ></select>
+                <select class="form-select form-select-sm informes-anio-select" id="informesAnio" title="Año"></select>
               </div>
 
               <div class="informes-filter-group">
                 <label for="informesMes">Mes</label>
-                <select
-                  class="form-select form-select-sm informes-mes-select"
-                  id="informesMes"
-                  title="Mes"
-                ></select>
+                <select class="form-select form-select-sm informes-mes-select" id="informesMes" title="Mes"></select>
               </div>
 
               <!-- Selector de borrador (oculto por defecto) -->
               <div class="informes-borrador-wrap" id="informesBorradorWrap">
                 <div class="informes-filter-group">
                   <label for="informesBorrador">Borrador / Asignación</label>
-                  <select
-                    class="form-select form-select-sm"
-                    id="informesBorrador"
-                    title="Borrador"
-                  >
+                  <select class="form-select form-select-sm" id="informesBorrador" title="Borrador">
                     <option value="">— Selecciona un borrador —</option>
                   </select>
                 </div>
@@ -474,27 +726,17 @@
 
               <!-- Botones de exportación -->
               <div class="d-flex gap-2">
-                <button
-                  class="btn btn-success w-100"
-                  id="btninformesExportar"
-                  type="button"
-                >
+                <button class="btn btn-success w-100" id="btninformesExportar" type="button">
                   <i class="bi bi-file-earmark-excel me-1"></i>Exportar a Excel
                 </button>
-                <button
-                  class="btn btn-outline-danger w-100"
-                  id="btninformesExportarPdf"
-                  type="button"
-                >
+                <button class="btn btn-outline-danger w-100" id="btninformesExportarPdf" type="button">
                   <i class="bi bi-file-earmark-pdf me-1"></i>Exportar a PDF
                 </button>
               </div>
 
               <!-- Resumen de fuente -->
               <div class="alert alert-info informes-source-summary">
-                <span id="informesFuenteResumen"
-                  >Fuente: Definitivo · Período: — —</span
-                >
+                <span id="informesFuenteResumen">Fuente: Definitivo · Período: — —</span>
               </div>
             </div>
           </div>
@@ -502,85 +744,52 @@
           <!-- COLUMNA DERECHA: Card elegante de fechas -->
           <div class="col-lg-6">
             <div class="informes-card-compact">
-              <h6 class="informes-section-title">Calendario Cuadrante <span><button class="btn btn-link p-0 lh-1" type="button" data-help-context="informes-calendario-cuadrante-help" title="Calendario Cuadrante - Ayuda">
-                <i class="bi bi-question-circle text-secondary" style="font-size: 0.95rem"></i>
-              </button></span></h6>
+              <h6 class="informes-section-title">Calendario Cuadrante <span><button class="btn btn-link p-0 lh-1"
+                    type="button" data-help-context="informes-calendario-cuadrante-help"
+                    title="Calendario Cuadrante - Ayuda">
+                    <i class="bi bi-question-circle text-secondary" style="font-size: 0.95rem"></i>
+                  </button></span></h6>
 
               <div class="informes-calendar-toggle">
                 <div class="form-check">
-                  <input
-                    class="form-check-input"
-                    type="checkbox"
-                    id="informesModoPorDia"
-                  />
+                  <input class="form-check-input" type="checkbox" id="informesModoPorDia" />
                   <label class="form-check-label" for="informesModoPorDia">
                     <strong>Exportar por días</strong>
                   </label>
                 </div>
-                <small class="text-muted d-block mt-1"
-                  >Activa para habilitar la selección de fechas del
-                  cuadrante.</small
-                >
+                <small class="text-muted d-block mt-1">Activa para habilitar la selección de fechas del
+                  cuadrante.</small>
               </div>
 
               <!-- Calendario de cuadrante (siempre visible) -->
-              <div
-                class="informes-fechas-wrap informes-fechas-wrap-visible"
-                id="informesFechasWrap"
-              >
+              <div class="informes-fechas-wrap informes-fechas-wrap-visible" id="informesFechasWrap">
                 <!-- Contenedor para renderizar cuadrante preview -->
-                <div
-                  id="informesCuadrantePreviewContainer"
-                  class="informes-cuadrante-preview"
-                >
+                <div id="informesCuadrantePreviewContainer" class="informes-cuadrante-preview">
                   <div class="text-center text-muted py-3">
                     No existe Cuadrante ....
                   </div>
                 </div>
 
                 <!-- Select oculto para mantener compatibilidad con JS -->
-                <select
-                  class="form-select form-select-sm informes-calendar-select-hidden"
-                  id="informesFechas"
-                  title="Fechas del cuadrante"
-                  multiple
-                  size="8"
-                ></select>
+                <select class="form-select form-select-sm informes-calendar-select-hidden" id="informesFechas"
+                  title="Fechas del cuadrante" multiple size="8"></select>
 
                 <!-- Botones de acciones -->
                 <div class="informes-calendar-actions">
-                  <button
-                    type="button"
-                    class="btn btn-outline-secondary btn-sm"
-                    id="btninformesFechasTodas"
-                  >
+                  <button type="button" class="btn btn-outline-secondary btn-sm" id="btninformesFechasTodas">
                     Seleccionar todas
                   </button>
-                  <button
-                    type="button"
-                    class="btn btn-outline-secondary btn-sm"
-                    id="btninformesFechasLimpiar"
-                  >
+                  <button type="button" class="btn btn-outline-secondary btn-sm" id="btninformesFechasLimpiar">
                     Limpiar
                   </button>
                 </div>
 
-                <div
-                  id="informesStatus"
-                  class="informes-download-progress informes-hidden"
-                  role="status"
-                  aria-live="polite"
-                >
-                  <div
-                    id="informesStatusLabel"
-                    class="informes-download-progress-label"
-                  >
+                <div id="informesStatus" class="informes-download-progress informes-hidden" role="status"
+                  aria-live="polite">
+                  <div id="informesStatusLabel" class="informes-download-progress-label">
                     Generando archivo, por favor espera…
                   </div>
-                  <div
-                    class="informes-download-progress-track"
-                    aria-hidden="true"
-                  >
+                  <div class="informes-download-progress-track" aria-hidden="true">
                     <div class="informes-download-progress-bar"></div>
                   </div>
                 </div>
@@ -591,11 +800,7 @@
 
         <!-- Status y errores (fuera de columnas) -->
         <div class="mt-3">
-          <div
-            id="informesError"
-            class="alert alert-danger informes-hidden"
-            role="alert"
-          ></div>
+          <div id="informesError" class="alert alert-danger informes-hidden" role="alert"></div>
         </div>
       </div>
     </div>
@@ -606,33 +811,26 @@
   ════════════════════════════════════════════════════════════════════════ -->
   <div class="accordion-item">
     <h2 class="accordion-header">
-      <button
-        class="accordion-button collapsed d-flex align-items-center gap-2"
-        type="button"
-        data-bs-toggle="collapse"
-        data-bs-target="#informesResumenActividades"
-        aria-expanded="false"
-      >
+      <button class="accordion-button collapsed d-flex align-items-center gap-2" type="button" data-bs-toggle="collapse"
+        data-bs-target="#informesResumenActividades" aria-expanded="false">
         <i class="bi bi-bar-chart-steps text-secondary" style="font-size: 0.86rem"></i>
         <span class="fw-semibold text-dark" style="font-size: 0.82rem">
           Numérico de Agentes por Servicio
         </span>
       </button>
     </h2>
-    <div
-      id="informesResumenActividades"
-      class="accordion-collapse collapse"
-      data-bs-parent="#informesAccordion"
-    >
+    <div id="informesResumenActividades" class="accordion-collapse collapse" data-bs-parent="#informesAccordion">
       <div class="accordion-body">
         <div class="row g-2">
 
           <!-- ── COLUMNA IZQUIERDA: Filtros ──────────────────────── -->
           <div class="col-lg-4">
             <div class="informes-card-compact informes-card-filtros">
-              <h6 class="informes-section-title">Filtros y Período <span><button class="btn btn-link p-0 lh-1" type="button" data-help-context="informes-servicios-peloton-help" title="Informe Servicios Pelotón - Ayuda">
-                  <i class="bi bi-question-circle text-secondary" style="font-size: 0.8rem"></i>
-                </button></span></h6>
+              <h6 class="informes-section-title">Filtros y Período <span><button class="btn btn-link p-0 lh-1"
+                    type="button" data-help-context="informes-servicios-peloton-help"
+                    title="Informe Servicios Pelotón - Ayuda">
+                    <i class="bi bi-question-circle text-secondary" style="font-size: 0.8rem"></i>
+                  </button></span></h6>
 
               <div class="informes-filter-group">
                 <label for="raFuente">Fuente de datos</label>
@@ -682,7 +880,8 @@
                 </button>
               </div>
 
-              <div id="raError" class="alert alert-danger informes-hidden py-1 px-2" style="font-size:0.78rem" role="alert"></div>
+              <div id="raError" class="alert alert-danger informes-hidden py-1 px-2" style="font-size:0.78rem"
+                role="alert"></div>
             </div>
           </div>
 
@@ -702,6 +901,246 @@
             </div>
           </div>
 
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="accordion-item" data-permiso="informes:auditoria|asignaciones:historial">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed d-flex align-items-center gap-2" type="button" data-bs-toggle="collapse"
+        data-bs-target="#informesAuditoriaAsignaciones" aria-expanded="false">
+        <i class="bi bi-shield-check text-secondary" style="font-size: 0.86rem"></i>
+        <span class="fw-semibold text-dark" style="font-size: 0.82rem">
+          Consultoría de Servicios Histórico
+        </span>
+      </button>
+    </h2>
+    <div id="informesAuditoriaAsignaciones" class="accordion-collapse collapse" data-bs-parent="#informesAccordion">
+      <div class="accordion-body">
+        <div class="row g-2">
+          <div class="col-lg-4">
+            <div class="informes-card-compact informes-card-filtros">
+              <h6 class="informes-section-title">Filtros de consulta <span><button class="btn btn-link p-0 lh-1"
+                    type="button" data-help-context="informes-kpis-help"
+                    title="Consultoría de Servicios Histórico - Ayuda">
+                    <i class="bi bi-question-circle text-secondary" style="font-size: 0.8rem"></i>
+                  </button></span>
+              </h6>
+
+              <div class="informes-filter-group">
+                <label for="iaFuente">Fuente</label>
+                <select class="form-select form-select-sm" id="iaFuente" title="Fuente">
+                  <option value="definitivo">Definitivo</option>
+                  <option value="borrador">Borrador</option>
+                </select>
+              </div>
+
+              <div class="row g-2 ia-edge-align-row">
+                <div class="col-6">
+                  <div class="informes-filter-group">
+                    <label for="iaAnio">Año</label>
+                    <select class="form-select form-select-sm" id="iaAnio" title="Año"></select>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="informes-filter-group">
+                    <label for="iaMes">Mes</label>
+                    <select class="form-select form-select-sm" id="iaMes" title="Mes"></select>
+                  </div>
+                </div>
+              </div>
+
+              <div class="informes-filter-group" id="iaBorradorWrap" style="display:none">
+                <label for="iaBorrador">Borrador</label>
+                <select class="form-select form-select-sm" id="iaBorrador" title="Borrador"></select>
+              </div>
+
+              <div class="row g-2 ia-edge-align-row">
+                <div class="col-6">
+                  <div class="informes-filter-group">
+                    <label for="iaFechaDesde">Fecha cuadrante desde</label>
+                    <input class="form-control form-control-sm" id="iaFechaDesde" type="date" title="Fecha desde" />
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="informes-filter-group">
+                    <label for="iaFechaHasta">Fecha cuadrante hasta</label>
+                    <input class="form-control form-control-sm" id="iaFechaHasta" type="date" title="Fecha hasta" />
+                  </div>
+                </div>
+              </div>
+
+              <div class="informes-filter-group">
+                <label for="iaAgente">Agente</label>
+                <div class="ia-checklist-picker" id="iaAgentePicker">
+                  <button type="button" class="ia-checklist-toggle" id="iaAgenteToggle" aria-expanded="false">
+                    <span>Seleccionar agentes</span>
+                    <span class="ia-checklist-toggle-count" id="iaAgenteCount">Todos</span>
+                  </button>
+                  <div class="ia-checklist-panel d-none" id="iaAgentePanel">
+                    <input id="iaAgenteSearch" class="ia-checklist-search" type="text" placeholder="Buscar agente..."
+                      autocomplete="off" />
+                    <div class="ia-checklist-list ia-checklist-rows-20" id="iaAgenteChecklist"></div>
+                  </div>
+                </div>
+                <select class="form-select form-select-sm d-none" id="iaAgente" title="Agente" multiple
+                  size="20"></select>
+              </div>
+
+              <div class="informes-filter-group">
+                <label for="iaUsuario">Usuario</label>
+                <select class="form-select form-select-sm" id="iaUsuario" title="Usuario">
+                  <option value="">Todos los usuarios</option>
+                </select>
+              </div>
+
+              <div class="informes-filter-group">
+                <label for="iaAccion">Tipo de movimiento</label>
+                <div class="ia-checklist-picker" id="iaAccionPicker">
+                  <button type="button" class="ia-checklist-toggle" id="iaAccionToggle" aria-expanded="false">
+                    <span>Seleccionar movimientos</span>
+                    <span class="ia-checklist-toggle-count" id="iaAccionCount">Todos</span>
+                  </button>
+                  <div class="ia-checklist-panel d-none" id="iaAccionPanel">
+                    <div class="ia-checklist-list ia-checklist-rows-5" id="iaAccionChecklist"></div>
+                  </div>
+                </div>
+                <select class="form-select form-select-sm d-none" id="iaAccion" title="Tipo de movimiento" multiple
+                  size="5">
+                  <option value="BORRADOR_EDITAR">Edición en borrador</option>
+                  <option value="BORRADOR_EDITAR_MASIVO">Edición masiva en borrador</option>
+                  <option value="BORRADOR_CREAR">Alta en borrador</option>
+                  <option value="BORRADOR_CREAR_MASIVO">Alta masiva en borrador</option>
+                </select>
+              </div>
+
+              <div class="informes-filter-group">
+                <label for="iaActividad">Servicio</label>
+                <div class="ia-checklist-picker" id="iaActividadPicker">
+                  <button type="button" class="ia-checklist-toggle" id="iaActividadToggle" aria-expanded="false">
+                    <span>Seleccionar servicios</span>
+                    <span class="ia-checklist-toggle-count" id="iaActividadCount">Todos</span>
+                  </button>
+                  <div class="ia-checklist-panel d-none" id="iaActividadPanel">
+                    <input id="iaActividadSearch" class="ia-checklist-search" type="text"
+                      placeholder="Buscar servicio..." autocomplete="off" />
+                    <div class="ia-checklist-list ia-checklist-rows-10" id="iaActividadChecklist"></div>
+                  </div>
+                </div>
+                <select class="form-select form-select-sm d-none" id="iaActividad" title="Servicio" multiple
+                  size="10"></select>
+              </div>
+
+              <div class="d-flex gap-2">
+                <button class="btn btn-primary w-100" id="btnIaConsultar" type="button">
+                  <i class="bi bi-search me-1"></i>Consultar
+                </button>
+                <button class="btn btn-outline-secondary w-100" id="btnIaLimpiar" type="button">
+                  Limpiar
+                </button>
+              </div>
+
+              <div id="iaPendingNotice" class="alert alert-warning informes-hidden py-1 px-2 mb-0"
+                style="font-size:0.74rem;line-height:1.25" role="status" aria-live="polite">
+                Filtros actualizados. Pulsa <strong>Consultar</strong> para refrescar resultados.
+              </div>
+
+              <div id="iaError" class="alert alert-danger informes-hidden py-1 px-2" style="font-size:0.78rem"
+                role="alert"></div>
+            </div>
+          </div>
+
+          <div class="col-lg-8">
+            <div class="informes-card-compact" style="gap:0.85rem;">
+              <div class="row g-2" id="iaKpisRow">
+                <div class="col-md-3">
+                  <div class="informes-audit-kpi">
+                    <div class="informes-audit-kpi-label"
+                      title="Fórmula: (Cambios efectivos [BORRADOR_EDITAR + BORRADOR_EDITAR_MASIVO] / Asignaciones existentes del cuadrante) x 100">
+                      Volatilidad
+                    </div>
+                    <div class="informes-audit-kpi-value" id="iaKpiVolatilidad">-</div>
+                    <div class="informes-audit-kpi-sub" id="iaKpiVolatilidadEstado"></div>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="informes-audit-kpi">
+                    <div class="informes-audit-kpi-label"
+                      title="Fórmula: Nº de registros de acciones BORRADOR_EDITAR + BORRADOR_EDITAR_MASIVO en el resultado filtrado">
+                      Cambios efectivos
+                    </div>
+                    <div class="informes-audit-kpi-value" id="iaKpiCambiosEfectivos">-</div>
+                    <div class="informes-audit-kpi-sub" id="iaKpiCambiosEfectivosSub"></div>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="informes-audit-kpi">
+                    <div class="informes-audit-kpi-label"
+                      title="Fórmula: (Retrabajos adicionales / Cambios efectivos) x 100, donde retrabajo adicional = max(0, cambios_por_slot_agente_dia - 1)">
+                      Retrabajo
+                    </div>
+                    <div class="informes-audit-kpi-value" id="iaKpiRetrabajo">-</div>
+                    <div class="informes-audit-kpi-sub" id="iaKpiRetrabajoSub"></div>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="informes-audit-kpi">
+                    <div class="informes-audit-kpi-label"
+                      title="Fórmula: (Registros con fecha_cuadrante < fecha_cambio / Registros comparables con ambas fechas válidas) x 100">
+                      Cambios tardíos
+                    </div>
+                    <div class="informes-audit-kpi-value" id="iaKpiCambiosTardios">-</div>
+                    <div class="informes-audit-kpi-sub" id="iaKpiCambiosTardiosSub"></div>
+                  </div>
+                </div>
+              </div>
+              <div id="iaLoading" class="informes-download-progress informes-hidden" role="status" aria-live="polite"
+                aria-busy="false">
+                <div class="informes-audit-loading">
+                  <div class="spinner-border" role="presentation" aria-hidden="true"></div>
+                  <span id="iaLoadingLabel" class="informes-audit-loading-text">Consultando auditoría...</span>
+                </div>
+                <div class="informes-download-progress-track">
+                  <div class="informes-download-progress-bar" aria-hidden="true"></div>
+                </div>
+              </div>
+              <div>
+                <div class="small fw-semibold text-muted mb-1">Línea: cambios por día</div>
+                <div id="iaChartLinea" class="informes-audit-chart"></div>
+              </div>
+
+              <div class="row g-2">
+                <div class="col-md-6">
+                  <div class="small fw-semibold text-muted mb-1">Cambios x Usuario</div>
+                  <div id="iaChartUsuarios" class="informes-audit-chart-sm"></div>
+                </div>
+                <div class="col-md-6">
+                  <div class="small fw-semibold text-muted mb-1">Agentes con cambios</div>
+                  <div id="iaChartHeatmap" class="informes-audit-chart-sm"></div>
+                </div>
+              </div>
+
+              <div class="d-flex align-items-center justify-content-between gap-2">
+                <h6 class="informes-section-title mb-0">Detalle de cambios</h6>
+              </div>
+
+              <div class="d-flex align-items-center justify-content-between gap-2" style="margin-top:-0.2rem">
+                <div id="iaCrossFiltersCurrent" class="small text-muted">Sin filtro cruzado desde gráficos.</div>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btnIaCrossFiltersClear" disabled>
+                  Limpiar filtro gráfico
+                </button>
+              </div>
+
+
+
+              <div id="iaTablaContainer" class="informes-audit-table-wrap">
+                <div class="informes-audit-placeholder">
+                  Configura los filtros y pulsa <strong>Consultar</strong> para iniciar la auditoría.
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

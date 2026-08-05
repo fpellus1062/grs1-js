@@ -1,31 +1,23 @@
 const ExcelJS = require('exceljs');
+const {
+  normalizeHexColor,
+  hexToArgb,
+  textArgbForHexBackground,
+} = require('../utils/color');
 
 // ── Helpers de color ─────────────────────────────────────────────────────────
 
-function normalizeHex(value) {
-  const raw = String(value || '').trim();
-  if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw.toUpperCase();
-  if (/^#[0-9a-fA-F]{3}$/.test(raw)) {
-    const h = raw.slice(1);
-    return `#${h[0]}${h[0]}${h[1]}${h[1]}${h[2]}${h[2]}`.toUpperCase();
-  }
-  if (/^[0-9a-fA-F]{6}$/.test(raw)) return `#${raw.toUpperCase()}`;
-  return null;
-}
-
 function toArgb(hexColor) {
-  const h = normalizeHex(hexColor);
-  return h ? `FF${h.slice(1)}` : null;
+  return hexToArgb(hexColor, 'FF');
 }
 
 function textArgbForBackground(hexColor) {
-  const h = normalizeHex(hexColor);
-  if (!h) return 'FF1F2937';
-  const r = parseInt(h.slice(1, 3), 16);
-  const g = parseInt(h.slice(3, 5), 16);
-  const b = parseInt(h.slice(5, 7), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.58 ? 'FF1F2937' : 'FFFFFFFF';
+  return textArgbForHexBackground(hexColor, {
+    threshold: 0.58 * 255,
+    fallback: 'FF1F2937',
+    dark: 'FF1F2937',
+    light: 'FFFFFFFF',
+  });
 }
 
 // Número de columna (1-based) a letra Excel
@@ -190,7 +182,7 @@ function getDayCellPayload(datos, dayKey, logFecha, actMap) {
 
   const firstAct = actMap.get(actIds[0]);
   const bgHex = firstAct
-    ? normalizeHex(firstAct.actividad_color || firstAct.color)
+    ? normalizeHexColor(firstAct.actividad_color || firstAct.color)
     : null;
   const textArgb = textArgbForBackground(bgHex);
 

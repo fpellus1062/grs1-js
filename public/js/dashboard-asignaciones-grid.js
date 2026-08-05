@@ -5,6 +5,13 @@
 (function () {
   let app = window.GRS1Dashboard;
   let _ = app._asig || {};
+  let utils = window['GRS1Utils'] || {};
+  let normalizeCssColor =
+    typeof utils.normalizeHexColor === 'function'
+      ? utils.normalizeHexColor
+      : function () {
+          return '';
+        };
   // @ts-ignore
   let qbe = window.GRS1TabulatorQbe || null;
   _.tabulatorReady = _.tabulatorReady === true;
@@ -70,14 +77,6 @@
       '#334155',
       '#374151',
     ];
-
-    function normalizeCssColor(value) {
-      let raw = String(value || '').trim();
-      if (!raw) return '';
-      if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw;
-      if (/^[0-9a-fA-F]{6}$/.test(raw)) return '#' + raw;
-      return /^#[0-9a-fA-F]{3}$/.test(raw) ? raw : '';
-    }
 
     actividades.forEach(function (a) {
       let actId = Number(a.id_actividad);
@@ -161,19 +160,16 @@
   }
 
   function getTextColorForBackground(hexColor) {
-    let hex = String(hexColor || '').replace('#', '');
-    if (hex.length !== 6) return '#fff';
-    let r = parseInt(hex.slice(0, 2), 16);
-    let g = parseInt(hex.slice(2, 4), 16);
-    let b = parseInt(hex.slice(4, 6), 16);
-    if (
-      [r, g, b].some(function (n) {
-        return Number.isNaN(n);
-      })
-    )
-      return '#fff';
-    let luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-    return luminance > 160 ? '#111' : '#fff';
+    let normalized =
+      typeof utils.normalizeHexColor === 'function'
+        ? utils.normalizeHexColor(hexColor)
+        : '';
+    if (!normalized) return '#fff';
+    return typeof utils.getTextColorForHexBackground === 'function'
+      ? utils.getTextColorForHexBackground(normalized, 160 / 255) === '#212529'
+        ? '#111'
+        : '#fff'
+      : '#fff';
   }
 
   function isAsigCellHistoryModeEnabled() {
@@ -364,11 +360,15 @@
             if (!row || typeof row.reformat !== 'function') return;
             try {
               row.reformat();
-            } catch (_e) {}
+            } catch (_e) {
+              // noop: algunas filas pueden reciclarse durante redraw.
+            }
           });
           return;
         }
-      } catch (_err) {}
+      } catch (_err) {
+        // noop: fallback a redraw global justo debajo.
+      }
 
       if (typeof _.tabulator.redraw === 'function') {
         _.tabulator.redraw(false);
@@ -496,7 +496,7 @@
       '<span class="d-inline-flex" title="' +
       app.escapeHtml(tooltip) +
       '" style="max-width:100%;">' +
-      window.GRS1Utils.renderColorBadgeHtml(actividadLabel, actividadBg, {
+      utils.renderColorBadgeHtml(actividadLabel, actividadBg, {
         escapeHtmlFn: app.escapeHtml,
         className: 'badge',
         fontSize: '.68em',
@@ -726,7 +726,7 @@
 
 
   function getRequisitosDetalleVisible(rowData) {
-    return window.GRS1Utils.getRequisitosDetalleVisible(rowData);
+    return utils.getRequisitosDetalleVisible(rowData);
   }
 
   function getAsigSelectedActividadIdsSet() {
@@ -1550,7 +1550,9 @@
     }
 
     function syncHeaderSelectAllActiveCheckbox() {
-      let headerCheckbox = container.querySelector('.asig-select-all-active');
+      let headerCheckbox = /** @type {HTMLInputElement|null} */ (
+        container.querySelector('.asig-select-all-active')
+      );
       if (!headerCheckbox) return;
 
       if (headerCheckbox.dataset.bound !== '1') {
@@ -1649,7 +1651,7 @@
     }
 
     function buildRequisitosTooltip(rowData) {
-      return window.GRS1Utils.buildRequisitosTooltip(rowData);
+      return utils.buildRequisitosTooltip(rowData);
     }
 
     // ── Fixed columns ──
@@ -1742,7 +1744,7 @@
             '</div>';
           let es = '';
           if (d.empleo_nombre)
-            es += window.GRS1Utils.renderColorBadgeHtml(
+            es += utils.renderColorBadgeHtml(
               d.empleo_nombre,
               d.color_empleo || '#bdbdbd',
               {
@@ -1755,7 +1757,7 @@
               }
             );
           if (d.situacion)
-            es += window.GRS1Utils.renderSemanticBadgeHtml(
+            es += utils.renderSemanticBadgeHtml(
               d.situacion,
               'secondary',
               {
@@ -1771,7 +1773,7 @@
           if (Array.isArray(d.aptitudes) && d.aptitudes.length)
             extras += d.aptitudes
               .map(function (ap) {
-                return window.GRS1Utils.renderSemanticBadgeHtml(ap, 'info', {
+                return utils.renderSemanticBadgeHtml(ap, 'info', {
                   escapeHtmlFn: app.escapeHtml,
                   variant: 'solid',
                   className: 'me-1',
@@ -1805,7 +1807,7 @@
         formatter: function (cell) {
           let d = cell.getRow().getData();
           if (!d.peloton_codigo) return '-';
-          return window.GRS1Utils.renderColorBadgeHtml(
+          return utils.renderColorBadgeHtml(
             d.peloton_codigo,
             d.peloton_color || '#888',
             {
@@ -1842,9 +1844,9 @@
         formatter: function (cell) {
           let rowData = cell.getRow().getData() || {};
           let chips =
-            window.GRS1Utils &&
-            typeof window.GRS1Utils.renderRequisitosBadgesHtml === 'function'
-              ? window.GRS1Utils.renderRequisitosBadgesHtml(
+            utils &&
+            typeof utils.renderRequisitosBadgesHtml === 'function'
+              ? utils.renderRequisitosBadgesHtml(
                   rowData,
                   app.escapeHtml
                 )
@@ -1946,7 +1948,7 @@
         headerSort: false,
         cssClass: isWeekend ? 'asig-weekend-col' : '',
         titleFormatter: 'html',
-        formatter: function (cell, _formatterParams) {
+        formatter: function (cell) {
           let rawVal = cell.getValue();
           let val = rawVal && typeof rawVal === 'object' ? rawVal : {};
           let isHistoryMode = isAsigCellHistoryModeEnabled();
@@ -1967,13 +1969,9 @@
           );
           let historyServiciosHtml = '';
 
-          if (shouldShowHistory && (!historyItems || !Array.isArray(historyItems.items) || !historyItems.items.length)) {
-            currentServiciosHtml = '<span class="text-secondary">-</span>';
-          }
-
           if (historyItems && historyItems.status === 'ready' && Array.isArray(historyItems.items) && historyItems.items.length) {
             historyTitleText = String(historyItems.items.length) + ' eventos de historial';
-            historyServiciosHtml = renderHistoryCellBadgesHtml(historyItems.items, historyTitleText);
+            historyServiciosHtml = renderHistoryCellBadgesHtml(historyItems.items);
           }
 
           let serviciosHtml = currentServiciosHtml;
@@ -2544,7 +2542,7 @@
       };
     }
 
-    function renderHistoryCellBadgesHtml(items, titleText) {
+    function renderHistoryCellBadgesHtml(items) {
       let rows = Array.isArray(items) ? items : [];
       if (!rows.length) return '';
 
@@ -3100,6 +3098,14 @@
           )
             return;
 
+          if (
+            e.key === 'Enter' &&
+            typeof _.triggerAsigHeaderQbeSync === 'function'
+          ) {
+            e.preventDefault();
+            _.triggerAsigHeaderQbeSync();
+          }
+
           // Permitir escritura normal en filtros evitando atajos globales de tabla.
           e.stopPropagation();
         },
@@ -3174,21 +3180,6 @@
         }
       });
 
-      container.addEventListener('input', function (e) {
-        let target = e.target;
-        if (
-          !target ||
-          // @ts-ignore
-          !target.closest ||
-          // @ts-ignore
-          !target.closest('.tabulator-header-filter')
-        )
-          return;
-        if (typeof _.triggerAsigHeaderQbeSync === 'function') {
-          _.triggerAsigHeaderQbeSync();
-        }
-      });
-
       container.addEventListener('change', function (e) {
         let target = e.target;
         if (
@@ -3199,6 +3190,9 @@
           !target.closest('.tabulator-header-filter')
         )
           return;
+        // En selects mantenemos el disparo inmediato; en inputs QBE se aplica con Enter.
+        let targetEl = /** @type {HTMLElement} */ (target);
+        if (targetEl.tagName !== 'SELECT') return;
         if (typeof _.triggerAsigHeaderQbeSync === 'function') {
           _.triggerAsigHeaderQbeSync();
         }
@@ -3209,7 +3203,9 @@
   function clearAsigSelection() {
     app.asignacionesState.selectedAgenteIdsVista = [];
     scheduleGridRedraw();
-    let headerCheckbox = document.querySelector('#asigGridContainer .asig-select-all-active');
+    let headerCheckbox = /** @type {HTMLInputElement|null} */ (
+      document.querySelector('#asigGridContainer .asig-select-all-active')
+    );
     if (headerCheckbox) {
       headerCheckbox.checked = false;
       headerCheckbox.indeterminate = false;

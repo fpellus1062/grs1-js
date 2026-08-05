@@ -130,6 +130,7 @@ function buildResumenData(cuadranteData, metaData, fechasFiltro) {
       actividad_id: g.actId,
       actividad_codigo: actInfo.codigo,
       actividad_nombre: actInfo.nombre,
+      agente_ids: Array.from(g.agentes.values()).filter((id) => Number.isInteger(Number(id)) && Number(id) > 0),
       count_agentes: g.agentes.size,
     });
   });
@@ -270,11 +271,18 @@ async function exportarResumenExcel(
           actividad_id: key,
           actividad_codigo: String(d.actividad_codigo || '').trim(),
           actividad_nombre: String(d.actividad_nombre || '').trim() || 'Sin actividad',
+          agente_ids: new Set(),
           total_agentes: 0,
         });
       }
       const acc = actividadMap.get(key);
       acc.total_agentes += Number(d.count_agentes) || 0;
+      (Array.isArray(d.agente_ids) ? d.agente_ids : []).forEach((agenteId) => {
+        const numericId = Number(agenteId);
+        if (Number.isInteger(numericId) && numericId > 0) {
+          acc.agente_ids.add(numericId);
+        }
+      });
     });
 
     const actividadRows = Array.from(actividadMap.values()).sort((a, b) => {
@@ -291,10 +299,14 @@ async function exportarResumenExcel(
       );
     });
 
-    const totalGlobal = actividadRows.reduce(
-      (acc, row) => acc + (Number(row.total_agentes) || 0),
-      0
-    );
+    const totalGlobal = Array.from(
+      actividadRows.reduce((acc, row) => {
+        if (row && row.agente_ids instanceof Set) {
+          row.agente_ids.forEach((agenteId) => acc.add(agenteId));
+        }
+        return acc;
+      }, new Set())
+    ).length;
 
     const startRow = 5;
 

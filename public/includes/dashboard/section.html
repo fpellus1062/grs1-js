@@ -1,29 +1,97 @@
 <!-- Dashboard principal -->
 <style>
-  .dash-kpi-card-primary { border-left: 4px solid var(--primary-gc-color, #276836) !important; }
-  .dash-kpi-card-blue { border-left: 4px solid #0d6efd !important; }
-  .dash-kpi-card-orange { border-left: 4px solid #fd7e14 !important; }
-  .dash-kpi-card-purple { border-left: 4px solid #6f42c1 !important; }
+  .dash-kpi-card-primary {
+    border-left: 4px solid var(--primary-gc-color, #276836) !important;
+  }
 
-  .dash-icon-primary { color: var(--primary-gc-color, #276836); }
-  .dash-icon-blue { color: #0d6efd; }
-  .dash-icon-green { color: #198754; }
-  .dash-icon-orange { color: #fd7e14; }
+  .dash-kpi-card-blue {
+    border-left: 4px solid #0d6efd !important;
+  }
 
-  .dash-select-fuente { width: auto; min-width: 150px; }
-  .dash-select-anio { width: auto; min-width: 80px; }
-  .dash-select-mes { width: auto; min-width: 130px; }
-  .dash-select-borrador { width: auto; min-width: 220px; max-width: 300px; }
-  .dash-select-dia { width: auto; min-width: 148px; }
-  .dash-range-presets .btn { padding: .2rem .5rem; font-size: .72rem; }
-  .dash-borrador-wrap { display: inline-flex; align-items: center; }
-  .dash-chart-context { font-size: .78rem; color: #6c757d; }
+  .dash-kpi-card-orange {
+    border-left: 4px solid #fd7e14 !important;
+  }
 
-  .dash-chart-placeholder { font-size: .9rem; }
+  .dash-kpi-card-purple {
+    border-left: 4px solid #6f42c1 !important;
+  }
+
+  .dash-icon-primary {
+    color: var(--primary-gc-color, #276836);
+  }
+
+  .dash-icon-blue {
+    color: #0d6efd;
+  }
+
+  .dash-icon-green {
+    color: #198754;
+  }
+
+  .dash-icon-orange {
+    color: #fd7e14;
+  }
+
+  .dash-select-fuente {
+    width: auto;
+    min-width: 150px;
+  }
+
+  .dash-select-anio {
+    width: auto;
+    min-width: 80px;
+  }
+
+  .dash-select-mes {
+    width: auto;
+    min-width: 130px;
+  }
+
+  .dash-select-borrador {
+    width: auto;
+    min-width: 220px;
+    max-width: 300px;
+  }
+
+  .dash-select-dia {
+    width: auto;
+    min-width: 148px;
+  }
+
+  .dash-range-presets .btn {
+    padding: .2rem .5rem;
+    font-size: .72rem;
+  }
+
+  .dash-borrador-wrap {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .dash-chart-context {
+    font-size: .78rem;
+    color: #6c757d;
+  }
+
+  .dash-chart-placeholder {
+    font-size: .9rem;
+  }
+
   .dash-loading-hidden,
-  .dash-chart-hidden { display: none; }
-  .dash-chart-grid { width: 100%; min-height: 160px; }
-  .dash-chart-fixed { width: 100%; height: 160px; }
+  .dash-chart-hidden {
+    display: none;
+  }
+
+  .dash-chart-grid {
+    width: 100%;
+    min-height: 160px;
+  }
+
+  .dash-chart-fixed {
+    width: 100%;
+    height: 160px;
+  }
+
   .dash-heatmap-badge {
     font-size: .66rem;
     line-height: 1;
@@ -90,19 +158,22 @@
         <span class="small text-muted">Hasta</span>
         <input id="dashDateTo" type="date" class="form-control form-control-sm dash-select-dia" />
       </span>
-      <span id="dashDatePresetWrap" class="btn-group btn-group-sm dash-range-presets" role="group" aria-label="Presets de rango">
+      <span id="dashDatePresetWrap" class="btn-group btn-group-sm dash-range-presets" role="group"
+        aria-label="Presets de rango">
         <button type="button" class="btn btn-outline-secondary" data-preset="today">Hoy</button>
         <button type="button" class="btn btn-outline-secondary" data-preset="7d">7d</button>
         <button type="button" class="btn btn-outline-secondary" data-preset="all">Todo</button>
       </span>
       <span class="dash-borrador-wrap" id="dashBorradorWrap">
-        <select id="dashHeatmapBorradorSel" class="form-select form-select-sm dash-borrador-control dash-select-borrador" title="Borrador">
+        <select id="dashHeatmapBorradorSel"
+          class="form-select form-select-sm dash-borrador-control dash-select-borrador" title="Borrador">
           <option value="">Cargando borradores...</option>
         </select>
       </span>
     </div>
     <div class="card-body py-2 px-3 dash-loading-hidden" id="dashNoDataInfoWrap">
-      <div class="alert alert-info mb-0 py-2 small" id="dashNoDataInfoText">No hay cuadrantes disponibles para la ARS activa.</div>
+      <div class="alert alert-info mb-0 py-2 small" id="dashNoDataInfoText">No hay cuadrantes disponibles para la ARS
+        activa.</div>
     </div>
   </div>
 
@@ -123,7 +194,8 @@
             Selecciona la fuente para ver el apilado por niveles.
           </div>
           <div id="chartHeatmap2Loading" class="text-center text-muted py-4 dash-loading-hidden">
-            <div class="spinner-border spinner-border-sm me-2" role="status"></div>Cargando datos de la fuente seleccionada...
+            <div class="spinner-border spinner-border-sm me-2" role="status"></div>Cargando datos de la fuente
+            seleccionada...
           </div>
           <div id="chartHeatmap2" class="dash-chart-grid dash-chart-hidden"></div>
         </div>
@@ -134,7 +206,7 @@
         <div class="card-header bg-white border-bottom py-2 px-3 d-flex align-items-center gap-2 flex-wrap">
           <span class="fw-semibold small me-auto text-danger-emphasis">
             <i class="bi-person-fill-slash me-1 dash-icon-primary"></i>
-             Detalle de "NO DISPONIBLES" por Servicio
+            Detalle de "NO DISPONIBLES" por Servicio
           </span>
           <span class="dash-chart-context" id="dashGrupoNivel3Info">Fuente: — · Año: — · Mes: — · Detalle: —</span>
         </div>
@@ -179,13 +251,13 @@
 
   <!-- ── Gráficos ───────────────────────────────────── -->
   <div class="row g-3">
-    <!-- Donut: por actividad -->
+    <!-- Donut: por servicio -->
     <div class="col-12 col-md-4">
       <div class="card border-0 shadow-sm h-100">
         <div class="card-header bg-white border-bottom py-2 px-3 d-flex align-items-center gap-2 flex-wrap">
           <span class="fw-semibold small me-auto">
             <i class="bi bi-pie-chart me-1 dash-icon-green"></i>
-            Agentes por actividad
+            Agentes por servicio
           </span>
           <span class="dash-chart-context" id="dashActividadInfo">Fuente: — · Año: — · Mes: — · Detalle: —</span>
         </div>

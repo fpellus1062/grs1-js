@@ -59,7 +59,7 @@
                     <li><strong>S. antes</strong>: Saldo previo.</li>
                     <li><strong>Días</strong>: Días aplicados.</li>
                     <li><strong>S. desp.</strong>: Saldo resultante.</li>
-                    <li><strong>Actividad</strong>: Motivo (p. ej., “DA - Descanso Acumulado”).</li>
+                    <li><strong>Servicio</strong>: Motivo (p. ej., “DA - Descanso Acumulado”).</li>
                 </ul>
 
                 <p class="mb-0">
@@ -85,6 +85,27 @@
                     <li>Revisa los movimientos para confirmar fechas y tipos de disfrute.</li>
                     <li>Utiliza los iconos de Excel para exportar los datos.</li>
                 </ul>
+                <h6 class="fw-bold text-primary mt-3">Importar:</h6>
+                <p class="mb-0">
+                    Podemos importar movimientos de devengo o disfrute desde un fichero CSV, para carga inicial o
+                    ajustes masivos. Los días indicados se añadirán o restarán al saldo del agente en la fecha del
+                    movimiento. Las columnas del fichero serán:
+                </p>
+                <ul class="small">
+                    <li><strong>Fecha</strong>: Día del movimiento.</li>
+                    <li><strong>TIP</strong>: TIP del Agente.</li>
+                    <li><strong>Tipo</strong>: Tipo de movimiento "Devengo" o "Disfrute".</li>
+                    <li><strong>Días</strong>: Días aplicados siempre positivos.</li>
+                    <li><strong>Observaciones</strong>: Motivo del Ajuste.</li>
+                </ul>
+                <h6 class="fw-bold text-primary mt-3">Exportar:</h6>
+                <p class="mb-0">
+                    Podemos exportar movimientos de devengo o disfrute a un fichero CSV, para análisis o respaldo.
+                </p>
+                <ul class="small">
+                    <li><strong>Tabla Agentes</strong>: Acumulados por cada agente marcado.</li>
+                    <li><strong>Tabla Movimientos</strong>: Todos los movimientos de un solo agente seleccionado.</li>
+                </ul>
             </div>
         </div>
     </div>
@@ -102,9 +123,10 @@
                 <ul class="small mb-0">
                     <li>
                         Un agente con saldo final <strong>positivo</strong> tiene días disponibles para disfrutar.
-                    </li>   
+                    </li>
                     <li>
-                        Si un agente aparece con saldo final <strong class="text-danger">negativo</strong>, es que <strong>debe días festivos.</strong>
+                        Si un agente aparece con saldo final <strong class="text-danger">negativo</strong>, es que
+                        <strong>debe días festivos.</strong>
                     </li>
                 </ul>
             </div>

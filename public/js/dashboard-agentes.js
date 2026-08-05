@@ -35,6 +35,7 @@
     cambiosPendientes: new Map(),
   };
 
+  let utils = window['GRS1Utils'] || {};
   // @ts-ignore
   let TABULATOR_LANGS = window.GRS1TabulatorLangs;
   // @ts-ignore
@@ -43,6 +44,12 @@
   let sameValue = window.GRS1Utils.sameValue;
   // @ts-ignore
   let cloneRows = window.GRS1Utils.cloneRows;
+  let normalizeCssColor =
+    typeof utils.normalizeHexColor === 'function'
+      ? utils.normalizeHexColor
+      : function () {
+          return '';
+        };
 
   function isConsultaReadOnly() {
     return (
@@ -613,29 +620,12 @@
     return map;
   }
 
-  function normalizeCssColor(value) {
-    let raw = String(value || '').trim();
-    if (!raw) return '';
-    if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw;
-    if (/^[0-9a-fA-F]{6}$/.test(raw)) return '#' + raw;
-    return /^#[0-9a-fA-F]{3}$/.test(raw) ? raw : '';
-  }
-
   function getTextColorForBackground(hexColor) {
-    let hex = String(hexColor || '').replace('#', '');
-    if (hex.length !== 6) return '#0f172a';
-    let r = parseInt(hex.slice(0, 2), 16);
-    let g = parseInt(hex.slice(2, 4), 16);
-    let b = parseInt(hex.slice(4, 6), 16);
-    if (
-      [r, g, b].some(function (n) {
-        return Number.isNaN(n);
-      })
-    ) {
-      return '#0f172a';
-    }
-    let luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-    return luminance > 168 ? '#0f172a' : '#ffffff';
+    let normalized = normalizeCssColor(hexColor);
+    if (!normalized) return '#0f172a';
+    return typeof utils.getTextColorForHexBackground === 'function'
+      ? utils.getTextColorForHexBackground(normalized, 168 / 255)
+      : '#0f172a';
   }
 
   async function ensureAsignacionesMetaLoaded() {
@@ -838,9 +828,25 @@
 
   function buildAgenteDetalleCuadranteUrl(periodo, borradorId, fuente) {
     let base = '/api/asignaciones/cuadrante/' + periodo.anio + '/' + periodo.mes;
+    let fechaInicio =
+      periodo && periodo.cuadrante && periodo.cuadrante.fecha_inicio
+        ? String(periodo.cuadrante.fecha_inicio).slice(0, 10)
+        : '';
+    let fechaFin =
+      periodo && periodo.cuadrante && periodo.cuadrante.fecha_fin
+        ? String(periodo.cuadrante.fecha_fin).slice(0, 10)
+        : '';
+
     if (!borradorId) {
       if (String(fuente || '').toLowerCase() === 'definitivo') {
-        return base + '?source=definitivo';
+        let url = base + '?source=definitivo';
+        if (/^\d{4}-\d{2}-\d{2}$/.test(fechaInicio)) {
+          url += '&fecha_inicio=' + encodeURIComponent(fechaInicio);
+        }
+        if (/^\d{4}-\d{2}-\d{2}$/.test(fechaFin)) {
+          url += '&fecha_fin=' + encodeURIComponent(fechaFin);
+        }
+        return url;
       }
       return base;
     }
@@ -1307,6 +1313,7 @@
         return {
           title: String(def.title || ''),
           field: String(def.field || ''),
+          excelValue: null,
           accessorDownload:
             typeof def.accessorDownload === 'function'
               ? def.accessorDownload
@@ -1316,6 +1323,42 @@
       .filter(function (col) {
         return col.field !== 'pei' && col.field !== 'paef';
       });
+
+    exportColumns = exportColumns.reduce(function (acc, col) {
+      if (col.field !== 'provincia') {
+        acc.push(col);
+        return acc;
+      }
+
+      acc.push({
+        title: 'Provincia',
+        field: 'provincia',
+        excelValue: function (row) {
+          return String(row.provincia || '').trim();
+        },
+        accessorDownload: null,
+      });
+
+      acc.push({
+        title: 'Descripcion_provincia',
+        field: 'provincia',
+        excelValue: function (row) {
+          let code = String(row.provincia || '').trim();
+          if (!code) return '';
+          let found = (app.agentesState.provincias || []).find(function (p) {
+            return String(p.value || '') === code;
+          });
+          let label = String((found && found.label) || '').trim();
+          if (!label) return '';
+          let sep = ' - ';
+          if (label.indexOf(sep) === -1) return label === code ? '' : label;
+          return label.split(sep).slice(1).join(sep).trim();
+        },
+        accessorDownload: null,
+      });
+
+      return acc;
+    }, []);
 
     if (
       !exportColumns.some(function (col) {
@@ -1340,6 +1383,9 @@
         }
         if (col.field === 'requisitos_pct') {
           return buildRequisitosResumenTexto(row);
+        }
+        if (typeof col.excelValue === 'function') {
+          return col.excelValue(row);
         }
         if (col.accessorDownload) {
           try {
@@ -1388,6 +1434,8 @@
         title: String(def.title || ''),
         field: String(def.field || ''),
       };
+    }).filter(function (col) {
+      return col.field !== 'pei' && col.field !== 'paef';
     });
     if (
       !exportColumns.some(function (col) {
@@ -3002,6 +3050,90 @@
     );
   }
 
+  function loadAvatarDataUrl(src) {
+    function buildCircularAvatarDataUrl(imageSrc, onDone) {
+      let img = new window.Image();
+      img.onload = function () {
+        let naturalW = img.naturalWidth || img.width || 0;
+        let naturalH = img.naturalHeight || img.height || 0;
+        if (!naturalW || !naturalH) {
+          onDone(null);
+          return;
+        }
+
+        let size = Math.min(naturalW, naturalH);
+        let sx = Math.floor((naturalW - size) / 2);
+        let sy = Math.floor((naturalH - size) / 2);
+
+        let canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+
+        try {
+          let ctx = canvas.getContext('2d');
+          if (!ctx) {
+            onDone(null);
+            return;
+          }
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+          ctx.closePath();
+          ctx.clip();
+          ctx.drawImage(img, sx, sy, size, size, 0, 0, size, size);
+          ctx.restore();
+          onDone(canvas.toDataURL('image/png'));
+        } catch (_e) {
+          onDone(null);
+        }
+      };
+      img.onerror = function () {
+        onDone(null);
+      };
+      img.src = imageSrc;
+    }
+
+    return new Promise(function (resolve) {
+      if (!src) {
+        resolve(null);
+        return;
+      }
+      // Primero intentar por fetch con credenciales para evitar problemas de CORS/cookies.
+      if (window.fetch && window.FileReader) {
+        window
+          .fetch(src, { credentials: 'include' })
+          .then(function (res) {
+            if (!res.ok) throw new Error('Avatar no disponible');
+            return res.blob();
+          })
+          .then(function (blob) {
+            return new Promise(function (resolveBlob) {
+              let objectUrl = window.URL.createObjectURL(blob);
+              buildCircularAvatarDataUrl(objectUrl, function (dataUrl) {
+                window.URL.revokeObjectURL(objectUrl);
+                resolveBlob(dataUrl);
+              });
+            });
+          })
+          .then(function (dataUrl) {
+            resolve(typeof dataUrl === 'string' ? dataUrl : null);
+          })
+          .catch(function () {
+            buildCircularAvatarDataUrl(src, resolve);
+          });
+        return;
+      }
+
+      buildCircularAvatarDataUrl(src, resolve);
+    });
+  }
+
+  let FICHA_AVATAR_SIZE_PX = 80;
+  let MM_PER_PX = 0.264583;
+  let FICHA_AVATAR_SIZE_PDF = Number(
+    (FICHA_AVATAR_SIZE_PX * MM_PER_PX).toFixed(2)
+  );
+
   app.openFichaAgente = function openFichaAgente(data) {
     let a = data || {};
     let empleo = (app.agentesState.empleos || []).find(function (x) {
@@ -3112,95 +3244,197 @@
           showAlert('No está disponible jsPDF para exportar PDF', 'warning');
           return;
         }
-        let jsPDF = window.jspdf.jsPDF;
-        let doc = new jsPDF({ orientation: 'portrait', format: 'a4' });
-        let pw = doc.internal.pageSize.getWidth();
-        let ph = doc.internal.pageSize.getHeight();
-        let fecha = new Date().toLocaleString('es-ES');
-        let usuario = app.globalState.userName || 'N/D';
+        loadAvatarDataUrl(avatarUrl).then(function (avatarData) {
+          let jsPDF = window.jspdf.jsPDF;
+          let doc = new jsPDF({ orientation: 'portrait', format: 'a4' });
+          let pw = doc.internal.pageSize.getWidth();
+          let ph = doc.internal.pageSize.getHeight();
+          let fecha = new Date().toLocaleString('es-ES');
+          let usuario =
+            app.globalState.userName ||
+            app.globalState.user?.nombre ||
+            app.globalState.user?.name ||
+            'N/D';
+          let margin = 14;
+          let cardW = pw - margin * 2;
+          let y = 26;
 
-        doc.setFillColor(52, 58, 64);
-        doc.rect(0, 0, pw, 22, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(13);
-        doc.setFont(undefined, 'bold');
-        doc.text('FICHA DE AGENTE', 14, 14);
+          function drawPair(x, yPos, label, value, width) {
+            doc.setFontSize(8);
+            doc.setTextColor(108, 117, 125);
+            doc.setFont(undefined, 'bold');
+            doc.text(label, x, yPos);
+            doc.setTextColor(33, 37, 41);
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            let lines = doc.splitTextToSize(value || '-', width);
+            doc.text(lines, x, yPos + 5);
+            return lines.length * 4.2 + 8;
+          }
 
-        doc.setTextColor(33, 37, 41);
-        doc.setFontSize(11);
-        doc.setFont(undefined, 'bold');
-        doc.text(nombreCompleto || '-', 14, 32);
-        doc.setFont(undefined, 'normal');
-        doc.setFontSize(9);
-        doc.text('TIP: ' + (a.tip || '-'), 14, 39);
-        doc.text('NIF: ' + (a.nif || '-'), 14, 45);
-        doc.text('Empleo: ' + (empleoNombre || '-'), 14, 51);
-        doc.text('Pelotón: ' + (pelotonNombre || '-'), 14, 57);
-        doc.text('Situación: ' + (situacionNombre || '-'), 14, 63);
-        doc.text('Teléfono: ' + (a.telefono || '-'), 14, 69);
-        doc.text('Email: ' + (a.email || '-'), 14, 75);
-        doc.text('Población: ' + (a.poblacion || '-'), 14, 81);
-        doc.text('Provincia: ' + (provinciaNombre || '-'), 14, 87);
+          // Header global
+          doc.setFillColor(52, 58, 64);
+          doc.rect(0, 0, pw, 22, 'F');
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(13);
+          doc.setFont(undefined, 'bold');
+          doc.text('FICHA DE AGENTE', 14, 14);
 
-        let detalleReqPdf = getRequisitosDetalleVisible(a || {});
-        doc.setFontSize(8);
-        doc.setTextColor(108, 117, 125);
-        doc.text('Requisitos', 14, 93);
+          // Card de cabecera con estilo de modal
+          let grupoNombrePdf = a.ars_unidad_id;
+          let empleoNombrePdf = empleo ? empleo.descripcion : a.empleo_id || '-';
+          let pelotonNombrePdf = peloton ? peloton.descripcion : a.peloton_id || '-';
+          let escalaNombrePdf = empleo ? empleo.escala || empleo.grupo || '-' : '-';
+          let situacionNombrePdf = situacion
+            ? situacion.descripcion
+            : a.situacion_id || '-';
+          let provinciaObjP = (app.agentesState.provincias || []).find(
+            function (p) {
+              return p.value === String(a.provincia || '');
+            }
+          );
+          let provinciaNombreP = provinciaObjP
+            ? provinciaObjP.label
+            : a.provincia || '-';
+          let fechaAntP = '';
+          if (a.fecha_ant_empleo) {
+            let dtAntP =
+              window.luxon &&
+              window.luxon.DateTime.fromISO(String(a.fecha_ant_empleo));
+            fechaAntP =
+              dtAntP && dtAntP.isValid
+                ? dtAntP.toFormat('dd/MM/yyyy')
+                : String(a.fecha_ant_empleo);
+          }
 
-        let reqBadges = detalleReqPdf.map(function (item) {
-          let tipo = String(
-            item && (item.tipo || item.plantilla_nombre)
-              ? item.tipo || item.plantilla_nombre
-              : 'Requisito'
-          ).trim();
-          let pctVal =
-            item && item.pct != null && Number.isFinite(Number(item.pct))
-              ? Math.max(0, Math.min(100, Math.round(Number(item.pct))))
-              : null;
-          let c = getRequisitoPctBadgeColors(pctVal);
-          return {
-            label: tipo + ': ' + (pctVal == null ? '-' : String(pctVal) + '%'),
-            bg: c.bg,
-            fg: c.fg,
-          };
+          let textX = margin + FICHA_AVATAR_SIZE_PDF + 12;
+          let textW = Math.max(50, margin + cardW - textX - 6);
+          let nombreLines = doc.splitTextToSize(nombreCompleto || '-', textW);
+          let empleoLines = doc.splitTextToSize(
+            'Empleo: ' + empleoNombrePdf,
+            textW
+          );
+          let escalaLines = doc.splitTextToSize(
+            'Escala: ' + escalaNombrePdf,
+            textW
+          );
+          let headerTextH =
+            nombreLines.length * 5.2 +
+            empleoLines.length * 4.3 +
+            escalaLines.length * 4.3 +
+            6;
+          let headerCardH = Math.max(
+            FICHA_AVATAR_SIZE_PDF + 16,
+            headerTextH + 12
+          );
+
+          doc.setDrawColor(222, 226, 230);
+          doc.setFillColor(248, 249, 250);
+          doc.roundedRect(margin, y, cardW, headerCardH, 2, 2, 'FD');
+
+          if (avatarData) {
+            try {
+              doc.addImage(
+                avatarData,
+                'JPEG',
+                margin + 6,
+                y + 8,
+                FICHA_AVATAR_SIZE_PDF,
+                FICHA_AVATAR_SIZE_PDF
+              );
+            } catch (_e) {
+              // noop
+            }
+          }
+
+          doc.setTextColor(33, 37, 41);
+          doc.setFontSize(12);
+          doc.setFont(undefined, 'bold');
+          doc.text(nombreLines, textX, y + 16);
+
+          doc.setFontSize(9);
+          doc.setFont(undefined, 'normal');
+          doc.setTextColor(73, 80, 87);
+          let infoY = y + 16 + nombreLines.length * 5.2 + 2;
+          doc.text(empleoLines, textX, infoY);
+          infoY += empleoLines.length * 4.3 + 1;
+          doc.text(escalaLines, textX, infoY);
+
+          y += headerCardH + 6;
+
+          // Bloque de datos con UI similar al modal (2 columnas)
+          let leftX = margin + 6;
+          let rightX = margin + cardW / 2 + 2;
+          let lineY = y + 8;
+
+          let fields = [
+            ['NIF', a.nif || '-', 'TIP', a.tip || '-'],
+            ['Orden', a.orden_gc || '-', 'Teléfono', a.telefono || '-'],
+            ['Email', a.email || '-', 'Empleo', empleoNombrePdf],
+            ['Grupo', grupoNombrePdf || '-', '', null],
+            ['Pelotón', pelotonNombrePdf, 'Escala', escalaNombrePdf],
+            ['Situación', situacionNombrePdf, 'Aptitudes', a.aptitudes || '-'],
+            ['Ant. Empleo', fechaAntP || '-', 'Domicilio', a.domicilio || '-'],
+            ['Población', a.poblacion || '-', 'C.P.', a.codigo_postal || '-'],
+            ['Provincia', provinciaNombreP || '-', '', ''],
+          ];
+
+          let colW = cardW / 2 - 12;
+          let pairHeights = fields.map(function (row) {
+            let l1 = doc.splitTextToSize(String(row[1] || '-'), colW);
+            let l2 = doc.splitTextToSize(String(row[3] || '-'), colW);
+            return Math.max(l1.length * 4.2 + 8, l2.length * 4.2 + 8);
+          });
+          let dataCardH = 8;
+          pairHeights.forEach(function (h) {
+            dataCardH += h;
+          });
+
+          doc.setDrawColor(222, 226, 230);
+          doc.roundedRect(margin, y, cardW, dataCardH, 2, 2, 'S');
+
+          fields.forEach(function (row, idx) {
+            drawPair(leftX, lineY, row[0], String(row[1] || '-'), colW);
+            if (row[2]) {
+              drawPair(rightX, lineY, row[2], String(row[3] || '-'), colW);
+            }
+            lineY += pairHeights[idx];
+          });
+
+          y += dataCardH + 8;
+
+          // Caja de comentarios como en modal
+          let comentarios = a.comentarios || '-';
+          let comentarioLines = doc.splitTextToSize(comentarios, cardW - 12);
+          let comentarioH = Math.max(34, comentarioLines.length * 4.3 + 10);
+          doc.setFillColor(248, 249, 250);
+          doc.setDrawColor(222, 226, 230);
+          doc.roundedRect(margin, y + 2, cardW, comentarioH + 10, 2, 2, 'FD');
+          doc.setFontSize(8);
+          doc.setTextColor(108, 117, 125);
+          doc.setFont(undefined, 'bold');
+          doc.text('Comentarios', margin + 6, y + 10);
+          doc.setFontSize(10);
+          doc.setTextColor(33, 37, 41);
+          doc.setFont(undefined, 'normal');
+          doc.text(comentarioLines, margin + 6, y + 17);
+
+          // Footer
+          doc.setFontSize(7);
+          doc.setTextColor(150);
+          doc.text('ARS', 14, ph - 8);
+          doc.text(
+            'Usuario: ' + usuario + '   Fecha: ' + fecha,
+            pw - 14,
+            ph - 8,
+            {
+              align: 'right',
+            }
+          );
+
+          let ts = new Date().toISOString().slice(0, 10);
+          doc.save('ficha_agente_' + (a.id || '') + '_' + ts + '.pdf');
         });
-
-        let badgeLayout =
-          window.GRS1Utils && typeof window.GRS1Utils.drawPdfBadgeFlow === 'function'
-            ? window.GRS1Utils.drawPdfBadgeFlow(doc, reqBadges, {
-                x: 14,
-                y: 98,
-                maxX: pw - 14,
-                badgeHeight: 6,
-                gapX: 1.5,
-                lineGap: 2,
-                padX: 1.8,
-                radius: 1.2,
-                fontSize: 8,
-                emptyLabel: 'Sin requisitos',
-              })
-            : { endY: 104 };
-
-        let comentariosStart = Number(badgeLayout && badgeLayout.endY) + 5;
-
-        let comentarios = String(a.comentarios || '-');
-        let lines = doc.splitTextToSize(comentarios, pw - 28);
-        doc.setFontSize(8);
-        doc.setTextColor(108, 117, 125);
-        doc.text('Comentarios', 14, comentariosStart);
-        doc.setFontSize(9);
-        doc.setTextColor(33, 37, 41);
-        doc.text(lines, 14, comentariosStart + 6);
-
-        doc.setFontSize(7);
-        doc.setTextColor(150);
-        doc.text('GRS1 Dashboard', 14, ph - 8);
-        doc.text('Usuario: ' + usuario + '   Fecha: ' + fecha, pw - 14, ph - 8, {
-          align: 'right',
-        });
-
-        let ts = new Date().toISOString().slice(0, 10);
-        doc.save('ficha_agente_' + (a.id || '') + '_' + ts + '.pdf');
       };
     }
 

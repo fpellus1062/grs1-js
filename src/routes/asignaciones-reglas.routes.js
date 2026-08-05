@@ -12,6 +12,8 @@ const {
   previewSchema,
   persistirMovimientoManualSchema,
   persistirMovimientoManualBulkSchema,
+  persistirAjusteAgentesBulkSchema,
+  importarMovimientosLedgerCsvSchema,
   saldosQuerySchema,
   ledgerAgentesQuerySchema,
   ledgerSaldosMensualesQuerySchema,
@@ -69,6 +71,20 @@ router.post(
   authorize('asignaciones-reglas:editar'),
   validate(persistirMovimientoManualBulkSchema),
   controller.persistirMovimientoManualBulk
+);
+
+router.post(
+  '/movimientos-ajustes/bulk',
+  authorize('asignaciones-reglas:editar'),
+  validate(persistirAjusteAgentesBulkSchema),
+  controller.persistirAjusteAgentesBulk
+);
+
+router.post(
+  '/ledger-movimientos/import-csv',
+  authorize('asignaciones-reglas:editar'),
+  validate(importarMovimientosLedgerCsvSchema),
+  controller.importarMovimientosLedgerCsv
 );
 
 router.get(

@@ -387,6 +387,47 @@ exports.persistirMovimientoManualBulkSchema = Joi.object({
   return value;
 }, 'manual persist bulk validation');
 
+exports.persistirAjusteAgentesBulkSchema = Joi.object({
+  agente_ids: Joi.array()
+    .items(Joi.number().integer().positive())
+    .min(1)
+    .max(5000)
+    .required(),
+  fecha: dateSchema.required(),
+  modo: Joi.string().valid('ajuste', 'poner_cero').default('ajuste'),
+  tipo_movimiento: Joi.string().valid('devengo', 'descanso').when('modo', {
+    is: 'poner_cero',
+    then: Joi.string().valid('devengo', 'descanso').optional(),
+    otherwise: Joi.required(),
+  }),
+  cantidad_dias: Joi.number().positive().precision(2).when('modo', {
+    is: 'poner_cero',
+    then: Joi.number().positive().precision(2).optional(),
+    otherwise: Joi.required(),
+  }),
+  actividad_id: Joi.number().integer().positive().allow(null),
+  observaciones: Joi.string().trim().max(500).allow('', null),
+});
+
+exports.importarMovimientosLedgerCsvSchema = Joi.object({
+  file_name: Joi.string().trim().max(255).required(),
+  file_size: Joi.number().integer().min(1).max(50 * 1024 * 1024).required(),
+  file_last_modified: Joi.number().integer().min(0).allow(null),
+  items: Joi.array()
+    .items(
+      Joi.object({
+        fecha: dateSchema.required(),
+        tip: Joi.string().trim().max(50).required(),
+        dias: Joi.number().precision(2).invalid(0).required(),
+        observaciones: Joi.string().trim().max(500).allow('', null),
+        line: Joi.number().integer().min(2).allow(null),
+      })
+    )
+    .min(1)
+    .max(10000)
+    .required(),
+});
+
 exports.saldosQuerySchema = Joi.object({
   anio: Joi.number().integer().min(2020).max(2100).required(),
   mes: Joi.number().integer().min(1).max(12).required(),

@@ -1,28 +1,18 @@
 <div class="card shadow-sm mb-2">
   <!-- Notion-style compact toolbar -->
-  <div
-    class="d-flex align-items-center gap-2 px-3 py-2 border-bottom bg-white flex-wrap"
-  >
+  <div class="d-flex align-items-center gap-2 px-3 py-2 border-bottom bg-white flex-wrap">
     <i class="bi bi-diagram-3 text-secondary" style="font-size: 0.95rem"></i>
-    <span class="fw-semibold text-dark" style="font-size: 0.875rem"
-      >Jerarquía de grupos</span
-    ><button class="btn btn-link p-0 ms-1" type="button" data-help-context="jerarquia-grupos-help"
+    <span class="fw-semibold text-dark" style="font-size: 0.875rem">Jerarquía de grupos</span><button
+      class="btn btn-link p-0 ms-1" type="button" data-help-context="jerarquia-grupos-help"
       title="Ayuda Jerarquía de Grupos">
       <i class="bi bi-question-circle text-secondary" style="font-size: 0.95rem"></i>
     </button>
     <span class="vr mx-1 opacity-25"></span>
-    <span class="text-muted" style="font-size: 0.75rem"
-      >Catálogo jerárquico compacto para mantenimiento diario</span
-    >
+    <span class="text-muted" style="font-size: 0.75rem">Catálogo jerárquico compacto para mantenimiento diario</span>
     <div class="ms-auto d-flex align-items-center gap-1">
       <div class="dropdown">
-        <button
-          class="btn btn-outline-success btn-sm py-1 px-2 dropdown-toggle"
-          type="button"
-          id="btnExportJerarquiaExcelMenu"
-          data-bs-toggle="dropdown"
-          aria-expanded="false"
-        >
+        <button class="btn btn-outline-success btn-sm py-1 px-2 dropdown-toggle" type="button"
+          id="btnExportJerarquiaExcelMenu" data-bs-toggle="dropdown" aria-expanded="false">
           <i class="bi bi-file-earmark-excel me-1"></i>Exportación a Excel
         </button>
         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="btnExportJerarquiaExcelMenu">
@@ -38,12 +28,8 @@
           </li>
         </ul>
       </div>
-      <button
-        class="btn btn-outline-secondary btn-sm py-1 px-2"
-        data-section-trigger="dashboard"
-        type="button"
-        title="Ir al Dashboard"
-      >
+      <button class="btn btn-outline-secondary btn-sm py-1 px-2" data-section-trigger="dashboard" type="button"
+        title="Ir al Dashboard">
         <i class="bi bi-house"></i>
       </button>
     </div>
@@ -55,19 +41,12 @@
     <div class="card shadow jerarquiagrupos-panel jerarquiagrupos-levels-panel">
       <div class="card-header jerarquiagrupos-panel-header">
         <i class="bi bi-layers text-secondary" style="font-size: 0.9rem"></i>
-        <span class="fw-semibold text-dark" style="font-size: 0.82rem"
-          >Niveles</span
-        >
+        <span class="fw-semibold text-dark" style="font-size: 0.82rem">Niveles</span>
         <span class="vr mx-1 opacity-25"></span>
-        <small class="text-muted" style="font-size: 0.72rem"
-          >Solo referencia</small
-        >
+        <small class="text-muted" style="font-size: 0.72rem">Solo referencia</small>
       </div>
       <div class="card-body p-2">
-        <div
-          id="jerarquiagruposLevelsList"
-          class="jerarquiagrupos-levels-list"
-        ></div>
+        <div id="jerarquiagruposLevelsList" class="jerarquiagrupos-levels-list"></div>
       </div>
     </div>
   </aside>
@@ -75,33 +54,15 @@
   <section class="jerarquiagrupos-main">
     <div class="card shadow jerarquiagrupos-panel">
       <div class="card-header jerarquiagrupos-panel-header">
-        <i
-          class="bi bi-collection text-secondary"
-          style="font-size: 0.9rem"
-        ></i>
-        <span class="fw-semibold text-dark" style="font-size: 0.82rem"
-          >Grupos</span
-        >
+        <i class="bi bi-collection text-secondary" style="font-size: 0.9rem"></i>
+        <span class="fw-semibold text-dark" style="font-size: 0.82rem">Grupos</span>
         <span class="vr mx-1 opacity-25"></span>
-        <small
-          id="jerarquiagruposGroupHint"
-          class="text-muted"
-          style="font-size: 0.72rem"
-        ></small>
+        <small id="jerarquiagruposGroupHint" class="text-muted" style="font-size: 0.72rem"></small>
         <div class="ms-auto d-flex gap-1">
-          <button
-            class="btn btn-outline-primary btn-sm py-1 px-2"
-            id="btnNuevoHijoGrupoJer"
-            type="button"
-            disabled
-          >
+          <button class="btn btn-outline-primary btn-sm py-1 px-2" id="btnNuevoHijoGrupoJer" type="button" disabled>
             <i class="bi bi-node-plus"></i>
           </button>
-          <button
-            class="btn btn-primary btn-sm py-1 px-2"
-            id="btnNuevoGrupoJer"
-            type="button"
-          >
+          <button class="btn btn-primary btn-sm py-1 px-2" id="btnNuevoGrupoJer" type="button">
             <i class="bi bi-plus-circle"></i> Nuevo
           </button>
         </div>
@@ -109,22 +70,11 @@
       <div id="alertContainerGrupoJer" class="px-2 pt-1"></div>
       <div class="card-body p-0 jerarquiagrupos-tree-wrap">
         <div class="jerarquiagrupos-tree-toolbar">
-          <input
-            id="jerarquiagruposTreeSearch"
-            class="form-control form-control-sm"
-            type="search"
-            placeholder="Buscar grupo..."
-            autocomplete="off"
-          />
+          <input id="jerarquiagruposTreeSearch" class="form-control form-control-sm" type="search"
+            placeholder="Buscar grupo..." autocomplete="off" />
         </div>
-        <div
-          id="jerarquiagruposTree"
-          class="jerarquiagrupos-tree"
-          role="tree"
-          aria-label="Árbol de grupos"
-          aria-activedescendant=""
-          tabindex="0"
-        ></div>
+        <div id="jerarquiagruposTree" class="jerarquiagrupos-tree" role="tree" aria-label="Árbol de grupos"
+          aria-activedescendant="" tabindex="0"></div>
       </div>
     </div>
   </section>
@@ -132,33 +82,17 @@
   <section class="jerarquiagrupos-side">
     <div class="card shadow jerarquiagrupos-panel">
       <div class="card-header jerarquiagrupos-panel-header">
-        <i
-          class="bi bi-clipboard-check text-secondary"
-          style="font-size: 0.9rem"
-        ></i>
-        <span class="fw-semibold text-dark" style="font-size: 0.82rem"
-          >Actividades</span
-        >
+        <i class="bi bi-clipboard-check text-secondary" style="font-size: 0.9rem"></i>
+        <span class="fw-semibold text-dark" style="font-size: 0.82rem">Actividades</span>
         <span class="vr mx-1 opacity-25"></span>
-        <small
-          id="jerarquiagruposBreadcrumb"
-          class="text-muted text-truncate d-block jerarquiagrupos-breadcrumb"
-          style="font-size: 0.72rem"
-        ></small>
-        <button
-          class="btn btn-primary btn-sm py-1 px-2 ms-auto"
-          id="btnNuevaActividadJer"
-          type="button"
-          disabled
-        >
+        <small id="jerarquiagruposBreadcrumb" class="text-muted text-truncate d-block jerarquiagrupos-breadcrumb"
+          style="font-size: 0.72rem"></small>
+        <button class="btn btn-primary btn-sm py-1 px-2 ms-auto" id="btnNuevaActividadJer" type="button" disabled>
           <i class="bi bi-plus-circle"></i> Nuevo
         </button>
       </div>
       <div id="alertContainerActividadJer" class="px-2 pt-1"></div>
-      <div
-        id="jerarquiagruposGroupSummary"
-        class="jerarquiagrupos-summary d-none"
-      >
+      <div id="jerarquiagruposGroupSummary" class="jerarquiagrupos-summary d-none">
         <div class="jerarquiagrupos-summary-item">
           <span class="jerarquiagrupos-summary-label">Nivel</span>
           <strong id="jerarquiagruposSummaryNivel">-</strong>
@@ -177,15 +111,8 @@
         </div>
         <div class="jerarquiagrupos-summary-item">
           <span class="jerarquiagrupos-summary-label">Color</span>
-          <strong
-            id="jerarquiagruposSummaryColor"
-            class="jerarquiagrupos-summary-color"
-          >
-            <span
-              id="jerarquiagruposSummaryColorSwatch"
-              class="jerarquiagrupos-color-swatch"
-              aria-hidden="true"
-            ></span>
+          <strong id="jerarquiagruposSummaryColor" class="jerarquiagrupos-summary-color">
+            <span id="jerarquiagruposSummaryColorSwatch" class="jerarquiagrupos-color-swatch" aria-hidden="true"></span>
             <span id="jerarquiagruposSummaryColorText">-</span>
           </strong>
         </div>
@@ -194,10 +121,7 @@
         <i class="bi bi-arrow-left-circle jerarquiagrupos-empty-icon"></i>
         <span>Selecciona un grupo para ver sus actividades</span>
       </div>
-      <div
-        class="card-body p-0 jerarquiagrupos-tabulator-wrap"
-        id="actividadesJerPanel"
-      >
+      <div class="card-body p-0 jerarquiagrupos-tabulator-wrap" id="actividadesJerPanel">
         <div id="tabulatorActividadesJer"></div>
       </div>
     </div>
@@ -205,60 +129,30 @@
 </div>
 
 <!-- ══ Modal Nuevo / Editar Grupo ════════════════════════════════════════════ -->
-<div
-  class="modal fade jer-modal"
-  id="modalGrupoJer"
-  tabindex="-1"
-  aria-labelledby="modalGrupoJerLabel"
->
+<div class="modal fade jer-modal" id="modalGrupoJer" tabindex="-1" aria-labelledby="modalGrupoJerLabel">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content modal-notion">
       <div class="modal-header">
         <h5 class="modal-title" id="modalGrupoJerLabel">Nuevo Grupo</h5>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-          aria-label="Cerrar"
-        ></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
       <div class="modal-body">
         <form id="formGrupoJer" class="jer-grupo-form" novalidate>
           <input type="hidden" id="grupoJerId" />
           <div class="mb-2">
-            <label for="grupoJerNombre" class="form-label"
-              >Nombre <span class="text-danger">*</span></label
-            >
-            <input
-              type="text"
-              class="form-control"
-              id="grupoJerNombre"
-              required
-              maxlength="255"
-              autocomplete="off"
-            />
+            <label for="grupoJerNombre" class="form-label">Nombre <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="grupoJerNombre" required maxlength="255" autocomplete="off" />
             <div class="invalid-feedback">El nombre es requerido.</div>
           </div>
           <div class="mb-2">
             <label for="grupoJerCodigo" class="form-label">Codigo</label>
-            <input
-              type="text"
-              class="form-control"
-              id="grupoJerCodigo"
-              maxlength="255"
-              autocomplete="off"
-              placeholder="Opcional"
-            />
+            <input type="text" class="form-control" id="grupoJerCodigo" maxlength="255" autocomplete="off"
+              placeholder="Opcional" />
           </div>
           <div class="mb-2">
             <label for="grupoJerColor" class="form-label">Color</label>
-            <input
-              type="color"
-              class="form-control form-control-color"
-              id="grupoJerColor"
-              value="#6c757d"
-              title="Color del grupo"
-            />
+            <input type="color" class="form-control form-control-color" id="grupoJerColor" value="#6c757d"
+              title="Color del grupo" />
           </div>
           <div class="mb-2">
             <label for="grupoJerPadre" class="form-label">Grupo padre</label>
@@ -274,21 +168,10 @@
           </div>
           <div class="mb-2">
             <label for="grupoJerOrden" class="form-label">Orden</label>
-            <input
-              type="number"
-              class="form-control"
-              id="grupoJerOrden"
-              value="0"
-              min="0"
-            />
+            <input type="number" class="form-control" id="grupoJerOrden" value="0" min="0" />
           </div>
           <div class="form-check form-switch mt-1 mb-0">
-            <input
-              class="form-check-input"
-              type="checkbox"
-              id="grupoJerActivo"
-              checked
-            />
+            <input class="form-check-input" type="checkbox" id="grupoJerActivo" checked />
             <label class="form-check-label" for="grupoJerActivo">Activo</label>
           </div>
         </form>
@@ -313,34 +196,19 @@
         <h5 class="modal-title" id="modalDeleteActividadJerTitle">
           Confirmar baja
         </h5>
-        <button
-          type="button"
-          class="btn-close btn-close-white"
-          data-bs-dismiss="modal"
-          aria-label="Cerrar"
-        ></button>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
       <div class="modal-body">
         <p class="mb-1">¿Eliminar este grupo?</p>
         <p class="text-muted mb-0">
-          <small
-            >Solo se pueden eliminar grupos sin subgrupos ni servicios.</small
-          >
+          <small>Solo se pueden eliminar grupos sin subgrupos ni servicios.</small>
         </p>
       </div>
       <div class="modal-footer py-2">
-        <button
-          type="button"
-          class="btn btn-secondary btn-sm"
-          data-bs-dismiss="modal"
-        >
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">
           Cancelar
         </button>
-        <button
-          type="button"
-          class="btn btn-danger btn-sm"
-          id="btnConfirmDeleteGrupoJer"
-        >
+        <button type="button" class="btn btn-danger btn-sm" id="btnConfirmDeleteGrupoJer">
           Eliminar
         </button>
       </div>
@@ -348,72 +216,42 @@
   </div>
 </div>
 
-<!-- ══ Modal Nuevo / Editar Actividad ════════════════════════════════════════ -->
-<div
-  class="modal fade jer-modal"
-  id="modalActividadJer"
-  tabindex="-1"
-  aria-labelledby="modalActividadJerLabel"
->
+<!-- ══ Modal Nuevo / Editar Servicio ════════════════════════════════════════ -->
+<div class="modal fade jer-modal" id="modalActividadJer" tabindex="-1" aria-labelledby="modalActividadJerLabel">
   <div class="modal-dialog modal-xl modal-dialog-centered">
     <div class="modal-content modal-notion">
       <div class="modal-header">
-        <h5 class="modal-title" id="modalActividadJerLabel">Nueva Actividad</h5>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-          aria-label="Cerrar"
-        ></button>
+        <h5 class="modal-title" id="modalActividadJerLabel">Nueva Servicio</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
       <div class="modal-body">
         <form id="formActividadJer" novalidate>
           <input type="hidden" id="actividadJerId" />
           <div class="row g-2 mb-2">
             <div class="col-5">
-              <label for="actividadJerCodigo" class="form-label"
-                >Código <span class="text-danger">*</span></label
-              >
-              <input
-                type="text"
-                class="form-control"
-                id="actividadJerCodigo"
-                required
-                maxlength="255"
-                placeholder="Código único"
-                autocomplete="off"
-              />
+              <label for="actividadJerCodigo" class="form-label">Código <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="actividadJerCodigo" required maxlength="255"
+                placeholder="Código único" autocomplete="off" />
               <div class="invalid-feedback">El código es requerido.</div>
             </div>
             <div class="col-7">
-              <label for="actividadJerNombre" class="form-label"
-                >Nombre <span class="text-danger">*</span></label
-              >
-              <input
-                type="text"
-                class="form-control"
-                id="actividadJerNombre"
-                required
-                maxlength="255"
-                autocomplete="off"
-              />
+              <label for="actividadJerNombre" class="form-label">Nombre <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="actividadJerNombre" required maxlength="255"
+                autocomplete="off" />
               <div class="invalid-feedback">El nombre es requerido.</div>
             </div>
           </div>
           <div class="row g-2 mb-2">
             <div class="col-3">
-              <label for="actividadJerGrupoId" class="form-label"
-                >Grupo actividad <span class="text-danger">*</span></label
-              >
+              <label for="actividadJerGrupoId" class="form-label">Grupo servicio <span
+                  class="text-danger">*</span></label>
               <select class="form-select" id="actividadJerGrupoId" required>
                 <option value="">Selecciona un grupo...</option>
               </select>
               <div class="invalid-feedback">El grupo es requerido.</div>
             </div>
             <div class="col-3">
-              <label for="actividadJerDisponible" class="form-label"
-                >Disponibilidad</label
-              >
+              <label for="actividadJerDisponible" class="form-label">Disponibilidad</label>
               <select class="form-select" id="actividadJerDisponible">
                 <option value="">General</option>
                 <option value="--a--">Solo Activos</option>
@@ -421,71 +259,36 @@
               </select>
             </div>
             <div class="col-3">
-              <label for="actividadJerHorario" class="form-label"
-                >Horario</label
-              >
-              <input
-                type="text"
-                class="form-control"
-                id="actividadJerHorario"
-                maxlength="255"
-                placeholder="Ej: L-V mañana"
-              />
+              <label for="actividadJerHorario" class="form-label">Horario</label>
+              <input type="text" class="form-control" id="actividadJerHorario" maxlength="255"
+                placeholder="Ej: L-V mañana" />
             </div>
             <div class="col-3">
               <label for="actividadJerColor" class="form-label">Color</label>
-              <input
-                type="color"
-                class="form-control form-control-color"
-                id="actividadJerColor"
-                value="#6c757d"
-                title="Color de la actividad"
-              />
+              <input type="color" class="form-control form-control-color" id="actividadJerColor" value="#6c757d"
+                title="Color de la servicio" />
             </div>
           </div>
           <div class="row g-2">
             <div class="col-6">
-              <label for="actividadJerHoraInicio" class="form-label"
-                >Hora inicio</label
-              >
-              <input
-                type="time"
-                class="form-control"
-                id="actividadJerHoraInicio"
-              />
+              <label for="actividadJerHoraInicio" class="form-label">Hora inicio</label>
+              <input type="time" class="form-control" id="actividadJerHoraInicio" />
             </div>
             <div class="col-6">
-              <label for="actividadJerHoraFin" class="form-label"
-                >Hora fin</label
-              >
-              <input
-                type="time"
-                class="form-control"
-                id="actividadJerHoraFin"
-              />
+              <label for="actividadJerHoraFin" class="form-label">Hora fin</label>
+              <input type="time" class="form-control" id="actividadJerHoraFin" />
             </div>
           </div>
-          <div
-            class="row g-2 mt-1"
-            id="actividadJerBajaRow"
-            style="display: none"
-          >
+          <div class="row g-2 mt-1" id="actividadJerBajaRow" style="display: none">
             <div class="col-12 d-flex align-items-center gap-3">
               <div>
                 <label class="form-label mb-0">Fecha de baja</label>
                 <div id="actividadJerFechaBajaDisplay" class="mt-1">
-                  <span
-                    class="badge bg-success-subtle text-success border border-success-subtle"
-                    >Activa</span
-                  >
+                  <span class="badge bg-success-subtle text-success border border-success-subtle">Activa</span>
                 </div>
               </div>
               <div class="ms-auto">
-                <button
-                  type="button"
-                  class="btn btn-sm btn-outline-danger"
-                  id="btnActividadJerToggleBaja"
-                >
+                <button type="button" class="btn btn-sm btn-outline-danger" id="btnActividadJerToggleBaja">
                   <i class="bi bi-slash-circle me-1"></i>Dar de baja
                 </button>
               </div>
@@ -497,11 +300,7 @@
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
           Cancelar
         </button>
-        <button
-          type="button"
-          class="btn btn-primary"
-          id="btnGuardarActividadJer"
-        >
+        <button type="button" class="btn btn-primary" id="btnGuardarActividadJer">
           <i class="bi bi-check-circle me-1"></i>Guardar
         </button>
       </div>
@@ -509,42 +308,27 @@
   </div>
 </div>
 
-<!-- ══ Modal Confirmar Eliminar Actividad ════════════════════════════════════ -->
+<!-- ══ Modal Confirmar Eliminar Servicio ════════════════════════════════════ -->
 <div class="modal fade jer-modal" id="modalDeleteActividadJer" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content modal-notion">
       <div class="modal-header bg-danger text-white py-2">
         <h5 class="modal-title">Confirmar eliminación</h5>
-        <button
-          type="button"
-          class="btn-close btn-close-white"
-          data-bs-dismiss="modal"
-          aria-label="Cerrar"
-        ></button>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
       <div class="modal-body">
         <p class="mb-1" id="modalDeleteActividadJerText">
           ¿Dar de baja este servicio?
         </p>
         <p class="text-muted mb-0">
-          <small id="modalDeleteActividadJerHint"
-            >Se marcará fecha_baja con la fecha/hora actual.</small
-          >
+          <small id="modalDeleteActividadJerHint">Se marcará fecha_baja con la fecha/hora actual.</small>
         </p>
       </div>
       <div class="modal-footer py-2">
-        <button
-          type="button"
-          class="btn btn-secondary btn-sm"
-          data-bs-dismiss="modal"
-        >
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">
           Cancelar
         </button>
-        <button
-          type="button"
-          class="btn btn-danger btn-sm"
-          id="btnConfirmDeleteActividadJer"
-        >
+        <button type="button" class="btn btn-danger btn-sm" id="btnConfirmDeleteActividadJer">
           Dar de baja
         </button>
       </div>

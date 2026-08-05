@@ -465,8 +465,12 @@
   }
 
   function normalizeHexColor(value) {
-    let color = String(value || '').trim();
-    return /^#[0-9a-fA-F]{6}$/.test(color) ? color : null;
+    let normalized =
+      window['GRS1Utils'] &&
+      typeof window['GRS1Utils'].normalizeHexColor === 'function'
+        ? window['GRS1Utils'].normalizeHexColor(value)
+        : '';
+    return normalized || null;
   }
 
   function getNivelColor(nivel, explicitColor) {

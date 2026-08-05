@@ -1,14 +1,20 @@
 (function () {
   let app = window.GRS1Dashboard;
   if (!app) return;
+  let utils = window['GRS1Utils'] || {};
 
   // ── State ────────────────────────────────────────────────────────────────
   let st = {
     selectedSaldo: null, // fila activa en acumulados (carga movimientos)
+    activeSaldoKey: '',
+    activeRowEl: null,
+    lastCellMouseDown: null,
     saldosTabulator: null,
     movimientosTabulator: null,
     movReqSeq: 0,
     saldosReqSeq: 0,
+    ajusteSelected: new Set(),
+    ajusteActividades: [],
   };
 
   function getHeaders(json) {
@@ -37,37 +43,30 @@
     return msg;
   }
 
-  function asText(v) {
-    return app.escapeHtml(v == null ? '' : String(v));
-  }
+  let asText =
+    typeof utils.esc === 'function'
+      ? utils.esc
+      : function (v) {
+          return app.escapeHtml(v == null ? '' : String(v));
+        };
 
-  function normalizeHexColor(color) {
-    let c = String(color || '').trim();
-    if (!c) return null;
-    if (/^#[0-9a-fA-F]{3}$/.test(c) || /^#[0-9a-fA-F]{6}$/.test(c)) return c;
-    if (/^[0-9a-fA-F]{6}$/.test(c)) return '#' + c;
-    return null;
-  }
+  let normalizeHexColor =
+    typeof utils.normalizeHexColor === 'function'
+      ? utils.normalizeHexColor
+      : function (color) {
+          return typeof app.normalizeHexColor === 'function'
+            ? app.normalizeHexColor(color, '')
+            : '';
+        };
 
-  function contrastColor(hex) {
-    if (typeof app._contrastColor === 'function')
-      return app._contrastColor(hex);
-    let h = String(hex || '').replace('#', '');
-    if (h.length === 3) {
-      h = h
-        .split('')
-        .map(function (x) {
-          return x + x;
-        })
-        .join('');
-    }
-    if (!/^[0-9a-fA-F]{6}$/.test(h)) return '#212529';
-    let r = parseInt(h.slice(0, 2), 16);
-    let g = parseInt(h.slice(2, 4), 16);
-    let b = parseInt(h.slice(4, 6), 16);
-    let yiq = (r * 299 + g * 587 + b * 114) / 1000;
-    return yiq >= 140 ? '#212529' : '#ffffff';
-  }
+  let contrastColor =
+    typeof utils.getTextColorForHexBackground === 'function'
+      ? utils.getTextColorForHexBackground
+      : function (hex) {
+          return typeof app._contrastColor === 'function'
+            ? app._contrastColor(hex)
+            : '#212529';
+        };
 
   function showAlert(message, type) {
     let el = document.getElementById('ledgerAlert');
@@ -83,10 +82,19 @@
       if (el) el.innerHTML = '';
     }, 6000);
   }
+  function applyRuntimeMarker() {
+    let hint = document.getElementById('ledgerSaldosHint');
+    if (!hint) return;
+    if (hint.dataset.runtimeApplied === '1') return;
+    hint.dataset.runtimeApplied = '1';
+    let marker = document.createElement('span');
+    marker.className = 'ms-1 badge bg-light text-dark border';
+    hint.insertAdjacentElement('afterend', marker);
+  }
 
   function fmtDays(v) {
     let n = Number(v || 0);
-    return Number.isFinite(n) ? n.toFixed(2) : '0.00';
+    return Number.isFinite(n) ? n.toFixed(0) : '0';
   }
 
   function fullName(row) {
@@ -114,9 +122,496 @@
     URL.revokeObjectURL(href);
   }
 
+  async function readTextFile(file) {
+    return new Promise(function (resolve, reject) {
+      let reader = new FileReader();
+      reader.onload = function () {
+        resolve(String(reader.result || ''));
+      };
+      reader.onerror = function () {
+        reject(new Error('No se pudo leer el fichero CSV.'));
+      };
+      reader.readAsText(file);
+    });
+  }
+
+  function splitCsvLine(line, delimiter) {
+    let out = [];
+    let value = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i += 1) {
+      let ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          value += '"';
+          i += 1;
+        } else {
+          inQuotes = !inQuotes;
+        }
+        continue;
+      }
+      if (ch === delimiter && !inQuotes) {
+        out.push(value);
+        value = '';
+        continue;
+      }
+      value += ch;
+    }
+    out.push(value);
+    return out;
+  }
+
+  function normalizeCsvHeaderName(raw) {
+    return String(raw || '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  }
+
+  function normalizeImportDate(rawValue, lineNumber) {
+    let raw = String(rawValue || '').trim();
+    if (!raw) {
+      throw new Error('Línea ' + lineNumber + ': fecha vacía');
+    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    let m = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (m) return m[3] + '-' + m[2] + '-' + m[1];
+    let mShort = raw.match(/^(\d{2})\/(\d{2})\/(\d{2})$/);
+    if (mShort) {
+      let yy = Number(mShort[3]);
+      let yyyy = 2000 + yy;
+      return String(yyyy) + '-' + mShort[2] + '-' + mShort[1];
+    }
+    throw new Error(
+      'Línea ' +
+        lineNumber +
+        ': fecha inválida. Usa YYYY-MM-DD, DD/MM/YYYY o DD/MM/YY'
+    );
+  }
+
+  function parseImportDias(rawValue, lineNumber) {
+    let normalized = String(rawValue || '')
+      .trim()
+      .replace(',', '.');
+    let dias = Number(normalized);
+    if (!Number.isFinite(dias) || dias === 0) {
+      throw new Error('Línea ' + lineNumber + ': Días debe ser distinto de 0');
+    }
+    return Number(dias.toFixed(2));
+  }
+
+  function parseMovimientosImportCsv(text) {
+    let raw = String(text || '');
+    let normalizedText = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    let lines = normalizedText
+      .split('\n')
+      .filter(function (line) {
+        return String(line || '').trim() !== '';
+      });
+
+    if (!lines.length) {
+      throw new Error('El CSV está vacío.');
+    }
+
+    let delimiter =
+      (lines[0].match(/;/g) || []).length > (lines[0].match(/,/g) || []).length
+        ? ';'
+        : ',';
+
+    let headers = splitCsvLine(lines[0], delimiter).map(normalizeCsvHeaderName);
+    let fechaIdx = headers.indexOf('fecha');
+    let tipIdx = headers.indexOf('tip');
+    let diasIdx = headers.indexOf('dias');
+    let obsIdx = headers.indexOf('observaciones');
+    if (obsIdx < 0) obsIdx = headers.indexOf('observacion');
+
+    if (fechaIdx < 0 || tipIdx < 0 || diasIdx < 0) {
+      throw new Error(
+        'El CSV debe incluir las columnas obligatorias: Fecha, TIP, Dias.'
+      );
+    }
+
+    let items = [];
+    for (let i = 1; i < lines.length; i += 1) {
+      let lineNumber = i + 1;
+      let row = splitCsvLine(lines[i], delimiter);
+      let tip = String(row[tipIdx] || '').trim().toUpperCase();
+      let fecha = normalizeImportDate(row[fechaIdx], lineNumber);
+      let dias = parseImportDias(row[diasIdx], lineNumber);
+      let observaciones = obsIdx >= 0 ? String(row[obsIdx] || '').trim() : '';
+
+      if (!tip) {
+        throw new Error('Línea ' + lineNumber + ': TIP vacío');
+      }
+
+      items.push({
+        line: lineNumber,
+        fecha: fecha,
+        tip: tip,
+        dias: dias,
+        observaciones: observaciones,
+      });
+    }
+
+    if (!items.length) {
+      throw new Error('El CSV no contiene filas de datos.');
+    }
+
+    return items;
+  }
+
+  async function importMovimientosCsv(file) {
+    if (!file) return;
+
+    let text = await readTextFile(file);
+    let items = parseMovimientosImportCsv(text);
+    let payload = {
+      file_name: String(file.name || 'importacion.csv'),
+      file_size: Number(file.size || 0),
+      file_last_modified:
+        typeof file.lastModified === 'number' ? file.lastModified : null,
+      items: items,
+    };
+
+    let res = await fetch('/api/asignaciones-reglas/ledger-movimientos/import-csv', {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      throw new Error(
+        await parseApiError(res, 'No se pudieron importar movimientos desde CSV')
+      );
+    }
+
+    return res.json();
+  }
+
+  function getInputElement(id) {
+    return /** @type {HTMLInputElement | null} */ (document.getElementById(id));
+  }
+
+  function getButtonElement(id) {
+    return /** @type {HTMLButtonElement | null} */ (document.getElementById(id));
+  }
+
+  function getSelectElement(id) {
+    return /** @type {HTMLSelectElement | null} */ (document.getElementById(id));
+  }
+
   function currentAnio() {
-    let el = document.getElementById('ledgerAnioInput');
+    let el = getInputElement('ledgerAnioInput');
     return el ? Number(el.value) : null;
+  }
+
+  function setAjusteStatus(message, tone) {
+    let el = document.getElementById('ledgerAjusteStatus');
+    if (!el) return;
+    if (!message) {
+      el.className = 'small mt-2 d-none';
+      el.textContent = '';
+      return;
+    }
+    el.className =
+      'small mt-2 ' +
+      (tone === 'success'
+        ? 'text-success'
+        : tone === 'warning'
+          ? 'text-warning-emphasis'
+          : 'text-danger');
+    el.textContent = message;
+  }
+
+  function setAjusteSelectionSummary() {
+    let el = document.getElementById('ledgerAjusteSeleccionInfo');
+    if (!el) return;
+    let count = st.ajusteSelected.size;
+    el.textContent = count
+      ? 'Se aplicará sobre ' + String(count) + ' agente(s) seleccionados en la tabla principal.'
+      : 'Selecciona uno o varios agentes en la tabla principal.';
+  }
+
+  function updateAjusteActividadPreview() {
+    let preview = document.getElementById('ledgerAjusteActividadPreview');
+    let sel = getSelectElement('ledgerAjusteActividad');
+    if (!preview || !sel) return;
+
+    let id = Number(sel.value || 0);
+    if (!Number.isInteger(id) || id <= 0) {
+      preview.innerHTML = '';
+      return;
+    }
+
+    let act = (st.ajusteActividades || []).find(function (a) {
+      return Number(a.id_actividad || a.id) === id;
+    });
+    if (!act) {
+      preview.innerHTML = '';
+      return;
+    }
+
+    let code = String(act.actividad || '').trim();
+    let name = String(act.nombre || '').trim();
+    let label = code ? code + ' - ' + name : name || 'Actividad #' + id;
+    let bg = normalizeHexColor(act.color) || '#6c757d';
+    let fg = contrastColor(bg);
+    preview.innerHTML =
+      '<span class="badge" style="background:' +
+      asText(bg) +
+      ';color:' +
+      asText(fg) +
+      '">' +
+      asText(label) +
+      '</span>';
+  }
+
+  async function ensureAjusteActividadesLoaded() {
+    let sel = getSelectElement('ledgerAjusteActividad');
+    if (!sel) return;
+
+    if (!st.ajusteActividades.length) {
+      let res = await fetch('/api/actividades', {
+        headers: getHeaders(false),
+        cache: 'no-store',
+      });
+      if (!res.ok) {
+        throw new Error(await parseApiError(res, 'No se pudieron cargar actividades'));
+      }
+      let payload = await res.json();
+      let list = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload && payload.actividades)
+          ? payload.actividades
+          : Array.isArray(payload && payload.data)
+            ? payload.data
+            : Array.isArray(payload && payload.items)
+              ? payload.items
+              : [];
+      st.ajusteActividades = list;
+    }
+
+    if (sel.dataset.loaded === '1' && st.ajusteActividades.length) {
+      updateAjusteActividadPreview();
+      return;
+    }
+
+    sel.innerHTML = '<option value="">Selecciona actividad...</option>';
+    (st.ajusteActividades || []).forEach(function (act) {
+      let id = Number(act && (act.id_actividad || act.id));
+      if (!Number.isInteger(id) || id <= 0) return;
+      let code = String((act && act.actividad) || '').trim();
+      let name = String((act && act.nombre) || '').trim();
+      let text = code ? code + ' - ' + name : name || 'Actividad #' + id;
+      let opt = document.createElement('option');
+      opt.value = String(id);
+      opt.textContent = text;
+      sel.appendChild(opt);
+    });
+    sel.dataset.loaded = '1';
+    updateAjusteActividadPreview();
+  }
+
+  function syncAjusteButtons() {
+    let btnAplicar = getButtonElement('ledgerAjusteAplicar');
+    let btnCero = getButtonElement('ledgerAjustePonerCero');
+    let disabled = !st.ajusteSelected.size;
+    if (btnAplicar) btnAplicar.disabled = disabled;
+    if (btnCero) btnCero.disabled = disabled;
+  }
+
+  function agenteId(ag) {
+    let id = Number(ag && (ag.agente_id || ag.id_agente || ag.id));
+    return Number.isInteger(id) && id > 0 ? id : 0;
+  }
+
+  function saldoKey(row) {
+    if (!row) return '';
+    return [
+      String(row.agente_id || ''),
+      String(row.anio || ''),
+      String(row.mes || ''),
+      String(row.empleo_id || ''),
+    ].join('|');
+  }
+
+  function clearActiveSaldoVisual() {
+    if (st.activeRowEl && st.activeRowEl.classList) {
+      st.activeRowEl.classList.remove('ledger-row-active');
+    }
+    st.activeRowEl = null;
+  }
+
+  function setActiveSaldoFromRow(row) {
+    if (!row || !row.getData) return;
+    let data = row.getData() || {};
+    let rowEl = row.getElement ? row.getElement() : null;
+
+    clearActiveSaldoVisual();
+    if (rowEl && rowEl.classList) rowEl.classList.add('ledger-row-active');
+
+    st.activeRowEl = rowEl;
+    st.activeSaldoKey = saldoKey(data);
+    st.selectedSaldo = data;
+    loadMovimientosForSaldo(data);
+  }
+
+  function isSelectionColumnCell(cell) {
+    if (!cell || !cell.getColumn) return false;
+    let colDef = cell.getColumn().getDefinition
+      ? cell.getColumn().getDefinition()
+      : null;
+    return !!(
+      colDef &&
+      (colDef.formatter === 'rowSelection' ||
+        colDef.titleFormatter === 'rowSelection')
+    );
+  }
+
+  function syncSelectedAjusteFromTable() {
+    if (!st.saldosTabulator) return;
+    let rows = st.saldosTabulator.getSelectedRows
+      ? st.saldosTabulator.getSelectedRows()
+      : [];
+    let ids = new Set();
+    (rows || []).forEach(function (row) {
+      let id = agenteId(row.getData() || {});
+      if (id) ids.add(id);
+    });
+    st.ajusteSelected = ids;
+    setAjusteSelectionSummary();
+    syncAjusteButtons();
+  }
+
+  function restoreAjusteSelectionOnTable() {
+    if (!st.saldosTabulator) return;
+    let ids = Array.from(st.ajusteSelected || []);
+    try {
+      st.saldosTabulator.deselectRow();
+      if (ids.length) st.saldosTabulator.selectRow(ids);
+    } catch (_err) {
+      // noop
+    }
+  }
+
+  function clearAjusteTableStateOnModalClose() {
+    st.ajusteSelected = new Set();
+    st.lastCellMouseDown = null;
+
+    if (st.saldosTabulator) {
+      try {
+        st.saldosTabulator.deselectRow();
+      } catch (_err) {
+        // noop
+      }
+      try {
+        if (typeof st.saldosTabulator.clearFilter === 'function') {
+          st.saldosTabulator.clearFilter(true);
+        }
+      } catch (_err) {
+        // noop
+      }
+      try {
+        if (typeof st.saldosTabulator.clearHeaderFilter === 'function') {
+          st.saldosTabulator.clearHeaderFilter();
+        }
+      } catch (_err) {
+        // noop
+      }
+    }
+
+    clearMovimientos();
+    setAjusteStatus('', null);
+    setAjusteSelectionSummary();
+    syncAjusteButtons();
+  }
+
+  async function openAjusteModal() {
+    let modalEl = document.getElementById('ledgerAjusteModal');
+    if (!modalEl) return;
+    setAjusteStatus('', null);
+    setAjusteSelectionSummary();
+    syncAjusteButtons();
+    if (!st.ajusteSelected.size) {
+      throw new Error('Selecciona uno o varios agentes en la tabla principal.');
+    }
+    await ensureAjusteActividadesLoaded();
+    let dateInput = getInputElement('ledgerAjusteFecha');
+    if (dateInput && !dateInput.value) {
+      let dt = window.luxon && window.luxon.DateTime ? window.luxon.DateTime : null;
+      dateInput.value = dt
+        ? dt.now().setZone('Europe/Madrid').toISODate()
+        : new Date().toISOString().slice(0, 10);
+    }
+    if (window.bootstrap && window.bootstrap.Modal) {
+      window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+  }
+
+  async function aplicarAjusteDesdeLedger(modo) {
+    if (!st.ajusteSelected.size) {
+      throw new Error('Debe seleccionar al menos un agente.');
+    }
+    let fecha = String((getInputElement('ledgerAjusteFecha') || { value: '' }).value || '').trim();
+    if (!fecha) throw new Error('Debe indicar la fecha del ajuste.');
+
+    let esCero = String(modo || '') === 'poner_cero';
+    let tipo = 'devengo';
+    let dias = 0;
+
+    if (!esCero) {
+      tipo = String((getInputElement('ledgerAjusteTipo') || { value: '' }).value || '').trim().toLowerCase();
+      if (tipo !== 'devengo' && tipo !== 'descanso') {
+        throw new Error('Tipo de ajuste inválido.');
+      }
+
+      dias = Number((getInputElement('ledgerAjusteDias') || { value: '0' }).value || 0);
+      if (!Number.isFinite(dias) || dias <= 0) {
+        throw new Error('Días debe ser mayor que 0.');
+      }
+    }
+
+    let observaciones = String((getInputElement('ledgerAjusteObservaciones') || { value: '' }).value || '').trim();
+    if (!observaciones) observaciones = 'Ajuste Manual. Ajuste a ' + (esCero ? 'poner a cero' : tipo + ' de ' + String(dias) + ' día(s)') + '.';
+
+    let actividadIdRaw = Number((getSelectElement('ledgerAjusteActividad') || { value: '' }).value || 0);
+    let actividadId = Number.isInteger(actividadIdRaw) && actividadIdRaw > 0
+      ? actividadIdRaw
+      : null;
+
+    let payload = {
+      agente_ids: Array.from(st.ajusteSelected),
+      fecha: fecha,
+      modo: esCero ? 'poner_cero' : 'ajuste',
+      observaciones: observaciones,
+      actividad_id: actividadId,
+    };
+
+    if (!esCero) {
+      payload.tipo_movimiento = tipo;
+      payload.cantidad_dias = dias;
+    }
+
+    let res = await fetch('/api/asignaciones-reglas/movimientos-ajustes/bulk', {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      throw new Error(await parseApiError(res, 'No se pudo aplicar el ajuste'));
+    }
+    let json = await res.json();
+    setAjusteStatus(
+      (json && json.message) ||
+        ('Ajuste aplicado a ' + String((json && json.count) || 0) + ' agente(s).'),
+      'success'
+    );
+
+    await loadSaldos();
+    if (st.selectedSaldo) {
+      await loadMovimientosForSaldo(st.selectedSaldo);
+    }
   }
 
   function hasConsolidarPermission() {
@@ -126,7 +621,7 @@
   }
 
   function updateConsolidarButtonState(pendingCount) {
-    let btn = document.getElementById('ledgerConsolidarPendientes');
+    let btn = getButtonElement('ledgerConsolidarPendientes');
     let pill = document.getElementById('ledgerPendientesPill');
     if (!btn) return;
 
@@ -184,23 +679,35 @@
 
   function ensureSaldosTabulator() {
     if (st.saldosTabulator) return st.saldosTabulator;
-    
-    let el = document.getElementById('ledgerSaldosTabulatorHost');
-    if (!el || typeof Tabulator === 'undefined') return null;
 
-    st.saldosTabulator = new Tabulator(el, {
-      index: 'id',
+    let el = document.getElementById('ledgerSaldosTabulatorHost');
+    let TabulatorCtor = window['Tabulator'];
+    if (!el || typeof TabulatorCtor === 'undefined') return null;
+
+    st.saldosTabulator = new TabulatorCtor(el, {
+      index: 'agente_id',
       layout: 'fitColumns',
       height: 'calc(100vh - 250px)',
       placeholder: 'Sin saldos para este año.',
-      selectableRows: 1,
+      selectableRows: true,
       movableColumns: false,
       data: [],
-      rowClick: function (_e, row) {
-        row.select();
-      },
 
       columns: [
+        {
+          formatter: 'rowSelection',
+          titleFormatter: 'rowSelection',
+          headerSort: false,
+          width: 40,
+          frozen: true,
+          hozAlign: 'center',
+          headerHozAlign: 'center',
+          editable: false,
+          cellClick: function (e, cell) {
+            if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+            cell.getRow().toggleSelect();
+          },
+        },
         {
           title: 'Escalafón',
           field: 'escalafon',
@@ -210,7 +717,7 @@
           title: 'TIP',
           field: 'tip',
           width: 60,
-          sorter: 'alphanumeric',
+          sorter: 'string',
           headerFilter: 'input',
           headerFilterPlaceholder: 'Filtrar...',
           formatter: function (cell) {
@@ -309,12 +816,46 @@
         { column: 'escalafon', dir: 'asc' },
       ],
     });
-    st.saldosTabulator.on('rowSelectionChanged', function (data) {
-      if (!Array.isArray(data) || !data.length) {
-        clearMovimientos();
+
+    st.saldosTabulator.on('cellMouseDown', function (_e, cell) {
+      if (!cell || isSelectionColumnCell(cell)) {
+        st.lastCellMouseDown = null;
         return;
       }
-      selectSaldo(data[0]);
+      let row = cell.getRow ? cell.getRow() : null;
+      let data = row && row.getData ? row.getData() : null;
+      st.lastCellMouseDown = {
+        key: saldoKey(data),
+        wasSelected: !!(row && row.isSelected && row.isSelected()),
+      };
+    });
+
+    st.saldosTabulator.on('cellClick', function (e, cell) {
+      if (!cell || isSelectionColumnCell(cell)) return;
+
+      if (e && e.target && typeof e.target.closest === 'function') {
+        if (e.target.closest('.tabulator-row-selection')) return;
+      }
+
+      let row = cell.getRow ? cell.getRow() : null;
+      let data = row && row.getData ? row.getData() : null;
+
+      let snapshot = st.lastCellMouseDown;
+      if (row && row.isSelected && snapshot && snapshot.key === saldoKey(data)) {
+        let isNow = !!row.isSelected();
+        let shouldBe = !!snapshot.wasSelected;
+        if (isNow !== shouldBe) {
+          if (shouldBe) row.select();
+          else row.deselect();
+        }
+      }
+
+      setActiveSaldoFromRow(row);
+      st.lastCellMouseDown = null;
+    });
+
+    st.saldosTabulator.on('rowSelectionChanged', function () {
+      syncSelectedAjusteFromTable();
     });
 
     return st.saldosTabulator;
@@ -345,13 +886,37 @@
           rows.length + ' acumulados' + (anio ? ' · ' + anio : '');
       let tab = ensureSaldosTabulator();
       if (!tab) return;
+      let selectionSnapshot = new Set(st.ajusteSelected);
       tab.setData(rows);
+      // Restaurar desde snapshot: setData dispara rowSelectionChanged que vacía st.ajusteSelected
+      st.ajusteSelected = selectionSnapshot;
+      restoreAjusteSelectionOnTable();
+      syncSelectedAjusteFromTable();
+
+      if (rows.length > 0 && st.activeSaldoKey) {
+        let activeRow = (tab.getRows ? tab.getRows() : []).find(function (r) {
+          let data = r && r.getData ? r.getData() : null;
+          return saldoKey(data) === st.activeSaldoKey;
+        });
+        if (activeRow) {
+          let activeData = activeRow.getData ? activeRow.getData() || {} : {};
+          let activeEl = activeRow.getElement ? activeRow.getElement() : null;
+          clearActiveSaldoVisual();
+          if (activeEl && activeEl.classList) activeEl.classList.add('ledger-row-active');
+          st.activeRowEl = activeEl;
+          st.selectedSaldo = activeData;
+          await loadMovimientosForSaldo(activeData);
+        } else {
+          st.activeSaldoKey = '';
+          clearActiveSaldoVisual();
+          clearMovimientos();
+        }
+      }
+
       if (rows.length > 0) {
         showSaldosPanel(true);
         let emptyElOk = document.getElementById('ledgerSaldosEmptyMsg');
         if (emptyElOk) emptyElOk.style.display = 'none';
-        let activeRows = tab.getRows('active') || [];
-        if (activeRows.length) activeRows[0].select();
       } else {
         clearMovimientos();
         showSaldosPanel(false);
@@ -365,11 +930,6 @@
     }
   }
 
-  function selectSaldo(rowData) {
-    st.selectedSaldo = rowData;
-    loadMovimientosForSaldo(rowData);
-  }
-
   // ── Panel 3: Movimientos ──────────────────────────────────────────────────
 
   function showMovimientosPanel(show) {
@@ -381,6 +941,8 @@
 
   function clearMovimientos() {
     st.selectedSaldo = null;
+    st.activeSaldoKey = '';
+    clearActiveSaldoVisual();
     if (st.movimientosTabulator) {
       st.movimientosTabulator.destroy();
       st.movimientosTabulator = null;
@@ -392,16 +954,17 @@
 
   function ensureMovimientosTabulator(movimientos) {
     let el = document.getElementById('ledgerMovimientosTabulatorHost');
-    if (!el || typeof Tabulator === 'undefined') return null;
+    let TabulatorCtor = window['Tabulator'];
+    if (!el || typeof TabulatorCtor === 'undefined') return null;
     if (st.movimientosTabulator) {
       st.movimientosTabulator.destroy();
       st.movimientosTabulator = null;
     }
-    st.movimientosTabulator = new Tabulator(el, {
+    st.movimientosTabulator = new TabulatorCtor(el, {
       data: movimientos,
       layout: 'fitColumns',
       height: 'calc(100vh - 250px)',
-      placeholder: 'Sin movimientos para este mes.',
+      placeholder: 'Sin movimientos para este periodo.',
       movableColumns: false,
       initialSort: [{ column: 'fecha', dir: 'desc' }],
       columns: [
@@ -440,8 +1003,6 @@
           title: 'Borrador',
           field: 'borrador_nombre',
           width: 170,
-          minWidth: 170,
-          maxWidth: 170,
           headerFilter: 'input',
           headerFilterPlaceholder: 'Filtrar...',
           formatter: function (cell) {
@@ -470,17 +1031,6 @@
         },
 
         {
-          title: 'S. antes',
-          field: 'saldo_antes',
-          width: 82,
-          hozAlign: 'right',
-          headerFilter: 'input',
-          headerFilterPlaceholder: 'Filtrar...',
-          formatter: function (cell) {
-            return fmtDays(cell.getValue());
-          },
-        },
-        {
           title: 'Días',
           field: 'cantidad_dias',
           width: 68,
@@ -503,7 +1053,7 @@
           },
         },
         {
-          title: 'S. después',
+          title: 'Saldo',
           field: 'saldo_despues',
           width: 88,
           hozAlign: 'right',
@@ -520,6 +1070,7 @@
         {
           title: 'Actividad',
           field: 'actividad_nombre',
+          sorter: 'string',
           minWidth: 130,
           headerFilter: 'input',
           headerFilterPlaceholder: 'Filtrar...',
@@ -529,6 +1080,41 @@
               ? String(r.actividad_codigo) + ' - '
               : '';
             return asText(code + (r.actividad_nombre || '-'));
+          },
+        },
+        {
+          title: 'Observaciones',
+          field: 'observaciones',
+          minWidth: 190,
+          headerFilter: 'input',
+          headerFilterPlaceholder: 'Filtrar...',
+          formatter: function (cell) {
+            let row = cell.getRow().getData() || {};
+            let value = row.observaciones;
+
+            if (!value && row.metadata) {
+              let metadata = row.metadata;
+              if (typeof metadata === 'string') {
+                try {
+                  metadata = JSON.parse(metadata);
+                } catch (_err) {
+                  metadata = null;
+                }
+              }
+              if (metadata && typeof metadata === 'object') {
+                value = metadata.observaciones;
+              }
+            }
+
+            let raw = String(value || '-');
+            let safe = asText(raw);
+            return (
+              '<span class="d-inline-block text-truncate" style="max-width:100%" title="' +
+              safe +
+              '">' +
+              safe +
+              '</span>'
+            );
           },
         },
       ],
@@ -578,9 +1164,9 @@
   // ── Eventos ───────────────────────────────────────────────────────────────
 
   function bindEvents() {
-    let prevBtn = document.getElementById('ledgerYearPrev');
-    let nextBtn = document.getElementById('ledgerYearNext');
-    let anioInput = document.getElementById('ledgerAnioInput');
+    let prevBtn = getButtonElement('ledgerYearPrev');
+    let nextBtn = getButtonElement('ledgerYearNext');
+    let anioInput = getInputElement('ledgerAnioInput');
 
     if (prevBtn && !prevBtn.dataset.bound) {
       prevBtn.dataset.bound = '1';
@@ -603,7 +1189,7 @@
       });
     }
 
-    let btnRefresh = document.getElementById('ledgerRefresh');
+    let btnRefresh = getButtonElement('ledgerRefresh');
     if (btnRefresh && !btnRefresh.dataset.bound) {
       btnRefresh.dataset.bound = '1';
       btnRefresh.addEventListener('click', async function () {
@@ -611,7 +1197,7 @@
       });
     }
 
-    let btnConsolidar = document.getElementById('ledgerConsolidarPendientes');
+    let btnConsolidar = getButtonElement('ledgerConsolidarPendientes');
     if (btnConsolidar && !btnConsolidar.dataset.bound) {
       btnConsolidar.dataset.bound = '1';
       btnConsolidar.addEventListener('click', async function () {
@@ -656,7 +1242,7 @@
       });
     }
 
-    let btnExportSaldos = document.getElementById('ledgerExportSaldosExcel');
+    let btnExportSaldos = getButtonElement('ledgerExportSaldosExcel');
     if (btnExportSaldos && !btnExportSaldos.dataset.bound) {
       btnExportSaldos.dataset.bound = '1';
       btnExportSaldos.addEventListener('click', async function () {
@@ -685,7 +1271,7 @@
       });
     }
 
-    let btnExportMovs = document.getElementById('ledgerExportMovimientosExcel');
+    let btnExportMovs = getButtonElement('ledgerExportMovimientosExcel');
     if (btnExportMovs && !btnExportMovs.dataset.bound) {
       btnExportMovs.dataset.bound = '1';
       btnExportMovs.addEventListener('click', async function () {
@@ -718,13 +1304,118 @@
         }
       });
     }
+
+    let btnImportMovs = getButtonElement('ledgerImportMovimientosExcel');
+    if (btnImportMovs && !btnImportMovs.dataset.bound) {
+      btnImportMovs.dataset.bound = '1';
+      btnImportMovs.addEventListener('click', function () {
+        let picker = document.createElement('input');
+        picker.type = 'file';
+        picker.accept = '.csv,text/csv';
+        picker.style.display = 'none';
+        document.body.appendChild(picker);
+        picker.addEventListener('change', async function () {
+          let file = picker.files && picker.files[0] ? picker.files[0] : null;
+          picker.remove();
+          if (!file) return;
+
+          let prevHtml = btnImportMovs.innerHTML;
+          btnImportMovs.disabled = true;
+          btnImportMovs.innerHTML =
+            '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+          try {
+            let result = await importMovimientosCsv(file);
+            showAlert(
+              (result && result.message) || 'Importación CSV completada',
+              'success'
+            );
+            await loadSaldos();
+            if (st.selectedSaldo) {
+              await loadMovimientosForSaldo(st.selectedSaldo);
+            }
+          } catch (err) {
+            showAlert(
+              err.message || 'No se pudieron importar movimientos desde CSV',
+              'danger'
+            );
+          } finally {
+            btnImportMovs.disabled = false;
+            btnImportMovs.innerHTML = prevHtml;
+          }
+        });
+        picker.click();
+      });
+    }
+
+    let btnOpenAjuste = getButtonElement('ledgerOpenAjusteModal');
+    if (btnOpenAjuste && !btnOpenAjuste.dataset.bound) {
+      btnOpenAjuste.dataset.bound = '1';
+      btnOpenAjuste.addEventListener('click', function () {
+        openAjusteModal().catch(function (err) {
+          showAlert(err.message || 'No se pudo abrir el ajuste', 'danger');
+        });
+      });
+    }
+
+    let btnAplicar = getButtonElement('ledgerAjusteAplicar');
+    if (btnAplicar && !btnAplicar.dataset.bound) {
+      btnAplicar.dataset.bound = '1';
+      btnAplicar.addEventListener('click', async function () {
+        let prevHtml = btnAplicar.innerHTML;
+        btnAplicar.disabled = true;
+        btnAplicar.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+        try {
+          await aplicarAjusteDesdeLedger();
+        } catch (err) {
+          setAjusteStatus(err.message || 'No se pudo aplicar el ajuste', 'error');
+        } finally {
+          btnAplicar.innerHTML = prevHtml;
+          syncAjusteButtons();
+        }
+      });
+    }
+
+    let btnCero = getButtonElement('ledgerAjustePonerCero');
+    if (btnCero && !btnCero.dataset.bound) {
+      btnCero.dataset.bound = '1';
+      btnCero.addEventListener('click', async function () {
+        let prevHtml = btnCero.innerHTML;
+        btnCero.disabled = true;
+        btnCero.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+        try {
+          await aplicarAjusteDesdeLedger('poner_cero');
+        } catch (err) {
+          setAjusteStatus(err.message || 'No se pudo poner a cero el saldo', 'error');
+        } finally {
+          btnCero.innerHTML = prevHtml;
+          syncAjusteButtons();
+        }
+      });
+    }
+
+    let actividadSelect = getSelectElement('ledgerAjusteActividad');
+    if (actividadSelect && !actividadSelect.dataset.bound) {
+      actividadSelect.dataset.bound = '1';
+      actividadSelect.addEventListener('change', function () {
+        updateAjusteActividadPreview();
+      });
+    }
+
+    let ajusteModalEl = document.getElementById('ledgerAjusteModal');
+    if (ajusteModalEl && !ajusteModalEl.dataset.boundClose) {
+      ajusteModalEl.dataset.boundClose = '1';
+      ajusteModalEl.addEventListener('hidden.bs.modal', function () {
+        clearAjusteTableStateOnModalClose();
+      });
+    }
   }
 
   function initDefaultAnio() {
     let dt =
       window.luxon && window.luxon.DateTime ? window.luxon.DateTime : null;
     let now = dt ? dt.now().setZone('Europe/Madrid') : null;
-    let anioInput = document.getElementById('ledgerAnioInput');
+    let anioInput = getInputElement('ledgerAnioInput');
     if (anioInput && !anioInput.value)
       anioInput.value = String(now ? now.year : new Date().getFullYear());
   }
@@ -735,6 +1426,9 @@
     initDefaultAnio();
     bindEvents();
     ensureSaldosTabulator();
+    applyRuntimeMarker();
+    setAjusteSelectionSummary();
+    syncAjusteButtons();
     await refreshPendientesResumen();
     await loadSaldos();
   };

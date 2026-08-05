@@ -192,8 +192,6 @@
       'c_p',
       'poblacion',
       'provincia',
-      'pei',
-      'paef',
       'aptitudes',
       'situacion_id',
       'situacion',
@@ -250,8 +248,6 @@
         codigo_postal: readCell(cells, ['codigo_postal', 'cp', 'c.p.', 'c p']),
         poblacion: readCell(cells, ['poblacion', 'población']),
         provincia: readCell(cells, ['provincia']),
-        pei: parseBoolean(readCell(cells, ['pei'])),
-        paef: parseBoolean(readCell(cells, ['paef'])),
         aptitudes: readCell(cells, ['aptitudes']),
         situacion_id: readCell(cells, ['situacion_id', 'situacion id', 'situacion']),
         comentarios: readCell(cells, ['comentarios']),
@@ -628,8 +624,7 @@
         codigo_postal: String(row.codigo_postal || '').trim(),
         poblacion: String(row.poblacion || '').trim(),
         provincia: String(row.provincia || '').trim(),
-        pei: normalizeNullableBoolean(row.pei),
-        paef: normalizeNullableBoolean(row.paef),
+
         aptitudes: String(row.aptitudes || '').trim(),
         comentarios: String(row.comentarios || '').trim(),
         created_at: String(row.created_at || '').trim(),
@@ -647,12 +642,12 @@
       { title: '', field: '_warn', width: 60, hozAlign: 'center', frozen: true, formatter: warnFormatter },
       { title: 'Avatar', field: 'tip', width: 74, hozAlign: 'center', frozen: true, headerSort: false, formatter: avatarFormatter },
       { title: 'TIP', field: 'tip', width: 110, frozen: true },
-      { title: 'Nombre', field: 'nombre', minWidth: 120, frozen: true },
-      { title: 'Apellido 1', field: 'apellido_1', minWidth: 120, frozen: true },
-      { title: 'Apellido 2', field: 'apellido_2', minWidth: 120, frozen: true },
-      { title: 'Email', field: 'email', minWidth: 170, frozen: true },
-      { title: 'NIF', field: 'nif', width: 105, frozen: true },
-      { title: 'Telefono', field: 'telefono', minWidth: 130, frozen: true },
+      { title: 'Nombre', field: 'nombre', minWidth: 120 },
+      { title: 'Apellido 1', field: 'apellido_1', minWidth: 120},
+      { title: 'Apellido 2', field: 'apellido_2', minWidth: 120},
+      { title: 'Email', field: 'email', minWidth: 170 },
+      { title: 'NIF', field: 'nif', width: 105 },
+      { title: 'Telefono', field: 'telefono', minWidth: 130},
       { title: 'Pelotón', field: 'peloton_display', minWidth: 140, formatter: formatPelotonColorBadge },
       { title: 'Empleo', field: 'empleo_display', minWidth: 140, formatter: formatEmpleoColorBadge },
       { title: 'Escalafón', field: 'escalafon', minWidth: 150 },
@@ -662,8 +657,6 @@
       { title: 'C.P.', field: 'codigo_postal', width: 95, hozAlign: 'center' },
       { title: 'Poblacion', field: 'poblacion', minWidth: 120 },
       { title: 'Provincia', field: 'provincia', width: 95, hozAlign: 'center' },
-      { title: 'PEI', field: 'pei', width: 64, hozAlign: 'center', formatter: 'tickCross', formatterParams: { allowTruthy: true } },
-      { title: 'PAEF', field: 'paef', width: 72, hozAlign: 'center', formatter: 'tickCross', formatterParams: { allowTruthy: true } },
       { title: 'Aptitudes', field: 'aptitudes', minWidth: 140 },
       { title: 'Situacion', field: 'situacion_display', minWidth: 140, formatter: formatSituacionColorBadge },
       { title: 'Comentarios', field: 'comentarios', minWidth: 160 },
@@ -859,9 +852,9 @@
 
   var HELP_TEXTS = {
     idle: '<strong>Acciones masivas de agentes</strong> <span class="text-body-secondary">Carga un CSV de altas o bajas, o selecciona agentes para dar de baja.</span>',
-    altas: '<strong>Modo Alta masiva</strong> <span class="text-body-secondary"><strong>Obligatorias: </strong> TIP, Nombre, Apellido 1, Apellido 2, Email, Pelotón, Empleo, Orden GC, NIF, Tel\u00e9fono, Situacion,Fecha Nombramiento.<strong>Opcionales: </strong>   Aptitudes, Domicilio, Codigo Postal, Poblacion, Provincia, Comentarios. Referencias: admite ID t\u00e9cnico o literal. <strong>Pol\u00edtica:</strong> si el TIP ya existe se rechaza (no actualiza).</span>',
+    altas: '<strong>Modo Alta masiva</strong> <span class="text-body-secondary"><strong>Si el TIP no existe</strong>, se crea un agente nuevo y son obligatorias: TIP, Nombre, Apellido 1, Apellido 2, Email, Pelotón ID, Empleo ID, Orden GC, NIF, Tel\u00e9fono y Situación ID.</span> <span class="text-body-secondary"><strong>Si el TIP ya existe</strong>, la fila actualiza ese agente y solo se aplican las columnas informadas en el CSV.</span> <span class="text-body-secondary">Opcionales recomendadas: Fecha Nombramiento, Aptitudes, Domicilio, Código Postal, Población, Provincia y Comentarios. Referencias: admite ID técnico o literal; si el literal no existe o es ambiguo, la fila falla.</span>',
     'bajas-csv': '<strong>Modo Baja por CSV</strong> <span class="text-body-secondary">Solo se usa la columna <code>TIP</code>. Cualquier otra columna presente en el fichero ser\u00e1 ignorada.</span>',
-    'bajas-seleccion': '<strong>Modo Baja por selecci\u00f3n</strong> <span class="text-body-secondary">Selecciona agentes en la tabla y pulsa \u00abEjecutar bajas\u00bb. La operaci\u00f3n es irreversible.</span>',
+    'bajas-seleccion': '<strong>Modo Baja por selecci\u00f3n</strong> <span class="text-body-secondary">Selecciona agentes en la tabla y pulsa \u00abEjecutar bajas\u00bb. <strong>La operaci\u00f3n es irreversible desde "Listado de Agentes".</strong></span>',
     resultado: '<strong>Resultado de la \u00faltima operaci\u00f3n</strong> <span class="text-body-secondary">Revisa el estado de cada fila. Las filas con error no fueron procesadas. Usa \u00abExportar errores CSV\u00bb para descargar el detalle.</span>',
   };
 
@@ -1229,8 +1222,6 @@
         codigo_postal: String(sourceRow.codigo_postal || ''),
         poblacion: String(sourceRow.poblacion || ''),
         provincia: String(sourceRow.provincia || ''),
-        pei: sourceRow.pei === true,
-        paef: sourceRow.paef === true,
         aptitudes: String(sourceRow.aptitudes || ''),
         situacion_id: String(sourceRow.situacion_id || ''),
         situacion_display: String(situacionResolved.situacion_display || sourceRow.situacion_id || ''),
@@ -1651,6 +1642,7 @@ function mapAgenteRowForBajas(row, empleoLookup) {
       publishExecutionDetail('Alta CSV', r.detail || []);
       showAlert(
         'Altas masivas completadas. Creados: ' + Number(r.created || 0) +
+        ' · Actualizados: ' + Number(r.updated || 0) +
         ' \u00b7 Errores: ' + Number(r.errors || 0),
         r.errors ? 'warning' : 'success'
       );

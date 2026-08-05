@@ -1,6 +1,7 @@
 const service = require('../services/asignaciones-reglas.service');
 const ApiError = require('../utils/ApiError');
 const ExcelJS = require('exceljs');
+const { hexToArgb, textArgbForHexBackground } = require('../utils/color');
 
 function parseOptionalNumber(value) {
   if (value == null || value === '') return null;
@@ -8,32 +9,17 @@ function parseOptionalNumber(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function normalizeHexColor(color) {
-  const raw = String(color || '').trim();
-  if (!raw) return null;
-  if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw.toUpperCase();
-  if (/^[0-9a-fA-F]{6}$/.test(raw)) return `#${raw.toUpperCase()}`;
-  if (/^#[0-9a-fA-F]{3}$/.test(raw)) {
-    const h = raw.slice(1);
-    return `#${h[0]}${h[0]}${h[1]}${h[1]}${h[2]}${h[2]}`.toUpperCase();
-  }
-  return null;
-}
-
 function toExcelArgb(hexColor) {
-  const hex = normalizeHexColor(hexColor);
-  if (!hex) return null;
-  return `FF${hex.slice(1)}`;
+  return hexToArgb(hexColor, 'FF');
 }
 
 function textArgbForBg(hexColor) {
-  const hex = normalizeHexColor(hexColor);
-  if (!hex) return 'FF212529';
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
-  return yiq >= 140 ? 'FF212529' : 'FFFFFFFF';
+  return textArgbForHexBackground(hexColor, {
+    threshold: 140,
+    fallback: 'FF212529',
+    dark: 'FF212529',
+    light: 'FFFFFFFF',
+  });
 }
 
 async function writeWorkbookAsXlsx(res, workbook, filename) {
@@ -160,6 +146,44 @@ exports.persistirMovimientoManualBulk = async (req, res, next) => {
   } catch (error) {
     next(
       new ApiError(400, error.message || 'Error al grabar movimientos manuales')
+    );
+  }
+};
+
+exports.persistirAjusteAgentesBulk = async (req, res, next) => {
+  try {
+    const result = await service.persistirAjusteAgentesBulk(
+      req.body,
+      req.user,
+      req.arsId
+    );
+    res.status(201).json({
+      ok: true,
+      message:
+        result.message || `${result.count} ajuste(s) grabado(s) en ledger`,
+      ...result,
+    });
+  } catch (error) {
+    next(new ApiError(400, error.message || 'Error al grabar ajustes'));
+  }
+};
+
+exports.importarMovimientosLedgerCsv = async (req, res, next) => {
+  try {
+    const result = await service.importarMovimientosLedgerCsv(
+      req.body,
+      req.user,
+      req.arsId
+    );
+    res.status(201).json({
+      ok: true,
+      message:
+        result.message || `${result.count} movimiento(s) importado(s) en ledger`,
+      ...result,
+    });
+  } catch (error) {
+    next(
+      new ApiError(400, error.message || 'Error al importar movimientos CSV')
     );
   }
 };

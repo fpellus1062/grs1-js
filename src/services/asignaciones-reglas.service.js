@@ -73,6 +73,10 @@ function normalizeEmpleoId(raw) {
   return value;
 }
 
+function normalizeTip(raw) {
+  return String(raw || '').trim().toUpperCase();
+}
+
 function roundToOneDecimal(raw) {
   const value = Number(raw);
 
@@ -1327,6 +1331,359 @@ exports.persistirMovimientoManualBulk = async (input, user, arsUnidadId) => {
   );
 };
 
+exports.persistirAjusteAgentesBulk = async (input, user, arsUnidadId) => {
+  const agenteIds = Array.isArray(input && input.agente_ids)
+    ? input.agente_ids
+    : [];
+  if (!agenteIds.length) {
+    throw new Error('Debe seleccionar al menos un agente');
+  }
+
+  const fecha = normalizeDateInput(input.fecha);
+  const modo = String((input && input.modo) || 'ajuste').trim().toLowerCase();
+  const actividadId = normalizeNullablePositiveInt(
+    input && input.actividad_id,
+    'actividad_id'
+  );
+  const observaciones = String((input && input.observaciones) || '').trim();
+  const userId = user && user.id ? Number(user.id) : null;
+
+  return withRetry(() =>
+    withTransaction(async (client) => {
+      const hasObservacionesColumn = await hasLedgerObservacionesColumn(client);
+      const movimientos = [];
+
+      const agentesResult = await client.query(
+        `SELECT id, tip, empleo_id
+           FROM agentes
+          WHERE ars_unidad_id::text = $1::text
+            AND fecha_baja IS NULL
+            AND id = ANY($2::int[])
+          ORDER BY id ASC`,
+        [arsUnidadId, agenteIds.map((id) => Number(id))]
+      );
+      const agentesMap = new Map(
+        (agentesResult.rows || []).map((row) => [Number(row.id), row])
+      );
+
+      for (const rawAgenteId of agenteIds) {
+        const agenteId = Number(rawAgenteId);
+        const agente = agentesMap.get(agenteId);
+        if (!agente) {
+          throw new Error(`Agente no encontrado o no activo: ${agenteId}`);
+        }
+
+        const empleoId = normalizeEmpleoId(agente.empleo_id || null);
+        const fechaDt = DateTime.fromISO(fecha, { zone: 'utc' });
+        const anio = fechaDt.year;
+        const mes = fechaDt.month;
+
+        let tipoMovimiento = 'devengo';
+        let signo = 1;
+        let cantidadDias = 0;
+
+        if (modo === 'poner_cero') {
+          const saldoActualResult = await client.query(
+            `SELECT COALESCE(SUM(signo * cantidad_dias), 0)::numeric(12,2) AS saldo
+               FROM asignaciones_ledger_movimientos
+              WHERE ars_unidad_id::text = $1::text
+                AND agente_id = $2
+                AND COALESCE(empleo_id::text, '__NULL__') = COALESCE($3::text, '__NULL__')
+                AND fecha <= $4::date`,
+            [arsUnidadId, agenteId, empleoId, fecha]
+          );
+          const saldoActual = Number(saldoActualResult.rows[0]?.saldo || 0);
+          if (!saldoActual) {
+            continue;
+          }
+
+          cantidadDias = Number(Math.abs(saldoActual).toFixed(2));
+          if (saldoActual > 0) {
+            tipoMovimiento = 'descanso';
+            signo = -1;
+          } else {
+            tipoMovimiento = 'devengo';
+            signo = 1;
+          }
+        } else {
+          const tipoRaw = String((input && input.tipo_movimiento) || '')
+            .trim()
+            .toLowerCase();
+          if (tipoRaw !== 'devengo' && tipoRaw !== 'descanso') {
+            throw new Error('tipo_movimiento inválido para ajuste');
+          }
+          tipoMovimiento = tipoRaw;
+          signo = tipoMovimiento === 'devengo' ? 1 : -1;
+
+          const cantidadRaw = Number(input && input.cantidad_dias);
+          if (!Number.isFinite(cantidadRaw) || cantidadRaw <= 0) {
+            throw new Error('cantidad_dias debe ser mayor que 0');
+          }
+          cantidadDias = Number(cantidadRaw.toFixed(2));
+        }
+
+        const saldoAnteriorResult = await client.query(
+          `SELECT COALESCE(SUM(signo * cantidad_dias), 0)::numeric(12,2) AS saldo
+             FROM asignaciones_ledger_movimientos
+            WHERE ars_unidad_id::text = $1::text
+              AND agente_id = $2
+              AND COALESCE(empleo_id::text, '__NULL__') = COALESCE($3::text, '__NULL__')
+              AND fecha <= $4::date`,
+          [arsUnidadId, agenteId, empleoId, fecha]
+        );
+        const saldoAntes = Number(saldoAnteriorResult.rows[0]?.saldo || 0);
+        const saldoDespues = Number((saldoAntes + signo * cantidadDias).toFixed(2));
+
+        const sourceKey = `ajuste:${arsUnidadId}:${agenteId}:${fecha}:${randomUUID()}`;
+        const metadata = {
+          manual: true,
+          ajuste: true,
+          modo,
+          observaciones: observaciones || null,
+        };
+
+        const observacionesColumnSql = hasObservacionesColumn
+          ? ', observaciones'
+          : '';
+        const observacionesValueSql = hasObservacionesColumn
+          ? ',$17'
+          : '';
+
+        const insertParams = [
+          arsUnidadId,
+          agenteId,
+          empleoId,
+          actividadId,
+          null,
+          anio,
+          mes,
+          fecha,
+          tipoMovimiento,
+          signo,
+          cantidadDias,
+          saldoAntes,
+          saldoDespues,
+          sourceKey,
+          JSON.stringify(metadata),
+          userId,
+        ];
+        if (hasObservacionesColumn) {
+          insertParams.push(observaciones || null);
+        }
+
+        const inserted = await client.query(
+          `INSERT INTO asignaciones_ledger_movimientos
+              (ars_unidad_id, agente_id, empleo_id, actividad_id, regla_id,
+               borrador_id, anio, mes, fecha, origen, tipo_movimiento,
+               signo, cantidad_dias, saldo_antes, saldo_despues,
+               source_kind, source_key, metadata, usuario_id${observacionesColumnSql})
+           VALUES ($1,$2,$3,$4,$5,NULL,$6,$7,$8::date,'manual',$9,$10,$11,$12,$13,
+               'manual',$14,$15::jsonb,$16${observacionesValueSql})
+           RETURNING id, ars_unidad_id, agente_id, empleo_id, actividad_id, regla_id,
+                     anio, mes, fecha::text AS fecha, origen, tipo_movimiento,
+                     signo, cantidad_dias, saldo_antes, saldo_despues, source_key, created_at`,
+          insertParams
+        );
+
+        movimientos.push(inserted.rows[0]);
+
+        await actualizarSaldosMensualesConClient(client, {
+          arsUnidadId,
+          agenteId,
+          empleoId,
+          anio,
+          mes,
+        });
+      }
+
+      return {
+        count: movimientos.length,
+        movimientos,
+        message: `Ajuste aplicado a ${movimientos.length} agente(s)`,
+      };
+    })
+  );
+};
+
+exports.importarMovimientosLedgerCsv = async (input, user, arsUnidadId) => {
+  const items = Array.isArray(input && input.items) ? input.items : [];
+  if (!items.length) {
+    throw new Error('No hay filas para importar');
+  }
+
+  const fileName = String((input && input.file_name) || '').trim();
+  const fileSize = Number((input && input.file_size) || 0);
+  const fileLastModified =
+    input && input.file_last_modified != null
+      ? Number(input.file_last_modified)
+      : null;
+
+  return withRetry(() =>
+    withTransaction(async (client) => {
+      const hasObservacionesColumn = await hasLedgerObservacionesColumn(client);
+      const uniqueTips = Array.from(
+        new Set(
+          items
+            .map((item) => normalizeTip(item && item.tip))
+            .filter((tip) => !!tip)
+        )
+      );
+
+      const agentesResult = await client.query(
+        `SELECT id, tip, empleo_id
+           FROM agentes
+          WHERE ars_unidad_id::text = $1::text
+            AND fecha_baja IS NULL
+            AND UPPER(TRIM(COALESCE(tip, ''))) = ANY($2::text[])
+          ORDER BY id ASC`,
+        [arsUnidadId, uniqueTips]
+      );
+
+      const agentesByTip = new Map();
+      for (const row of agentesResult.rows || []) {
+        const key = normalizeTip(row.tip);
+        if (!key) continue;
+        if (agentesByTip.has(key)) {
+          throw new Error(
+            `TIP ${key} está duplicado en agentes activos. Corrige el maestro antes de importar.`
+          );
+        }
+        agentesByTip.set(key, row);
+      }
+
+      for (const tip of uniqueTips) {
+        if (!agentesByTip.has(tip)) {
+          throw new Error(`No existe un agente activo para TIP ${tip}`);
+        }
+      }
+
+      const userId = user && user.id ? Number(user.id) : null;
+      const movimientos = [];
+
+      for (let index = 0; index < items.length; index += 1) {
+        const item = items[index] || {};
+        const lineNumber = Number(item.line) || index + 2;
+        const tip = normalizeTip(item.tip);
+        const agente = agentesByTip.get(tip);
+        if (!agente) {
+          throw new Error(`Línea ${lineNumber}: TIP ${tip || '(vacío)'} no encontrado`);
+        }
+
+        const fecha = normalizeDateInput(item.fecha);
+        const fechaDt = DateTime.fromISO(fecha, { zone: 'utc' });
+        if (!fechaDt.isValid) {
+          throw new Error(`Línea ${lineNumber}: fecha inválida`);
+        }
+
+        const diasRaw = Number(item.dias);
+        if (!Number.isFinite(diasRaw) || diasRaw === 0) {
+          throw new Error(`Línea ${lineNumber}: días inválidos`);
+        }
+
+        const cantidadDias = Number(Math.abs(diasRaw).toFixed(2));
+        const signo = diasRaw > 0 ? 1 : -1;
+        const tipoMovimiento = signo > 0 ? 'devengo' : 'disfrute';
+        const anio = fechaDt.year;
+        const mes = fechaDt.month;
+
+        const empleoId = normalizeEmpleoId(agente.empleo_id || null);
+        const saldoResult = await client.query(
+          `SELECT COALESCE(SUM(signo * cantidad_dias), 0)::numeric(12,2) AS saldo
+             FROM asignaciones_ledger_movimientos
+            WHERE ars_unidad_id::text = $1::text
+              AND agente_id = $2
+              AND COALESCE(empleo_id::text, '__NULL__') = COALESCE($3::text, '__NULL__')
+              AND fecha <= $4::date`,
+          [arsUnidadId, Number(agente.id), empleoId, fecha]
+        );
+
+        const saldoAntes = Number(saldoResult.rows[0]?.saldo || 0);
+        const saldoDespues = Number((saldoAntes + signo * cantidadDias).toFixed(2));
+        const observaciones = String(item.observaciones || '').trim();
+        const sourceKey = `importacion:${arsUnidadId}:${agente.id}:${fecha}:${randomUUID()}`;
+
+        const metadata = {
+          importacion: true,
+          origen: 'importacion_csv',
+          observaciones: observaciones || null,
+          fichero: {
+            nombre: fileName,
+            tamano_bytes: Number.isFinite(fileSize) ? fileSize : null,
+            last_modified_epoch_ms: Number.isFinite(fileLastModified)
+              ? fileLastModified
+              : null,
+            filas_total: items.length,
+          },
+          fila: {
+            numero: lineNumber,
+            tip,
+            dias_original: diasRaw,
+          },
+        };
+
+        const observacionesColumnSql = hasObservacionesColumn
+          ? ', observaciones'
+          : '';
+        const observacionesValueSql = hasObservacionesColumn
+          ? ',$17'
+          : '';
+
+        const insertParams = [
+          arsUnidadId,
+          Number(agente.id),
+          empleoId,
+          null,
+          null,
+          anio,
+          mes,
+          fecha,
+          tipoMovimiento,
+          signo,
+          cantidadDias,
+          saldoAntes,
+          saldoDespues,
+          sourceKey,
+          JSON.stringify(metadata),
+          userId,
+        ];
+        if (hasObservacionesColumn) {
+          insertParams.push(observaciones || null);
+        }
+
+        const inserted = await client.query(
+          `INSERT INTO asignaciones_ledger_movimientos
+              (ars_unidad_id, agente_id, empleo_id, actividad_id, regla_id,
+               borrador_id, anio, mes, fecha, origen, tipo_movimiento,
+               signo, cantidad_dias, saldo_antes, saldo_despues,
+               source_kind, source_key, metadata, usuario_id${observacionesColumnSql})
+           VALUES ($1,$2,$3,$4,$5,NULL,$6,$7,$8::date,'importacion',$9,$10,$11,$12,$13,
+               'importacion',$14,$15::jsonb,$16${observacionesValueSql})
+           RETURNING id, ars_unidad_id, agente_id, empleo_id, actividad_id, regla_id,
+                     anio, mes, fecha::text AS fecha, origen, tipo_movimiento,
+                     signo, cantidad_dias, saldo_antes, saldo_despues, source_key, created_at`,
+          insertParams
+        );
+
+        movimientos.push(inserted.rows[0]);
+
+        await actualizarSaldosMensualesConClient(client, {
+          arsUnidadId,
+          agenteId: Number(agente.id),
+          empleoId,
+          anio,
+          mes,
+        });
+      }
+
+      return {
+        count: movimientos.length,
+        movimientos,
+        message: `Importación completada: ${movimientos.length} movimiento(s) grabado(s)`,
+      };
+    })
+  );
+};
+
 async function actualizarSaldosMensuales({
   arsUnidadId,
   agenteId,
@@ -1540,22 +1897,26 @@ exports.getLedgerSaldosMensuales = async ({
   agente_id,
 }) => {
   const params = [arsUnidadId];
-  const where = ['m.ars_unidad_id::text = $1::text'];
+  const where = [
+    'ag.ars_unidad_id::text = $1::text',
+    'ag.fecha_baja IS NULL',
+    "UPPER(TRIM(COALESCE(ag.situacion_id, ''))) <> 'REBASE'",
+  ];
 
   if (agente_id) {
     params.push(agente_id);
-    where.push(`m.agente_id = $${params.length}`);
+    where.push(`ag.id = $${params.length}`);
   }
 
   // Usar m.anio/m.mes (derivados del cuadrante del borrador) para que el acumulado
   // coincida exactamente con lo que muestra ledger-movimientos, aunque la fecha
   // calendario del movimiento caiga en un año distinto.
-  let saldoInicialExpr = '0::numeric(12,2)';
-  let totalDevengadoExpr =
+  let saldoInicialMovExpr = '0::numeric(12,2)';
+  let totalDevengadoMovExpr =
     `SUM(CASE WHEN m.signo = 1 THEN m.cantidad_dias ELSE 0 END)::numeric(12,2)`;
-  let totalDisfrutadoExpr =
+  let totalDisfrutadoMovExpr =
     `SUM(CASE WHEN m.signo = -1 THEN m.cantidad_dias ELSE 0 END)::numeric(12,2)`;
-  let havingExpr = `SUM(ABS(m.cantidad_dias)) >= 0`;
+  let movimientosWhereExtra = '';
 
   if (anio) {
     const y = Number(anio);
@@ -1566,57 +1927,63 @@ exports.getLedgerSaldosMensuales = async ({
       params.push(mNum);
       const mesPos = params.length;
 
-      saldoInicialExpr =
+      saldoInicialMovExpr =
         `SUM(CASE WHEN m.anio < $${anioPos} OR (m.anio = $${anioPos} AND m.mes < $${mesPos}) THEN m.signo * m.cantidad_dias ELSE 0 END)::numeric(12,2)`;
-      totalDevengadoExpr =
+      totalDevengadoMovExpr =
         `SUM(CASE WHEN m.anio = $${anioPos} AND m.mes = $${mesPos} AND m.signo = 1 THEN m.cantidad_dias ELSE 0 END)::numeric(12,2)`;
-      totalDisfrutadoExpr =
+      totalDisfrutadoMovExpr =
         `SUM(CASE WHEN m.anio = $${anioPos} AND m.mes = $${mesPos} AND m.signo = -1 THEN m.cantidad_dias ELSE 0 END)::numeric(12,2)`;
-      havingExpr =
-        `SUM(CASE WHEN m.anio < $${anioPos} OR (m.anio = $${anioPos} AND m.mes < $${mesPos}) THEN m.signo * m.cantidad_dias ELSE 0 END) <> 0
-         OR SUM(CASE WHEN m.anio = $${anioPos} AND m.mes = $${mesPos} THEN ABS(m.cantidad_dias) ELSE 0 END) > 0`;
+      movimientosWhereExtra =
+        `AND (m.anio < $${anioPos} OR (m.anio = $${anioPos} AND m.mes <= $${mesPos}))`;
     } else {
       params.push(y);
       const anioPos = params.length;
 
-      saldoInicialExpr =
+      saldoInicialMovExpr =
         `SUM(CASE WHEN m.anio < $${anioPos} THEN m.signo * m.cantidad_dias ELSE 0 END)::numeric(12,2)`;
-      totalDevengadoExpr =
+      totalDevengadoMovExpr =
         `SUM(CASE WHEN m.anio = $${anioPos} AND m.signo = 1 THEN m.cantidad_dias ELSE 0 END)::numeric(12,2)`;
-      totalDisfrutadoExpr =
+      totalDisfrutadoMovExpr =
         `SUM(CASE WHEN m.anio = $${anioPos} AND m.signo = -1 THEN m.cantidad_dias ELSE 0 END)::numeric(12,2)`;
-      havingExpr =
-        `SUM(CASE WHEN m.anio < $${anioPos} THEN m.signo * m.cantidad_dias ELSE 0 END) <> 0
-         OR SUM(CASE WHEN m.anio = $${anioPos} THEN ABS(m.cantidad_dias) ELSE 0 END) > 0`;
+      movimientosWhereExtra = `AND m.anio <= $${anioPos}`;
     }
   }
 
   const result = await db.query(
     `SELECT
-            MIN(m.id) AS id,
-            m.agente_id,
-            MAX(ag.tip) AS tip,
-            MAX(ag.apellido_1) AS apellido_1,
-            MAX(ag.apellido_2) AS apellido_2,
-            MAX(ag.nombre) AS nombre,
-            MAX(ag.escalafon) AS escalafon,
-            MAX(COALESCE(m.empleo_id::text, ag.empleo_id::text)) AS empleo_id,
-            COALESCE(MAX(e.descripcion), 'Sin empleo') AS empleo_nombre,
-            MAX(e.color) AS empleo_color,
+            mx.id,
+            ag.id AS agente_id,
+            ag.tip,
+            ag.apellido_1,
+            ag.apellido_2,
+            ag.nombre,
+            ag.escalafon,
+            COALESCE(mx.empleo_id, ag.empleo_id) AS empleo_id,
+            COALESCE(e.descripcion, 'Sin empleo') AS empleo_nombre,
+            e.color AS empleo_color,
             ${anio ? Number(anio) : 'NULL'}::int AS anio,
             ${mes ? Number(mes) : 'NULL'}::int AS mes,
-            ${saldoInicialExpr} AS saldo_inicial,
-            ${totalDevengadoExpr} AS total_devengado,
-            ${totalDisfrutadoExpr} AS total_disfrutado,
-            (${saldoInicialExpr} + ${totalDevengadoExpr} - ${totalDisfrutadoExpr})::numeric(12,2) AS saldo_final,
-            MAX(m.created_at) AS actualizado_en
-       FROM asignaciones_ledger_movimientos m
-       JOIN agentes ag ON ag.id = m.agente_id
-  LEFT JOIN agentes_empleo e ON e.id_empleo::text = COALESCE(m.empleo_id::text, ag.empleo_id::text)
+            COALESCE(mx.saldo_inicial, 0)::numeric(12,2) AS saldo_inicial,
+            COALESCE(mx.total_devengado, 0)::numeric(12,2) AS total_devengado,
+            COALESCE(mx.total_disfrutado, 0)::numeric(12,2) AS total_disfrutado,
+            (COALESCE(mx.saldo_inicial, 0) + COALESCE(mx.total_devengado, 0) - COALESCE(mx.total_disfrutado, 0))::numeric(12,2) AS saldo_final,
+            mx.actualizado_en
+       FROM agentes ag
+  LEFT OUTER JOIN LATERAL (
+      SELECT MIN(m.id) AS id,
+             MAX(COALESCE(m.empleo_id::text, ag.empleo_id::text)) AS empleo_id,
+             ${saldoInicialMovExpr} AS saldo_inicial,
+             ${totalDevengadoMovExpr} AS total_devengado,
+             ${totalDisfrutadoMovExpr} AS total_disfrutado,
+             MAX(m.created_at) AS actualizado_en
+        FROM asignaciones_ledger_movimientos m
+       WHERE m.ars_unidad_id::text = $1::text
+         AND m.agente_id = ag.id
+         ${movimientosWhereExtra}
+    ) mx ON TRUE
+  LEFT OUTER JOIN agentes_empleo e ON e.id_empleo::text = COALESCE(mx.empleo_id::text, ag.empleo_id::text)
       WHERE ${where.join(' AND ')}
-      GROUP BY m.agente_id
-      HAVING ${havingExpr}
-      ORDER BY MAX(ag.escalafon), MAX(ag.apellido_1), MAX(ag.apellido_2), MAX(ag.nombre), COALESCE(MAX(e.descripcion), 'Sin empleo')`,
+      ORDER BY ag.escalafon, ag.apellido_1, ag.apellido_2, ag.nombre, COALESCE(e.descripcion, 'Sin empleo')`,
     params
   );
 
@@ -1625,7 +1992,11 @@ exports.getLedgerSaldosMensuales = async ({
 
 exports.getLedgerAgentes = async ({ arsUnidadId, anio }) => {
   const params = [arsUnidadId];
-  const where = ['m.ars_unidad_id::text = $1::text'];
+  const where = [
+    'm.ars_unidad_id::text = $1::text',
+    'ag.fecha_baja IS NULL',
+    "UPPER(TRIM(COALESCE(ag.situacion_id, ''))) <> 'REBASE'",
+  ];
   if (anio) {
     params.push(anio);
     where.push(`m.anio = $${params.length}`);
@@ -1700,6 +2071,10 @@ exports.getLedgerMovimientos = async ({
                  0
                )::numeric(12,2) AS saldo_despues_calc
           FROM asignaciones_ledger_movimientos m
+          JOIN agentes ag
+          ON ag.id = m.agente_id
+         AND ag.fecha_baja IS NULL
+         AND UPPER(TRIM(COALESCE(ag.situacion_id, ''))) <> 'REBASE'
          WHERE ${baseWhere.join(' AND ')}
       )
       SELECT calc.id,
@@ -1729,11 +2104,11 @@ exports.getLedgerMovimientos = async ({
               calc.metadata,
               ${hasObservacionesColumn ? 'calc.observaciones' : "COALESCE(calc.metadata->>'observaciones', NULL)"} AS observaciones
        FROM calc
-  LEFT JOIN agentes ag ON ag.id = calc.agente_id
-  LEFT JOIN actividades a ON a.id_actividad = calc.actividad_id
-  LEFT JOIN asignaciones_borradores b ON b.id = calc.borrador_id
-  LEFT JOIN agentes_empleo ae_mov ON ae_mov.id_empleo::text = calc.empleo_id::text
-  LEFT JOIN agentes_empleo ae_ag ON ae_ag.id_empleo::text = ag.empleo_id::text
+  JOIN agentes ag ON ag.id = calc.agente_id
+  LEFT OUTER JOIN actividades a ON a.id_actividad = calc.actividad_id
+  LEFT OUTER JOIN asignaciones_borradores b ON b.id = calc.borrador_id
+  LEFT OUTER JOIN agentes_empleo ae_mov ON ae_mov.id_empleo::text = calc.empleo_id::text
+  LEFT OUTER JOIN agentes_empleo ae_ag ON ae_ag.id_empleo::text = ag.empleo_id::text
       WHERE ${viewWhere.length ? viewWhere.join(' AND ') : '1=1'}
       ORDER BY calc.fecha DESC, calc.created_at DESC, calc.id DESC`,
     params

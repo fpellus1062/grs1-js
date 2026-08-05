@@ -1,5 +1,6 @@
 const path = require('path');
 const pdfmake = require('pdfmake');
+const { normalizeHexColor } = require('../utils/color');
 
 // ── Fuentes ──────────────────────────────────────────────────
 pdfmake.addFonts({
@@ -71,23 +72,6 @@ function getActividadDisplay(id, actMap) {
     label: a.nombre ? `${a.codigo} - ${a.nombre}` : a.codigo,
     color: a.actividad_color || a.color || null,
   };
-}
-
-function normalizeHexColor(value) {
-  const raw = String(value || '').trim();
-  if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw;
-  if (/^#[0-9a-fA-F]{3}$/.test(raw)) {
-    return (
-      '#' +
-      raw[1] +
-      raw[1] +
-      raw[2] +
-      raw[2] +
-      raw[3] +
-      raw[3]
-    ).toUpperCase();
-  }
-  return null;
 }
 
 function getActividadesRichText(ids, actMap) {

@@ -612,6 +612,7 @@ exports.altasMasivas = async (rows, arsUnidadId) => {
   const client = await db.connect();
   const detail = [];
   let created = 0;
+  let updated = 0;
   let errors = 0;
 
   try {
@@ -693,41 +694,67 @@ exports.altasMasivas = async (rows, arsUnidadId) => {
           );
         }
 
-        const missingCreateFields = buildMissingCreateFields(payload);
-        missingCreateFields.forEach((field) => {
-          rowErrors.push(
-            createBulkFieldError(field, 'REQUIRED_MISSING', 'Campo obligatorio sin valor', row[field], 'Valor requerido por DDL')
-          );
-        });
-
         if (payload.tip && !/^[A-Z][0-9]{5}[A-Z]$/.test(payload.tip)) {
           rowErrors.push(
             createBulkFieldError('tip', 'INVALID_FORMAT', 'TIP debe tener formato A99999A', row.tip, 'A99999A')
           );
         }
 
-        const empleoResolved = refResolvers.empleo('empleo_id', payload.empleo_id);
-        const pelotonResolved = refResolvers.peloton('peloton_id', payload.peloton_id);
-        const situacionResolved = refResolvers.situacion('situacion_id', payload.situacion_id);
-        rowErrors.push(...empleoResolved.errors, ...pelotonResolved.errors, ...situacionResolved.errors);
-
-        payload.empleo_id = empleoResolved.value;
-        payload.peloton_id = pelotonResolved.value;
-        payload.situacion_id = situacionResolved.value;
-
+        let existingAgente = null;
         if (tip) {
           const tipExistsRes = await client.query(
-            `SELECT id
+            `SELECT *
                FROM agentes
-              WHERE UPPER(COALESCE(tip, '')) = $1
+              WHERE ars_unidad_id = $1
+                AND UPPER(COALESCE(tip, '')) = $2
               LIMIT 1`,
-            [tip]
+            [arsUnidadId, tip]
           );
-          if (tipExistsRes.rows.length) {
+          existingAgente = tipExistsRes.rows[0] || null;
+        }
+
+        if (!existingAgente) {
+          const missingCreateFields = buildMissingCreateFields(payload);
+          missingCreateFields.forEach((field) => {
             rowErrors.push(
-              createBulkFieldError('tip', 'TIP_ALREADY_EXISTS', 'El TIP ya existe en el sistema', row.tip, 'TIP nuevo no existente')
+              createBulkFieldError(field, 'REQUIRED_MISSING', 'Campo obligatorio sin valor', row[field], 'Valor requerido por DDL')
             );
+          });
+        }
+
+        if (existingAgente) {
+          if (payload.empleo_id != null) {
+            const empleoResolved = refResolvers.empleo('empleo_id', payload.empleo_id);
+            rowErrors.push(...empleoResolved.errors);
+            payload.empleo_id = empleoResolved.value;
+          } else {
+            payload.empleo_id = existingAgente.empleo_id;
           }
+
+          if (payload.peloton_id != null) {
+            const pelotonResolved = refResolvers.peloton('peloton_id', payload.peloton_id);
+            rowErrors.push(...pelotonResolved.errors);
+            payload.peloton_id = pelotonResolved.value;
+          } else {
+            payload.peloton_id = existingAgente.peloton_id;
+          }
+
+          if (payload.situacion_id != null) {
+            const situacionResolved = refResolvers.situacion('situacion_id', payload.situacion_id);
+            rowErrors.push(...situacionResolved.errors);
+            payload.situacion_id = situacionResolved.value;
+          } else {
+            payload.situacion_id = existingAgente.situacion_id;
+          }
+        } else {
+          const empleoResolved = refResolvers.empleo('empleo_id', payload.empleo_id);
+          const pelotonResolved = refResolvers.peloton('peloton_id', payload.peloton_id);
+          const situacionResolved = refResolvers.situacion('situacion_id', payload.situacion_id);
+          rowErrors.push(...empleoResolved.errors, ...pelotonResolved.errors, ...situacionResolved.errors);
+
+          payload.empleo_id = empleoResolved.value;
+          payload.peloton_id = pelotonResolved.value;
+          payload.situacion_id = situacionResolved.value;
         }
 
         if (payload.email) {
@@ -738,7 +765,10 @@ exports.altasMasivas = async (rows, arsUnidadId) => {
               LIMIT 1`,
             [payload.email]
           );
-          if (emailExistsRes.rows.length) {
+          if (
+            emailExistsRes.rows.length &&
+            (!existingAgente || Number(emailExistsRes.rows[0].id) !== Number(existingAgente.id))
+          ) {
             rowErrors.push(
               createBulkFieldError('email', 'EMAIL_ALREADY_EXISTS', 'El email ya existe en el sistema', row.email, 'Email nuevo no existente')
             );
@@ -753,7 +783,10 @@ exports.altasMasivas = async (rows, arsUnidadId) => {
               LIMIT 1`,
             [payload.nif]
           );
-          if (nifExistsRes.rows.length) {
+          if (
+            nifExistsRes.rows.length &&
+            (!existingAgente || Number(nifExistsRes.rows[0].id) !== Number(existingAgente.id))
+          ) {
             rowErrors.push(
               createBulkFieldError('nif', 'NIF_ALREADY_EXISTS', 'El NIF ya existe en el sistema', row.nif, 'NIF nuevo no existente')
             );
@@ -776,17 +809,79 @@ exports.altasMasivas = async (rows, arsUnidadId) => {
           continue;
         }
 
-        const createPayload = applyCreateDefaults(payload);
+        if (existingAgente) {
+          const result = await client.query(
+            `UPDATE agentes
+                SET nombre = $1,
+                    apellido_1 = $2,
+                    apellido_2 = $3,
+                    email = $4,
+                    peloton_id = $5,
+                    empleo_id = $6,
+                    orden_gc = $7,
+                    tip = $8,
+                    nif = $9,
+                    telefono = $10,
+                    aptitudes = $11,
+                    situacion_id = $12,
+                    comentarios = $13,
+                    pei = $14,
+                    paef = $15,
+                    fecha_ant_empleo = $16,
+                    domicilio = $17,
+                    codigo_postal = $18,
+                    poblacion = $19,
+                    provincia = $20
+              WHERE id = $21
+                AND ars_unidad_id = $22
+            RETURNING id`,
+            [
+              payload.nombre ?? existingAgente.nombre,
+              payload.apellido_1 ?? existingAgente.apellido_1,
+              payload.apellido_2 ?? existingAgente.apellido_2,
+              payload.email ?? existingAgente.email,
+              payload.peloton_id ?? existingAgente.peloton_id,
+              payload.empleo_id ?? existingAgente.empleo_id,
+              payload.orden_gc ?? existingAgente.orden_gc,
+              payload.tip ?? existingAgente.tip,
+              payload.nif ?? existingAgente.nif,
+              payload.telefono ?? existingAgente.telefono,
+              payload.aptitudes ?? existingAgente.aptitudes,
+              payload.situacion_id ?? existingAgente.situacion_id,
+              payload.comentarios ?? existingAgente.comentarios,
+              payload.pei ?? existingAgente.pei,
+              payload.paef ?? existingAgente.paef,
+              payload.fecha_ant_empleo ?? existingAgente.fecha_ant_empleo,
+              payload.domicilio ?? existingAgente.domicilio,
+              payload.codigo_postal ?? existingAgente.codigo_postal,
+              payload.poblacion ?? existingAgente.poblacion,
+              payload.provincia ?? existingAgente.provincia,
+              existingAgente.id,
+              arsUnidadId,
+            ]
+          );
 
-        const inserted = await insertAgenteWithClient(
-          client,
-          arsUnidadId,
-          createPayload
-        );
+          updated += 1;
+          detail.push({
+            line,
+            tip,
+            status: 'updated',
+            id: Number((result.rows[0] && result.rows[0].id) || existingAgente.id),
+            errors: [],
+          });
+        } else {
+          const createPayload = applyCreateDefaults(payload);
 
-        const newId = Number(inserted.id);
-        created += 1;
-        detail.push({ line, tip, status: 'created', id: newId, errors: [] });
+          const inserted = await insertAgenteWithClient(
+            client,
+            arsUnidadId,
+            createPayload
+          );
+
+          const newId = Number(inserted.id);
+          created += 1;
+          detail.push({ line, tip, status: 'created', id: newId, errors: [] });
+        }
 
         await client.query(`RELEASE SAVEPOINT agente_bulk_${i}`);
       } catch (error) {
@@ -816,6 +911,7 @@ exports.altasMasivas = async (rows, arsUnidadId) => {
     return {
       total: rows.length,
       created,
+      updated,
       errors,
       detail,
     };

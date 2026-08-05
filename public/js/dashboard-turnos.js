@@ -1,5 +1,6 @@
 (function () {
   const app = window.GRS1Dashboard;
+  const utils = window['GRS1Utils'] || {};
   // ── Form helpers (consolidado) ─────────────────────────────
   app.turnosTemplates = {
     alert(message, type) {
@@ -174,9 +175,11 @@
   }
 
   function normalizeHexColor(value, fallback) {
-    let v = String(value || '').trim();
-    if (/^#[0-9a-fA-F]{6}$/.test(v)) return v.toLowerCase();
-    return fallback || '#6c757d';
+    let normalized =
+      typeof utils.normalizeHexColor === 'function'
+        ? utils.normalizeHexColor(value)
+        : '';
+    return normalized || fallback || '#6c757d';
   }
 
   function turnoColorPickerEditor(cell, onRendered, success, cancel) {

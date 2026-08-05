@@ -1,6 +1,7 @@
 ﻿(function () {
   const app = window.GRS1Dashboard;
   const qbe = window.GRS1TabulatorQbe || null;
+  const utils = window['GRS1Utils'] || {};
 
   const agenteEditableFields = [
     'nombre',
@@ -27,6 +28,12 @@
 
   let TABULATOR_LANGS = window.GRS1TabulatorLangs;
   let sameValue = window.GRS1Utils.sameValue;
+  let normalizeCssColor =
+    typeof utils.normalizeHexColor === 'function'
+      ? utils.normalizeHexColor
+      : function () {
+          return '';
+        };
 
   function updateAgentesCounters() {
     let totalEl = document.getElementById('totalRecordsAgente');
@@ -972,28 +979,12 @@
     return map;
   }
 
-  function normalizeCssColor(value) {
-    let raw = String(value || '').trim();
-    if (!raw) return '';
-    if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw;
-    if (/^[0-9a-fA-F]{6}$/.test(raw)) return '#' + raw;
-    return /^#[0-9a-fA-F]{3}$/.test(raw) ? raw : '';
-  }
-
   function getTextColorForBackground(hexColor) {
-    let hex = String(hexColor || '').replace('#', '');
-    if (hex.length !== 6) return '#0f172a';
-    let r = parseInt(hex.slice(0, 2), 16);
-    let g = parseInt(hex.slice(2, 4), 16);
-    let b = parseInt(hex.slice(4, 6), 16);
-    if (
-      [r, g, b].some(function (n) {
-        return Number.isNaN(n);
-      })
-    )
-      return '#0f172a';
-    let luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-    return luminance > 168 ? '#0f172a' : '#ffffff';
+    let normalized = normalizeCssColor(hexColor);
+    if (!normalized) return '#0f172a';
+    return typeof utils.getTextColorForHexBackground === 'function'
+      ? utils.getTextColorForHexBackground(normalized, 168 / 255)
+      : '#0f172a';
   }
 
   async function ensureAsignacionesMetaLoaded() {

@@ -1,5 +1,12 @@
 (function () {
   const app = window.GRS1Dashboard;
+  const utils = window['GRS1Utils'] || {};
+  const normalizeCssColor =
+    typeof utils.normalizeHexColor === 'function'
+      ? utils.normalizeHexColor
+      : function () {
+          return '';
+        };
 
   const SESSION_AUTH_KEYS = Array.isArray(app.sessionAuthKeys)
     ? app.sessionAuthKeys
@@ -1210,7 +1217,7 @@
       control.style.display = '';
       setElementDisabled(control, !visible);
       if (!visible) {
-        control.innerHTML = '<option value="">No aplica para Definitivo</option>';
+        control.innerHTML = '<option value="">Versión única</option>';
         control.value = '';
       }
     });
@@ -2691,15 +2698,6 @@
       if (loading) loading.style.display = 'block';
       chartEl.style.display = 'none';
 
-      function normalizeCssColor(value) {
-        let raw = String(value || '').trim();
-        if (!raw) return '';
-        if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw;
-        if (/^[0-9a-fA-F]{6}$/.test(raw)) return '#' + raw;
-        if (/^#[0-9a-fA-F]{3}$/.test(raw)) return raw;
-        return '';
-      }
-
       try {
         let headers = getDashboardHeaders();
         let [cuadData, metaRes] = await Promise.all([
@@ -2967,15 +2965,6 @@
       if (placeholder) placeholder.style.display = 'none';
       if (loading) loading.style.display = 'block';
       chartEl.style.display = 'none';
-
-      function normalizeCssColor(value) {
-        let raw = String(value || '').trim();
-        if (!raw) return '';
-        if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw;
-        if (/^[0-9a-fA-F]{6}$/.test(raw)) return '#' + raw;
-        if (/^#[0-9a-fA-F]{3}$/.test(raw)) return raw;
-        return '';
-      }
 
       try {
         let contexto = await loadDashboardTemporalContext(borradorId, anio, mes);
@@ -3484,11 +3473,11 @@
   };
 
   app.normalizeHexColor = function normalizeHexColor(color, fallback) {
-    let raw = String(color || '').trim();
-    if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw;
-    if (/^[0-9a-fA-F]{6}$/.test(raw)) return '#' + raw;
-    if (/^#[0-9a-fA-F]{3}$/.test(raw)) return raw;
-    return fallback || '#276836';
+    let normalized =
+      typeof utils.normalizeHexColor === 'function'
+        ? utils.normalizeHexColor(color)
+        : '';
+    return normalized || fallback || '#276836';
   };
 
   app.applyArsTheme = function applyArsTheme(color) {
@@ -3572,15 +3561,11 @@
   };
 
   app._contrastColor = function _contrastColor(hex) {
-    if (!hex) return '#fff';
-    hex = hex.replace('#', '');
-    if (hex.length === 3)
-      hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
-    let r = parseInt(hex.substring(0, 2), 16);
-    let g = parseInt(hex.substring(2, 4), 16);
-    let b = parseInt(hex.substring(4, 6), 16);
-    let lum = 0.299 * r + 0.587 * g + 0.114 * b;
-    return lum > 150 ? '#212529' : '#ffffff';
+    let normalized = app.normalizeHexColor(hex, '');
+    if (!normalized) return '#fff';
+    return typeof utils.getTextColorForHexBackground === 'function'
+      ? utils.getTextColorForHexBackground(normalized, 150 / 255)
+      : '#ffffff';
   };
 
   app.loadArsCatalog = async function loadArsCatalog() {

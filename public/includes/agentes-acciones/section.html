@@ -2,18 +2,20 @@
     <div class="d-flex align-items-center gap-2 px-3 py-2 border-bottom bg-white flex-wrap">
         <i class="bi bi-lightning-charge text-secondary" style="font-size:.95rem"></i>
         <span class="fw-semibold text-dark" style="font-size:.875rem"> Agentes Acciones Masivas</span>
-        <button class="btn btn-link p-0 ms-1" type="button" data-help-context="agentes-acciones-help" data-bs-toggle="modal" data-bs-target="#helpModal"
-            title="Acciones Masivas - Ayuda">
+        <button class="btn btn-link p-0 ms-1" type="button" data-help-context="agentes-acciones-help"
+            data-bs-toggle="modal" data-bs-target="#helpModal" title="Acciones Masivas - Ayuda">
             <i class="bi bi-question-circle text-secondary" style="font-size: 0.95rem"></i>
         </button>
         <span class="vr mx-1 opacity-25"></span>
-
+        <span id="agentesAccionesGridBadge"
+            class="badge bg-secondary-subtle text-secondary border border-secondary-subtle ms-1"
+            style="font-size:.68rem">Sin datos</span>
         <div class="ms-auto d-flex align-items-center gap-1">
             <span class="vr mx-1 opacity-25"></span>
-                <label class="text-info-emphasis px-2 mb-0">Altas Masivas</label>
+            <label class="text-info-emphasis px-2 mb-0">Altas / Modificaciones</label>
             <label class="btn btn-outline-secondary btn-sm py-1 px-2 mb-0" for="agentesAltasCsvInput"
-                title="Cargar CSV de altas (upsert por TIP)" style="font-size:.78rem">
-                <i class="bi bi-upload"></i> CSV Altas
+                title="Cargar Fichero CSV de altas / Modificaciones" style="font-size:.78rem">
+                <i class="bi bi-upload"></i> Carga CSV
             </label>
             <input id="agentesAltasCsvInput" type="file" accept=".csv,text/csv" class="d-none" />
             <button id="btnAgentesAltasEjecutar" class="btn btn-primary btn-sm py-1 px-2" disabled type="button"
@@ -26,7 +28,7 @@
             </button>
 
             <span class="vr mx-1 opacity-25"></span>
-            <label class="text-info-emphasis px-2 mb-0">Bajas Masivas</label>
+            <label class="text-info-emphasis px-2 mb-0">Bajas</label>
             <label class="btn btn-outline-secondary btn-sm py-1 px-2 mb-0" for="agentesBajasCsvInput"
                 title="Cargar CSV de bajas (columna TIP)" style="font-size:.78rem">
                 <i class="bi bi-filetype-csv"></i> CSV Bajas
@@ -34,7 +36,7 @@
             <input id="agentesBajasCsvInput" type="file" accept=".csv,text/csv" class="d-none" />
             <button id="btnAgentesBajasCsvEjecutar" class="btn btn-outline-danger btn-sm py-1 px-2" disabled
                 type="button" style="font-size:.78rem">
-                <i class="bi bi-x-circle"></i> Bajas
+                <i class="bi bi-play-circle"></i> Ejecutar
             </button>
 
             <span class="vr mx-1 opacity-25"></span>
@@ -43,14 +45,12 @@
                 title="Cargar lista de agentes activos" style="font-size:.78rem">
                 <i class="bi bi-people"></i> Cargar Agentes
             </button>
-            <button id="btnAgentesBajasSeleccionEjecutar" class="btn btn-outline-danger btn-sm py-1 px-2" disabled
-                type="button" style="font-size:.78rem">
+            <button id="btnAgentesBajasSeleccionEjecutar" class="btn btn-danger btn-sm py-1 px-2" disabled type="button"
+                style="font-size:.78rem">
                 <i class="bi bi-person-x"></i> Baja Selección
             </button>
 
-            <span id="agentesAccionesGridBadge"
-                class="badge bg-secondary-subtle text-secondary border border-secondary-subtle ms-1"
-                style="font-size:.68rem">Sin datos</span>
+
 
             <button class="btn btn-outline-secondary btn-sm py-1 px-2" data-section-trigger="agentes" type="button"
                 title="Ir a Lista de Agentes">
@@ -66,22 +66,8 @@
     <div id="alertContainerAgentesAcciones" class="px-2 pt-1"></div>
     <div id="estadoCargaAgentesAcciones" class="d-none"></div>
 
-    <div id="agentesAccionesColumnasHelp" class="px-3 py-2 border-bottom bg-info-subtle text-info-emphasis small">
-        <strong>CSV Altas</strong>
-        <span class="text-body-secondary">Obligatorias (alta nueva según DDL): 1) TIP, 2) Nombre, 3) Apellido 1, 4)
-            Apellido 2, 5) Email, 6) Pelotón ID (peloton_id), 7) Empleo ID (empleo_id), 8) Orden (orden_gc), 9) NIF, 10)
-            Teléfono, 11) Situación ID (situacion_id)</span>
-        <span class="text-body-secondary">Opcionales (orden recomendado): 12) Fecha Nombramiento (fecha_ant_empleo), 13)
-            Aptitudes, 14) Domicilio, 15) Código Postal, 16) Población, 17) Provincia, 18) Comentarios</span>
-        <span class="text-body-secondary">Referencias: en empleo_id, peloton_id y situacion_id se admite ID técnico o
-            literal de negocio (descripción). Si el literal no existe o es ambiguo, la fila falla con error claro de
-            columna.</span>
-        <span class="text-body-secondary">Política de alta: si el TIP ya existe en el sistema, la fila se rechaza (no se
-            actualiza).</span>
-        <br />
-        <strong>CSV Bajas</strong>
-        <span class="text-body-secondary">Obligatorias: 1) TIP</span>
-        <span class="text-body-secondary">Opcionales: ninguna</span>
+    <div id="agentesAccionesColumnasHelp" class="px-3 py-2 border-bottom bg-danger-subtle text-info-emphasis small">
+
     </div>
 
     <!-- Grid único multipropósito -->

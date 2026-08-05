@@ -2,34 +2,23 @@
   <!-- ── Tabla de reglas — ancho completo ── -->
   <div class="card shadow-sm border-0 dev-card-reglas">
     <div class="card-header d-flex align-items-center justify-content-between">
-      <h5 class="mb-0">Reglas de Devengo/Disfrute/Descanso  <button class="btn btn-link p-0 lh-1" type="button" data-help-context="asignaciones-reglas-help" data-bs-toggle="modal" data-bs-target="#helpModal"
-        title="Método de Cálculo de Devengos">
-        <i class="bi bi-question-circle text-secondary" style="font-size: 0.8rem"></i></h5>
-     
+      <h5 class="mb-0">Reglas de Devengo/Disfrute/Descanso <button class="btn btn-link p-0 lh-1" type="button"
+          data-help-context="asignaciones-reglas-help" data-bs-toggle="modal" data-bs-target="#helpModal"
+          title="Método de Cálculo de Devengos">
+          <i class="bi bi-question-circle text-secondary" style="font-size: 0.8rem"></i></h5>
+
       <div class="d-flex gap-2">
-        <button
-          class="btn btn-sm btn-outline-secondary"
-          id="btnDevRefrescarReglas"
-          type="button"
-        >
+        <button class="btn btn-sm btn-outline-secondary" id="btnDevRefrescarReglas" type="button">
           <i class="bi bi-arrow-clockwise me-1"></i>Refrescar
         </button>
-        <button
-          class="btn btn-sm btn-outline-warning"
-          id="btnDevConsolidarPendientes"
-          type="button"
-          data-permiso="asignaciones:crear"
-          data-permiso-accion="disable"
+        <button class="btn btn-sm btn-outline-warning" id="btnDevConsolidarPendientes" type="button"
+          data-permiso="asignaciones:crear" data-permiso-accion="disable"
           title="Consolidar todos los borradores con devengos pendientes">
           <i class="bi bi-lightning-charge me-1"></i>
 
         </button>
-        <button
-          class="btn btn-sm btn-success"
-          id="btnDevNuevaRegla"
-          type="button"
-          data-permiso="asignaciones-reglas:crear"
-        >
+        <button class="btn btn-sm btn-success" id="btnDevNuevaRegla" type="button"
+          data-permiso="asignaciones-reglas:crear">
           <i class="bi bi-plus-lg me-1"></i>Nueva
         </button>
       </div>
@@ -37,16 +26,18 @@
     <div class="card-body p-0">
       <div class="dev-table-scroll-wrap">
         <div class="table-responsive">
-          <table
-            class="table table-sm table-hover align-middle mb-0 dev-reglas-compact"
-            id="devReglasTable"
-          >
+          <table class="table table-sm table-hover align-middle mb-0 dev-reglas-compact" id="devReglasTable">
             <thead class="table-light">
               <tr>
-                <th class="text-muted dev-sortable" style="width: 4.5rem" data-sort-key="id" role="button" tabindex="0" aria-sort="ascending">ID <i class="bi bi-arrow-down-up ms-1" data-sort-icon="id"></i></th>
-                <th class="dev-sortable" data-sort-key="regla" role="button" tabindex="0" aria-sort="none" style="width: 42%">Regla <i class="bi bi-arrow-down-up ms-1" data-sort-icon="regla"></i></th>
-                <th class="dev-sortable" data-sort-key="genera" role="button" tabindex="0" aria-sort="none">Genera <i class="bi bi-arrow-down-up ms-1" data-sort-icon="genera"></i></th>
-                <th class="dev-sortable" data-sort-key="vigencia" role="button" tabindex="0" aria-sort="none" style="width: 18rem">Vigencia / Estado <i class="bi bi-arrow-down-up ms-1" data-sort-icon="vigencia"></i></th>
+                <th class="text-muted dev-sortable" style="width: 4.5rem" data-sort-key="id" role="button" tabindex="0"
+                  aria-sort="ascending">ID <i class="bi bi-arrow-down-up ms-1" data-sort-icon="id"></i></th>
+                <th class="dev-sortable" data-sort-key="regla" role="button" tabindex="0" aria-sort="none"
+                  style="width: 42%">Regla <i class="bi bi-arrow-down-up ms-1" data-sort-icon="regla"></i></th>
+                <th class="dev-sortable" data-sort-key="genera" role="button" tabindex="0" aria-sort="none">Genera <i
+                    class="bi bi-arrow-down-up ms-1" data-sort-icon="genera"></i></th>
+                <th class="dev-sortable" data-sort-key="vigencia" role="button" tabindex="0" aria-sort="none"
+                  style="width: 18rem">Vigencia / Estado <i class="bi bi-arrow-down-up ms-1"
+                    data-sort-icon="vigencia"></i></th>
                 <th class="text-end">Acciones</th>
               </tr>
             </thead>
@@ -79,36 +70,18 @@
               <div class="d-flex flex-column gap-1 small">
                 <div class="d-flex flex-wrap align-items-center gap-1">
                   <span>Cuando un agente trabaje</span>
-                  <input
-                    id="devCondicionDias"
-                    class="form-control form-control-sm"
-                    type="number"
-                    min="-366"
-                    max="366"
-                    step="0.5"
-                    value="1"
-                    style="width: 5rem"
-                    required
-                  />
+                  <input id="devCondicionDias" class="form-control form-control-sm" type="number" min="-366" max="366"
+                    step="0.5" value="1" style="width: 5rem" required />
                   <span>días</span>
-                  <select
-                    id="devCruceFestivo"
-                    class="form-select form-select-sm"
-                    style="width: 10rem"
-                    title="Tipo de día"
-                  >
+                  <select id="devCruceFestivo" class="form-select form-select-sm" style="width: 10rem"
+                    title="Tipo de día">
                     <option value="periodo">en el período</option>
                     <option value="festivo">festivos</option>
                     <option value="fin_semana">fin de semana</option>
                     <option value="laborable">laborables</option>
                   </select>
                   <span>de manera</span>
-                  <select
-                    id="devCondicionTipo"
-                    class="form-select form-select-sm"
-                    style="width: 9rem"
-                    required
-                  >
+                  <select id="devCondicionTipo" class="form-select form-select-sm" style="width: 9rem" required>
                     <option value="en_periodo">no consecutiva</option>
                     <option value="consecutivos">consecutiva</option>
                   </select>
@@ -116,31 +89,18 @@
 
                 <div class="d-flex flex-wrap align-items-center gap-1">
                   <span>en</span>
-                  <select
-                    id="devCondicionAlcance"
-                    class="form-select form-select-sm"
-                    style="width: 13rem"
-                    required
-                  >
-                    <option value="cualquier_actividad">cualquier actividad</option>
-                    <option value="actividad">actividad específica</option>
+                  <select id="devCondicionAlcance" class="form-select form-select-sm" style="width: 13rem" required>
+                    <option value="cualquier_actividad">cualquier servicio</option>
+                    <option value="actividad">servicio específico</option>
                     <option value="grupo">grupo</option>
                   </select>
                   <div class="d-none" id="devActividadWrap">
-                    <select
-                      id="devActividadId"
-                      class="form-select form-select-sm"
-                      title="Actividad"
-                      style="width: 14rem"
-                    ></select>
+                    <select id="devActividadId" class="form-select form-select-sm" title="Servicio"
+                      style="width: 14rem"></select>
                   </div>
                   <div class="d-none" id="devGrupoWrap">
-                    <select
-                      id="devGrupoId"
-                      class="form-select form-select-sm"
-                      title="Grupo de actividad"
-                      style="width: 14rem"
-                    ></select>
+                    <select id="devGrupoId" class="form-select form-select-sm" title="Grupo de servicio"
+                      style="width: 14rem"></select>
                   </div>
                 </div>
               </div>
@@ -148,80 +108,45 @@
 
             <div class="col-12">
               <div class="d-flex flex-wrap align-items-center gap-1 small">
-                <select
-                  id="devExcluirFestivos"
-                  class="form-select form-select-sm"
-                  style="width: 12rem"
-                  title="Cómputo de festivos"
-                >
+                <select id="devExcluirFestivos" class="form-select form-select-sm" style="width: 12rem"
+                  title="Cómputo de festivos">
                   <option value="false">sin contar festivos</option>
                   <option value="true">contando festivos</option>
                 </select>
                 <span>→ generar</span>
-                <input
-                  id="devValor"
-                  class="form-control form-control-sm"
-                  type="number"
-                  min="-366"
-                  max="366"
-                  step="0.5"
-                  value="0"
-                  style="width: 5rem"
-                  required
-                />
+                <input id="devValor" class="form-control form-control-sm" type="number" min="-366" max="366" step="0.5"
+                  value="0" style="width: 5rem" required />
                 <span>días de</span>
-                <select
-                  id="devTipoMovimiento"
-                  class="form-select form-select-sm"
-                  title="Tipo de movimiento"
-                  style="width: 8rem"
-                  required
-                >
+                <select id="devTipoMovimiento" class="form-select form-select-sm" title="Tipo de movimiento"
+                  style="width: 8rem" required>
                   <option value="devengo">Devengo</option>
                   <option value="disfrute">Disfrute</option>
                   <option value="descanso">Descanso</option>
                 </select>
               </div>
               <div class="form-text mt-1">
-                El cruce con festivos se determina con el selector de tipo de día (festivo/fin de semana/laborable/en período).
+                El cruce con festivos se determina con el selector de tipo de día (festivo/fin de semana/laborable/en
+                período).
               </div>
             </div>
 
             <div class="col-4">
               <label class="form-label">Empleo (opcional)</label>
-              <select
-                id="devEmpleoId"
-                class="form-select form-select-sm"
-                title="Empleo"
-              ></select>
+              <select id="devEmpleoId" class="form-select form-select-sm" title="Empleo"></select>
             </div>
 
             <div class="col-5">
               <label class="form-label">Categoría de regla</label>
-              <select
-                id="devCategoriaRegla"
-                class="form-select form-select-sm"
-                title="Categoria técnica de la regla"
-              >
+              <select id="devCategoriaRegla" class="form-select form-select-sm" title="Categoria técnica de la regla">
                 <option value="">Normal</option>
-                <option value="Regla_Especial"
-                  >Especial</option
-                >
+                <option value="Regla_Especial">Especial</option>
               </select>
             </div>
 
             <div class="col-3">
               <label class="form-label">Prioridad</label>
-              <input
-                id="devPrioridad"
-                class="form-control form-control-sm"
-                type="number"
-                min="1"
-                max="9999"
-                value="100"
-                title="Prioridad"
-                required
-              />
+              <input id="devPrioridad" class="form-control form-control-sm" type="number" min="1" max="9999" value="100"
+                title="Prioridad" required />
             </div>
 
             <div class="col-12">
@@ -229,36 +154,20 @@
                 <div class="d-flex align-items-center justify-content-between mb-1">
                   <label class="form-label mb-0">Vigencia</label>
                   <div class="form-check mb-0">
-                    <input
-                      class="form-check-input"
-                      type="checkbox"
-                      id="devActivo"
-                      checked
-                    />
-                    <label class="form-check-label small" for="devActivo"
-                      >Activa</label
-                    >
+                    <input class="form-check-input" type="checkbox" id="devActivo" checked />
+                    <label class="form-check-label small" for="devActivo">Activa</label>
                   </div>
                 </div>
                 <div class="d-flex align-items-end gap-2 flex-nowrap">
                   <div class="flex-fill" style="min-width: 0;">
                     <label class="form-label small mb-1">Desde</label>
-                    <input
-                      id="devVigenciaDesde"
-                      class="form-control form-control-sm"
-                      type="date"
-                      title="Vigencia desde"
-                      required
-                    />
+                    <input id="devVigenciaDesde" class="form-control form-control-sm" type="date" title="Vigencia desde"
+                      required />
                   </div>
                   <div class="flex-fill" style="min-width: 0;">
                     <label class="form-label small mb-1">Hasta</label>
-                    <input
-                      id="devVigenciaHasta"
-                      class="form-control form-control-sm"
-                      type="date"
-                      title="Vigencia hasta"
-                    />
+                    <input id="devVigenciaHasta" class="form-control form-control-sm" type="date"
+                      title="Vigencia hasta" />
                   </div>
                 </div>
               </div>
@@ -266,30 +175,17 @@
 
             <div class="col-12">
               <label class="form-label">Descripción</label>
-              <textarea
-                id="devDescripcion"
-                class="form-control form-control-sm"
-                rows="1"
-                maxlength="500"
-                title="Descripcion"
-              ></textarea>
+              <textarea id="devDescripcion" class="form-control form-control-sm" rows="1" maxlength="500"
+                title="Descripcion"></textarea>
             </div>
 
             <div class="col-12 d-flex align-items-center gap-3 mt-1">
               <div class="ms-auto d-flex gap-2">
-                <button
-                  class="btn btn-success btn-sm py-1 px-2"
-                  type="submit"
-                  id="btnDevGuardarRegla"
-                  data-permiso="asignaciones-reglas:crear|asignaciones-reglas:editar"
-                >
+                <button class="btn btn-success btn-sm py-1 px-2" type="submit" id="btnDevGuardarRegla"
+                  data-permiso="asignaciones-reglas:crear|asignaciones-reglas:editar">
                   Guardar
                 </button>
-                <button
-                  class="btn btn-outline-secondary btn-sm py-1 px-2"
-                  type="button"
-                  id="btnDevCancelarEdicion"
-                >
+                <button class="btn btn-outline-secondary btn-sm py-1 px-2" type="button" id="btnDevCancelarEdicion">
                   Limpiar
                 </button>
               </div>
@@ -307,30 +203,32 @@
         <div class="card-body py-2 px-3">
           <form id="devPreviewForm" class="row g-1">
 
-            <!-- fila 1: agente + actividad -->
+            <!-- fila 1: agente + servicio -->
             <div class="col-6">
               <label class="form-label mb-0" style="font-size:0.72rem">Agente</label>
               <input id="devPreviewAgenteBuscar" class="form-control form-control-sm mb-1" type="search"
-                placeholder="TIP o nombre…" title="Buscar agente" autocomplete="off" style="font-size:0.72rem"/>
-              <select id="devPreviewAgenteId" class="form-select form-select-sm" title="Agente" required style="font-size:0.72rem"></select>
+                placeholder="TIP o nombre…" title="Buscar agente" autocomplete="off" style="font-size:0.72rem" />
+              <select id="devPreviewAgenteId" class="form-select form-select-sm" title="Agente" required
+                style="font-size:0.72rem"></select>
             </div>
             <div class="col-6">
-              <label class="form-label mb-0" style="font-size:0.72rem">Actividad</label>
+              <label class="form-label mb-0" style="font-size:0.72rem">Servicio</label>
               <input id="devPreviewActividadBuscar" class="form-control form-control-sm mb-1" type="search"
-                placeholder="Código o nombre…" title="Buscar actividad" autocomplete="off" style="font-size:0.72rem"/>
-              <select id="devPreviewActividadId" class="form-select form-select-sm" title="Actividad" required style="font-size:0.72rem"></select>
+                placeholder="Código o nombre…" title="Buscar servicio" autocomplete="off" style="font-size:0.72rem" />
+              <select id="devPreviewActividadId" class="form-select form-select-sm" title="Servicio" required
+                style="font-size:0.72rem"></select>
             </div>
 
             <!-- fila 2: fechas -->
             <div class="col-6">
               <label class="form-label mb-0" style="font-size:0.72rem">Fecha</label>
-              <input id="devPreviewFecha" class="form-control form-control-sm" type="date"
-                title="Fecha de preview" required style="font-size:0.72rem"/>
+              <input id="devPreviewFecha" class="form-control form-control-sm" type="date" title="Fecha de preview"
+                required style="font-size:0.72rem" />
             </div>
             <div class="col-6">
               <label class="form-label mb-0" style="font-size:0.72rem">Fecha hasta</label>
               <input id="devPreviewFechaHasta" class="form-control form-control-sm" type="date"
-                title="Fecha final (opcional)" style="font-size:0.72rem"/>
+                title="Fecha final (opcional)" style="font-size:0.72rem" />
             </div>
 
             <!-- fila 3: regla + borrador -->
@@ -349,9 +247,9 @@
             <!-- fila 4: justificación -->
             <div class="col-12">
               <label class="form-label mb-0" style="font-size:0.72rem">Justificación</label>
-              <textarea id="devPreviewObservaciones" class="form-control form-control-sm" rows="1"
-                maxlength="500" placeholder="Motivo obligatorio para grabar…"
-                title="Justificación manual" style="font-size:0.72rem"></textarea>
+              <textarea id="devPreviewObservaciones" class="form-control form-control-sm" rows="1" maxlength="500"
+                placeholder="Motivo obligatorio para grabar…" title="Justificación manual"
+                style="font-size:0.72rem"></textarea>
             </div>
 
             <!-- botones -->
@@ -359,11 +257,7 @@
               <button class="btn btn-primary btn-sm py-1 px-2" type="submit">
                 <i class="bi bi-play me-1"></i>Calcular
               </button>
-              <button
-                class="btn btn-outline-success btn-sm py-1 px-2"
-                type="button"
-                id="btnDevPreviewGrabar"
-              >
+              <button class="btn btn-outline-success btn-sm py-1 px-2" type="button" id="btnDevPreviewGrabar">
                 <i class="bi bi-save me-1"></i>Grabar
               </button>
             </div>
@@ -380,12 +274,7 @@
                   </div>
                   <div class="small text-muted" id="devPreviewCalcSubtitle"></div>
                 </div>
-                <button
-                  type="button"
-                  class="btn-close"
-                  id="devPreviewCalcClose"
-                  aria-label="Cerrar detalle"
-                ></button>
+                <button type="button" class="btn-close" id="devPreviewCalcClose" aria-label="Cerrar detalle"></button>
               </div>
 
               <div class="small mt-2" id="devPreviewCalcEquation"></div>
@@ -406,12 +295,7 @@
       <div class="card shadow-sm border-0 d-none" id="devPreviewRachasCard">
         <div class="card-header py-2 px-3 d-flex justify-content-between align-items-center">
           <span class="fw-semibold small" id="devPreviewRachasTitle">Desglose del cálculo</span>
-          <button
-            type="button"
-            class="btn-close"
-            id="devPreviewRachasClose"
-            aria-label="Cerrar secuencia"
-          ></button>
+          <button type="button" class="btn-close" id="devPreviewRachasClose" aria-label="Cerrar secuencia"></button>
         </div>
         <div class="card-body py-2 px-3">
           <div class="small text-muted mb-1" id="devPreviewRachasSubtitle"></div>
@@ -437,4 +321,5 @@
       </div>
     </div>
   </div>
+
 </div>

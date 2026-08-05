@@ -1,0 +1,417 @@
+<div class="d-flex align-items-center gap-2 border-bottom border-3 border-warning pb-2 mb-4">
+    <h1 class="text-black m-0">
+        <i class="bi bi-shield-check"></i>
+        Consultoría de Servicios Histórico
+    </h1>
+</div>
+
+<div class="container py-4">
+
+    <div class="row g-4">
+
+        <div class="col-lg-6">
+
+            <div class="card h-100">
+
+                <div class="card-header bg-primary text-white">
+                    1. Filtros de consulta
+                </div>
+
+                <div class="card-body">
+
+                    <p>
+                        Permiten limitar la información que será analizada.
+                    </p>
+
+                    <ul>
+
+                        <li><b>Fuente</b>: origen de los datos (Borrador, Cuadrante, etc.).</li>
+
+                        <li><b>Año / Mes</b>: periodo analizado.</li>
+
+                        <li><b>Borrador</b>: versión concreta del cuadrante.</li>
+
+                        <li><b>Fecha cuadrante</b>: rango de fechas de los servicios.</li>
+
+                        <li><b>Agente</b>: analiza únicamente los agentes seleccionados.</li>
+
+                        <li><b>Usuario</b>: filtra por el operador que realizó los cambios.</li>
+
+                        <li><b>Tipo de movimiento</b>: limita el análisis a determinadas acciones.</li>
+
+                        <li><b>Servicio</b>: filtra por actividades o servicios.</li>
+
+                    </ul>
+
+                    <p>
+
+                        Pulse <b>Consultar</b> para generar nuevamente todas las estadísticas.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-6">
+
+            <div class="card h-100">
+
+                <div class="card-header bg-success text-white">
+
+                    2. Indicadores (KPIs)
+
+                </div>
+
+                <div class="card-body">
+
+                    <table class="table">
+
+                        <tr>
+                            <th>Volatilidad</th>
+                            <td>
+
+                                Porcentaje de asignaciones modificadas respecto al total del cuadrante.
+
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th>Cambios efectivos</th>
+                            <td>
+
+                                Número real de cambios realizados sobre asignaciones.
+
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th>Retrabajo</th>
+                            <td>
+
+                                Porcentaje de asignaciones modificadas más de una vez.
+
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th>Cambios tardíos</th>
+                            <td>
+
+                                Cambios realizados cuando el cuadrante ya estaba prácticamente cerrado.
+
+                            </td>
+                        </tr>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-6">
+
+            <div class="card h-100">
+
+                <div class="card-header bg-info text-white">
+
+                    3. Evolución temporal
+
+                </div>
+
+                <div class="card-body">
+
+                    <p>
+
+                        El gráfico muestra la evolución diaria de la actividad.
+
+                    </p>
+
+                    <ul>
+
+                        <li>Total de cambios.</li>
+
+                        <li>Ediciones individuales.</li>
+
+                        <li>Ediciones masivas.</li>
+
+                    </ul>
+
+                    <p>
+
+                        Permite detectar jornadas con elevada actividad o periodos de estabilidad.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-6">
+
+            <div class="card h-100">
+
+                <div class="card-header bg-secondary text-white">
+
+                    4. Cambios por usuario
+
+                </div>
+
+                <div class="card-body">
+
+                    <p>
+
+                        Representa el número de modificaciones realizadas por cada usuario.
+
+                    </p>
+
+                    <p>
+
+                        Permite conocer:
+
+                    </p>
+
+                    <ul>
+
+                        <li>Carga de trabajo.</li>
+
+                        <li>Participación de cada operador.</li>
+
+                        <li>Distribución de modificaciones.</li>
+
+                    </ul>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-6">
+
+            <div class="card h-100">
+
+                <div class="card-header bg-warning">
+
+                    5. Agentes con cambios
+
+                </div>
+
+                <div class="card-body">
+
+                    <p>
+
+                        Lista los agentes afectados durante el periodo seleccionado.
+
+                    </p>
+
+                    <p>
+
+                        La columna <b>Cambios</b> indica el número de modificaciones sufridas por cada agente.
+
+                    </p>
+
+                    <p>
+
+                        Al seleccionar un agente, el resto de gráficos se actualiza mostrando únicamente su
+                        actividad.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-6">
+
+            <div class="card h-100">
+
+                <div class="card-header bg-danger text-white">
+
+                    6. Detalle de cambios
+
+                </div>
+
+                <div class="card-body">
+
+                    <p>
+
+                        Es la auditoría completa de modificaciones.
+
+                    </p>
+
+                    <p>
+
+                        Cada fila representa un cambio efectivo realizado sobre una asignación.
+
+                    </p>
+
+                    <table class="table table-sm">
+
+                        <tr>
+
+                            <th>Columna</th>
+
+                            <th>Descripción</th>
+
+                        </tr>
+
+                        <tr>
+
+                            <td>Fecha cambio</td>
+
+                            <td>Momento exacto en que se realizó la modificación.</td>
+
+                        </tr>
+
+                        <tr>
+
+                            <td>Agente</td>
+
+                            <td>Persona afectada.</td>
+
+                        </tr>
+
+                        <tr>
+
+                            <td>Usuario</td>
+
+                            <td>Operador que realizó el cambio.</td>
+
+                        </tr>
+
+                        <tr>
+
+                            <td>Fecha cuadrante</td>
+
+                            <td>Día del servicio modificado.</td>
+
+                        </tr>
+
+                        <tr>
+
+                            <td>Servicio antes</td>
+
+                            <td>Actividad existente previamente.</td>
+
+                        </tr>
+
+                        <tr>
+
+                            <td>Servicio después</td>
+
+                            <td>Nueva actividad asignada.</td>
+
+                        </tr>
+
+                        <tr>
+
+                            <td>Acción</td>
+
+                            <td>Tipo de modificación realizada.</td>
+
+                        </tr>
+
+                    </table>
+
+                    <p>
+
+                        Todas las columnas permiten ordenar y filtrar información.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-12">
+
+            <div class="card">
+
+                <div class="card-header bg-dark text-white">
+
+                    Interpretación de los indicadores
+
+                </div>
+
+                <div class="card-body">
+
+                    <div class="row">
+
+                        <div class="col-md-4">
+
+                            <h5 class="text-success">
+                                🟢 Cuadrante estable
+                            </h5>
+
+                            <p>
+
+                                Volatilidad inferior al 5%.
+
+                                Pocas modificaciones y planificación consolidada.
+
+                            </p>
+
+                        </div>
+
+                        <div class="col-md-4">
+
+                            <h5 class="text-warning">
+
+                                🟡 Actividad normal
+
+                            </h5>
+
+                            <p>
+
+                                Entre el 5% y el 15%.
+
+                                Corresponde a ajustes habituales del servicio.
+
+                            </p>
+
+                        </div>
+
+                        <div class="col-md-4">
+
+                            <h5 class="text-danger">
+
+                                🔴 Alta variabilidad
+
+                            </h5>
+
+                            <p>
+
+                                Más del 15%.
+
+                                Conviene revisar la planificación, ya que existen numerosas modificaciones.
+
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+
+</html>

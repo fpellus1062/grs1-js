@@ -197,6 +197,7 @@ exports.historialQuerySchema = Joi.object({
   mes: Joi.number().integer().min(1).max(12).required(),
   borrador_id: Joi.number().integer().positive().allow(null, ''),
   agente_id: Joi.number().integer().positive().allow(null, ''),
+  actividad_id: Joi.number().integer().positive().allow(null, ''),
   agente_ids: Joi.string()
     .trim()
     .pattern(/^\d+(,\d+)*$/)
@@ -218,13 +219,33 @@ exports.historialQuerySchema = Joi.object({
       /^(\d{4}-\d{2}-\d{2}|__SIN_FECHA_MASIVO__)(,(\d{4}-\d{2}-\d{2}|__SIN_FECHA_MASIVO__))*$/
     )
     .allow('', null),
-  repetir_comunicados: Joi.boolean().truthy('1').truthy('true').falsy('0').falsy('false').default(false),
+  estado_comunicado: Joi.string()
+    .valid('pendientes', 'comunicados', 'todos')
+    .default('pendientes'),
+  repetir_comunicados: Joi.boolean()
+    .truthy('1')
+    .truthy('true')
+    .falsy('0')
+    .falsy('false')
+    .allow(null, ''),
   marcar_comunicados: Joi.boolean().truthy('1').truthy('true').falsy('0').falsy('false').default(true),
   export_ts: Joi.string().trim().pattern(/^\d{8}_\d{6}$/).allow('', null),
   nombre_borrador: Joi.string().trim().max(200).allow('', null),
+  modo: Joi.string().valid('compact', 'raw').default('compact'),
   page: Joi.number().integer().min(1).default(1),
-  limit: Joi.number().integer().min(1).max(5000).default(1000),
+  limit: Joi.number().integer().min(1).max(50000).default(1000),
   fechas: Joi.string().trim().allow('', null),
+});
+
+exports.historialInsightsQuerySchema = exports.historialQuerySchema.keys({
+  include_logs: Joi.boolean()
+    .truthy('1')
+    .truthy('true')
+    .falsy('0')
+    .falsy('false')
+    .default(false),
+  top_usuarios: Joi.number().integer().min(1).max(50).default(12),
+  top_agentes_heatmap: Joi.number().integer().min(1).max(80).default(40),
 });
 
 exports.historialCeldaQuerySchema = Joi.object({

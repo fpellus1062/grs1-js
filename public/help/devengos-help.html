@@ -75,7 +75,7 @@
       </div>
       <div class="card-body">
         <ul class="small mb-0">
-          <li>Qué actividad o grupo de actividades afecta.</li>
+          <li>Qué servicio o grupo de actividades afecta.</li>
           <li>Qué empleo afecta (si aplica).</li>
           <li>Tipo de movimiento: devengo, disfrute o descanso.</li>
           <li>Valor por módulo.</li>
@@ -144,7 +144,7 @@
         <p class="small text-muted mb-2">Si varias reglas podrían aplicar, el motor prioriza la más específica según:
         </p>
         <ol class="small mb-3">
-          <li>Coincidencia exacta por actividad antes que grupo.</li>
+          <li>Coincidencia exacta por servicio antes que grupo.</li>
           <li>Mejor encaje de empleo.</li>
           <li>Regla alcanzada por umbral de días.</li>
           <li>Mayor especificidad modular en solapamientos.</li>
@@ -260,7 +260,7 @@
         <div class="small mb-2"><strong>¿Cuántas reglas puedo tener?</strong><br />Las que necesites, siempre que no se
           contradigan funcionalmente.</div>
         <div class="small mb-2"><strong>¿Puedo tener reglas de devengo, disfrute y descanso al mismo
-            tiempo?</strong><br />Sí, una para sumar y otra para restar, según actividad y condiciones.</div>
+            tiempo?</strong><br />Sí, una para sumar y otra para restar, según servicio y condiciones.</div>
         <div class="small mb-2"><strong>No veo los dias devengados correctos</strong><br />
           <ul>
             <li> Revisa la <strong>vigencia </strong> de las <strong>fechas de aplicación de las reglas</strong>.</li>
@@ -329,26 +329,26 @@
               <tr>
                 <td><strong>condicion_alcance</strong></td>
                 <td>Ámbito de aplicación funcional de la regla.</td>
-                <td>actividad / grupo / cualquier_actividad</td>
+                <td>servicio / grupo / cualquier_actividad</td>
                 <td>Filtra qué asignaciones entran en base de cálculo.</td>
-                <td>Actividad (1 sola) es la más específica, grupo (varias) es más general y cualquier_actividad aplica
-                  a todas las asignaciones sin discriminar por actividad.</td>
+                <td>Servicio (1 sola) es la más específica, grupo (varias) es más general y cualquier_actividad aplica
+                  a todas las asignaciones sin discriminar por servicio.</td>
               </tr>
               <tr>
-                <td><strong>Actividad</strong></td>
-                <td>Actividad concreta a la que aplica la regla.</td>
+                <td><strong>Servicio</strong></td>
+                <td>Servicio concreta a la que aplica la regla.</td>
                 <td>27</td>
                 <td>Mayor especificidad.</td>
-                <td>Si una asignación coincide con una regla de actividad, se aplica esa regla aunque haya otras reglas
+                <td>Si una asignación coincide con una regla de servicio, se aplica esa regla aunque haya otras reglas
                   de grupo o generales que también podrían aplicar.</td>
               </tr>
               <tr>
                 <td><strong>grupo_id</strong></td>
                 <td>Grupo de actividades al que aplica la regla.</td>
                 <td>NO DISPONIBLES</td>
-                <td>Aplica cuando no hay una regla más específica por actividad.</td>
-                <td>Si una asignación no coincide con ninguna regla de actividad, pero sí con una regla de grupo a la
-                  que pertenece su actividad, se aplica la regla de grupo.</td>
+                <td>Aplica cuando no hay una regla más específica por servicio.</td>
+                <td>Si una asignación no coincide con ninguna regla de servicio, pero sí con una regla de grupo a la
+                  que pertenece su servicio, se aplica la regla de grupo.</td>
               </tr>
               <tr>
                 <td><strong>empleo_id</strong></td>

@@ -157,6 +157,10 @@ exports.getCuadrante = async (req, res, next) => {
         : null;
     const fechaCorte =
       req.query && req.query.fecha_corte ? String(req.query.fecha_corte) : null;
+    const fechaInicio =
+      req.query && req.query.fecha_inicio
+        ? String(req.query.fecha_inicio)
+        : null;
     const fechaFin =
       req.query && req.query.fecha_fin ? String(req.query.fecha_fin) : null;
     const data = await service.getCuadrante(
@@ -165,7 +169,12 @@ exports.getCuadrante = async (req, res, next) => {
       borradorId,
       req.user,
       req.arsId,
-      { source: source, fecha_corte: fechaCorte, fecha_fin: fechaFin }
+      {
+        source: source,
+        fecha_corte: fechaCorte,
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaFin,
+      }
     );
     res.json({ ok: true, ...data });
   } catch (error) {
@@ -456,6 +465,17 @@ exports.getHistorial = async (req, res, next) => {
     res.json({ ok: true, ...result });
   } catch (error) {
     next(new ApiError(500, error.message || 'Error al obtener historial'));
+  }
+};
+
+exports.getHistorialInsights = async (req, res, next) => {
+  try {
+    const result = await service.getHistorialInsights(req.query, req.arsId);
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    next(
+      new ApiError(500, error.message || 'Error al obtener insights de historial')
+    );
   }
 };
 
