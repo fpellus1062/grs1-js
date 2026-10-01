@@ -1000,7 +1000,7 @@
           },
         },
         {
-          title: 'Borrador',
+          title: 'Cuadrante',
           field: 'borrador_nombre',
           width: 170,
           headerFilter: 'input',

@@ -15,4 +15,5 @@ router.use('/audit', require('./audit.routes'));
 router.use('/cuadrantes', require('./cuadrantes.routes'));
 router.use('/help', require('./help.routes'));
 router.use('/planificacion', require('./planificacion.routes'));
+router.use('/backup', require('./backup.routes'));
 module.exports = router;

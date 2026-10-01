@@ -72,6 +72,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-this-secret-for-qnap}
       DEVENGOS_WORKER_ENABLED: ${DEVENGOS_WORKER_ENABLED:-true}
       DEVENGOS_WORKER_INTERVAL_MS: ${DEVENGOS_WORKER_INTERVAL_MS:-300000}
+      BACKUP_BASE_DIR: /usr/src/app/data/backups
+    volumes:
+      - grs1_backups:/usr/src/app/data/backups
     expose:
       - "3000"
     healthcheck:
@@ -118,6 +121,7 @@ services:
 
 volumes:
   grs1_pgdata:
+  grs1_backups:
 
 networks:
   grs1_net:

@@ -1741,5 +1741,9 @@
     if (typeof app.setupAuditEventListeners === 'function') {
       app.setupAuditEventListeners();
     }
+
+    if (typeof app.initializeBackups === 'function') {
+      app.initializeBackups();
+    }
   };
 })();

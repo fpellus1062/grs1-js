@@ -1596,8 +1596,11 @@
 
       let activeRows = getActiveTabulatorRows();
       let activeCount = activeRows.length;
+      let selectedSet = getSelectedAgenteIdsVistaSet();
       let selectedActiveCount = activeRows.filter(function (row) {
-        return row && typeof row.isSelected === 'function' && row.isSelected();
+        let rowData = row && typeof row.getData === 'function' ? row.getData() : null;
+        let agenteId = Number(rowData && rowData.agente_id);
+        return Number.isFinite(agenteId) && selectedSet.has(agenteId);
       }).length;
 
       headerCheckbox.disabled = activeCount === 0;
@@ -1635,6 +1638,7 @@
         )
       );
       app.asignacionesState.selectedAgenteIdsVista = uniqueIds;
+      refreshMetaResumenFromState();
       clearHistoryAuditCache();
       if (app.asignacionesState.asigCellHistoryMode && !uniqueIds.length) {
         setAsigCellHistoryMode(false);
@@ -3202,6 +3206,7 @@
 
   function clearAsigSelection() {
     app.asignacionesState.selectedAgenteIdsVista = [];
+    refreshMetaResumenFromState();
     scheduleGridRedraw();
     let headerCheckbox = /** @type {HTMLInputElement|null} */ (
       document.querySelector('#asigGridContainer .asig-select-all-active')

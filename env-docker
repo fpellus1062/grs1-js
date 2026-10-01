@@ -20,3 +20,6 @@ KEEP_ALIVE_TIMEOUT_MS=75000
 SOCKET_TIMEOUT_MS=600000
 
 DEVENGOS_WORKER_ENABLED=true
+
+# Carpeta base (dentro del contenedor) donde se guardan las copias de seguridad
+BACKUP_BASE_DIR=/usr/src/app/data/backups
