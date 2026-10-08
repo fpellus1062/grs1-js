@@ -64,7 +64,6 @@
   var PLANIF_TABULATOR_RENDER_HORIZONTAL = 'virtual';
   var _planifCollapseRedrawTimeout = 0;
   var _planifSelectedAgenteIds = new Set(); // Agentes seleccionados para exportar
-  var _planifSelectedAgenteIds = new Set(); // Agentes seleccionados para exportar
 
   function resetPlanificacionStateData() {
     if (app.resetPlanificacionStoreState) {
@@ -503,7 +502,7 @@
     return actividad || ('#' + String(actividadId || '—'));
   }
 
-  function applyLeftPanelCollapsed(collapsed, contextEl) {
+  function applyLeftPanelCollapsed(collapsed, _contextEl) {
     state.leftPanelCollapsed = !!collapsed;
 
     var left = document.getElementById('planifLeftPanel');
@@ -529,7 +528,7 @@
       if (_planifCollapseRedrawTimeout) {
         clearTimeout(_planifCollapseRedrawTimeout);
       }
-      _planifCollapseRedrawTimeout = setTimeout(function () {
+      _planifCollapseRedrawTimeout = window.setTimeout(function () {
         _planifCollapseRedrawTimeout = 0;
         if (_planifTabulator && typeof _planifTabulator.redraw === 'function') {
           _planifTabulator.redraw(false);
@@ -2095,12 +2094,15 @@
     document.getElementById('bulkCellCount').textContent = items.length + ' celda(s)';
     
     // ─ Botón Continuar ─
-    document.getElementById('bulkConfirmBtn').addEventListener('click', async function () {
+    var bulkConfirmBtn = /** @type {HTMLButtonElement} */ (document.getElementById('bulkConfirmBtn'));
+    var bulkCancelBtn = /** @type {HTMLButtonElement} */ (document.getElementById('bulkCancelBtn'));
+
+    bulkConfirmBtn.addEventListener('click', async function () {
       document.getElementById('bulkConfirmPanel').style.display = 'none';
       document.getElementById('bulkProgressPanel').style.display = 'block';
       document.getElementById('bulkModalTitle').textContent = 'Procesando asignación masiva...';
-      document.getElementById('bulkConfirmBtn').disabled = true;
-      document.getElementById('bulkCancelBtn').disabled = true;
+      bulkConfirmBtn.disabled = true;
+      bulkCancelBtn.disabled = true;
 
       try {
         await procesarBulkAsignaciones(items, actividadId, modalId, modal);
@@ -2163,10 +2165,10 @@
           var barEl = document.getElementById('bulkProgressBar');
           if (barEl) {
             barEl.style.width = pct + '%';
-            barEl.setAttribute('aria-valuenow', pct);
+            barEl.setAttribute('aria-valuenow', String(pct));
           }
           var textEl = document.getElementById('bulkProgressText');
-          if (textEl) textEl.textContent = totalProcessed;
+          if (textEl) textEl.textContent = String(totalProcessed);
         }
 
         // ─ Pequeña pausa para dejar respirar el navegador ─

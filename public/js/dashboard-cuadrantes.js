@@ -1071,6 +1071,8 @@
     let allowAutoSelect = options.allowAutoSelect !== false;
     let reloadAsignacionesWhenCleared =
       options.reloadAsignacionesWhenCleared === true;
+    let reloadAsignacionesWhenSelected =
+      options.reloadAsignacionesWhenSelected === true;
 
     let sel = document.getElementById('asigCuadrante');
     if (!sel) return;
@@ -1119,6 +1121,10 @@
       sel.value = String(selectedFromList.id);
       syncCuadranteAPeriodo(selectedFromList);
       setHeaderActionsDisabled(false);
+      if (reloadAsignacionesWhenSelected) {
+        await app.loadAsignacionesBorradores();
+        await app.loadAsignacionesCuadrante();
+      }
       return;
     }
 
@@ -1188,7 +1194,7 @@
     }
 
     // Cargar cuadrantes al iniciar para rellenar el selector de la toolbar
-    loadCuadrantes();
+    loadCuadrantes({ reloadAsignacionesWhenSelected: true });
   };
 
   // ── Auto-init cuando se carga el módulo de asignaciones ───────

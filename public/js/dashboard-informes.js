@@ -2906,6 +2906,9 @@
           counter: { showing: 'Mostrando', of: 'de', rows: 'filas', pages: 'páginas' },
         },
         headerFilters: { default: 'Filtrar...' },
+        initialSort:[
+          {column:"fecha_cambio_ts", dir:"desc"}, //sort by this first
+      ]
       },
     };
 

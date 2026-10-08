@@ -1,21 +1,5 @@
 <!-- Dashboard principal -->
 <style>
-  .dash-kpi-card-primary {
-    border-left: 4px solid var(--primary-gc-color, #276836) !important;
-  }
-
-  .dash-kpi-card-blue {
-    border-left: 4px solid #0d6efd !important;
-  }
-
-  .dash-kpi-card-orange {
-    border-left: 4px solid #fd7e14 !important;
-  }
-
-  .dash-kpi-card-purple {
-    border-left: 4px solid #6f42c1 !important;
-  }
-
   .dash-icon-primary {
     color: var(--primary-gc-color, #276836);
   }
@@ -63,6 +47,12 @@
     font-size: .72rem;
   }
 
+  .dash-range-presets .btn.active {
+    background: var(--primary-gc-color, #276836);
+    border-color: var(--primary-gc-color, #276836);
+    color: #fff;
+  }
+
   .dash-borrador-wrap {
     display: inline-flex;
     align-items: center;
@@ -87,9 +77,109 @@
     min-height: 160px;
   }
 
+  .dash-chart-grid-lg {
+    min-height: 0;
+  }
+
+  .dash-chart-panel-body-lg {
+    height: 320px;
+  }
+
+  .dash-chart-panel-body-lg .dash-chart-placeholder,
+  .dash-chart-panel-body-lg .dash-loading-hidden,
+  .dash-chart-panel-body-lg .dash-chart-grid-lg {
+    flex: 1 1 auto;
+  }
+
+  .dash-chart-panel-body-lg .dash-chart-grid-lg {
+    height: 100%;
+  }
+
+  .dash-chart-grid-xl {
+    min-height: 340px;
+  }
+
   .dash-chart-fixed {
     width: 100%;
     height: 160px;
+  }
+
+  .dash-chart-fixed-lg {
+    height: 300px;
+  }
+
+  .dash-service-detail-tools {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    margin-left: auto;
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .dash-service-detail-caption {
+    font-size: .76rem;
+    color: #6c757d;
+    text-align: right;
+    min-width: 0;
+  }
+
+  .dash-service-detail-export {
+    padding: .1rem .35rem;
+    font-size: .7rem;
+    line-height: 1.1;
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
+
+  .dash-service-detail-export .bi {
+    margin-right: .15rem;
+  }
+
+  .dash-service-detail-table {
+    min-height: 300px;
+  }
+
+  .dash-service-detail-table .tabulator {
+    border: 0;
+    font-size: .82rem;
+  }
+
+  .dash-service-detail-table .tabulator .tabulator-header .tabulator-col,
+  .dash-service-detail-table .tabulator .tabulator-header .tabulator-col input {
+    font-size: .78rem;
+  }
+
+  .dash-service-detail-table .tabulator .tabulator-header .tabulator-col {
+    padding-top: .15rem;
+    padding-bottom: .15rem;
+  }
+
+  .dash-service-detail-table .tabulator .tabulator-cell {
+    padding: .2rem .35rem;
+  }
+
+  .dash-service-detail-tools {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    margin-left: auto;
+  }
+
+  .dash-service-detail-caption {
+    font-size: .76rem;
+    color: #6c757d;
+  }
+
+  .dash-service-detail-empty {
+    min-height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #6c757d;
+    font-size: .88rem;
+    padding: 1rem;
   }
 
   .dash-heatmap-badge {
@@ -100,42 +190,6 @@
   }
 </style>
 <div class="px-1 py-2">
-
-  <!-- ── KPI strip ─────────────────────────────────── -->
-  <div class="row g-2 mb-3" id="dashboardKpiRow">
-    <div class="col-6 col-md-3">
-      <div class="card border-0 shadow-sm h-100 dash-kpi-card-primary">
-        <div class="card-body py-2 px-3">
-          <div class="text-muted small">Total agentes</div>
-          <div class="fw-bold fs-4 lh-1" id="kpiTotalAgentes">—</div>
-        </div>
-      </div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="card border-0 shadow-sm h-100 dash-kpi-card-blue">
-        <div class="card-body py-2 px-3">
-          <div class="text-muted small">Pelotones</div>
-          <div class="fw-bold fs-4 lh-1" id="kpiTotalPelotones">—</div>
-        </div>
-      </div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="card border-0 shadow-sm h-100 dash-kpi-card-orange">
-        <div class="card-body py-2 px-3">
-          <div class="text-muted small">Empleos</div>
-          <div class="fw-bold fs-4 lh-1" id="kpiTotalEmpleos">—</div>
-        </div>
-      </div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="card border-0 shadow-sm h-100 dash-kpi-card-purple">
-        <div class="card-body py-2 px-3">
-          <div class="text-muted small">Servicios</div>
-          <div class="fw-bold fs-4 lh-1" id="kpiTotalSituaciones">—</div>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- ── Cabecera común de filtros ─────────────────── -->
   <div class="card border-0 shadow-sm mb-3 section-sticky-header">
@@ -178,9 +232,9 @@
   </div>
 
   <!-- ── Fila 1: Gráfico de Disponibilidad de Agentes (ancho completo) ────────── -->
-  <div class="row g-3 mb-3">
-    <div class="col-12 col-xl-6">
-      <div class="card border-0 shadow-sm">
+  <div class="row g-3 mb-3 align-items-stretch">
+    <div class="col-12 col-xxl-6">
+      <div class="card border-0 shadow-sm h-100">
         <div class="card-header bg-white border-bottom py-2 px-3 d-flex align-items-center gap-2 flex-wrap">
           <span class="fw-semibold small me-auto">
             <i class="bi bi-bar-chart-steps me-1 dash-icon-blue"></i>
@@ -188,7 +242,7 @@
           </span>
           <span class="dash-chart-context" id="dashHeatmap2Info">Fuente: — · Año: — · Mes: — · Detalle: —</span>
         </div>
-        <div class="card-body p-2">
+        <div class="card-body p-2 d-flex flex-column dash-chart-panel-body-lg">
           <div id="chartHeatmap2Placeholder" class="text-center text-muted py-5 dash-chart-placeholder">
             <i class="bi bi-bar-chart d-block fs-1 opacity-25 mb-2"></i>
             Selecciona la fuente para ver el apilado por niveles.
@@ -197,20 +251,20 @@
             <div class="spinner-border spinner-border-sm me-2" role="status"></div>Cargando datos de la fuente
             seleccionada...
           </div>
-          <div id="chartHeatmap2" class="dash-chart-grid dash-chart-hidden"></div>
+          <div id="chartHeatmap2" class="dash-chart-grid dash-chart-grid-lg dash-chart-hidden"></div>
         </div>
       </div>
     </div>
-    <div class="col-12 col-xl-6">
-      <div class="card border-0 shadow-sm">
+    <div class="col-12 col-xxl-6">
+      <div class="card border-0 shadow-sm h-100">
         <div class="card-header bg-white border-bottom py-2 px-3 d-flex align-items-center gap-2 flex-wrap">
           <span class="fw-semibold small me-auto text-danger-emphasis">
             <i class="bi-person-fill-slash me-1 dash-icon-primary"></i>
-            Detalle de "NO DISPONIBLES" por Servicio
+            <span id="dashGrupoNivel3InfoTitle">NO DISPONIBLES</span>
           </span>
           <span class="dash-chart-context" id="dashGrupoNivel3Info">Fuente: — · Año: — · Mes: — · Detalle: —</span>
         </div>
-        <div class="card-body p-2">
+        <div class="card-body p-2 d-flex flex-column dash-chart-panel-body-lg">
           <div id="chartGrupoNivel3StackPlaceholder" class="text-center text-muted py-5 dash-chart-placeholder">
             <i class="bi bi-bar-chart d-block fs-1 opacity-25 mb-2"></i>
             Selecciona la fuente para ver el apilado por grupos categoría.
@@ -218,15 +272,15 @@
           <div id="chartGrupoNivel3StackLoading" class="text-center text-muted py-4 dash-loading-hidden">
             <div class="spinner-border spinner-border-sm me-2" role="status"></div>Cargando grupos categoría...
           </div>
-          <div id="chartGrupoNivel3Stack" class="dash-chart-grid dash-chart-hidden"></div>
+          <div id="chartGrupoNivel3Stack" class="dash-chart-grid dash-chart-grid-lg dash-chart-hidden"></div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ── Fila 2: Matriz pelotones × actividades ────────── -->
+  <!-- ── Fila 2: Matriz + donut ────────── -->
   <div class="row g-3 mb-3">
-    <div class="col-12">
+    <div class="col-12 col-xxl-12">
       <div class="card border-0 shadow-sm">
         <div class="card-header bg-white border-bottom py-2 px-3 d-flex align-items-center gap-2 flex-wrap">
           <span class="fw-semibold small me-auto">
@@ -243,16 +297,11 @@
           <div id="chartMatrixLoading" class="text-center text-muted py-4 dash-loading-hidden">
             <div class="spinner-border spinner-border-sm me-2" role="status"></div>Cargando matriz...
           </div>
-          <div id="chartMatrix" class="dash-chart-grid dash-chart-hidden"></div>
+          <div id="chartMatrix" class="dash-chart-grid dash-chart-grid-xl dash-chart-hidden"></div>
         </div>
       </div>
     </div>
-  </div>
-
-  <!-- ── Gráficos ───────────────────────────────────── -->
-  <div class="row g-3">
-    <!-- Donut: por servicio -->
-    <div class="col-12 col-md-4">
+    <div class="col-12 col-xl-5 col-xxl-4">
       <div class="card border-0 shadow-sm h-100">
         <div class="card-header bg-white border-bottom py-2 px-3 d-flex align-items-center gap-2 flex-wrap">
           <span class="fw-semibold small me-auto">
@@ -269,13 +318,39 @@
           <div id="chartActividadLoading" class="text-center text-muted py-4 dash-loading-hidden">
             <div class="spinner-border spinner-border-sm me-2" role="status"></div>Cargando actividades...
           </div>
-          <div id="chartSituacion" class="dash-chart-fixed dash-chart-hidden"></div>
+          <div id="chartSituacion" class="dash-chart-fixed dash-chart-fixed-lg dash-chart-hidden"></div>
         </div>
       </div>
     </div>
+    <div class="col-12 col-xl-7 col-xxl-8">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white border-bottom py-2 px-3 d-flex align-items-center gap-2 flex-wrap">
+          <span class="fw-semibold small me-auto">
+            <i class="bi bi-table me-1 dash-icon-blue"></i>
+            Agentes del servicio seleccionado
+          </span>
+          <span class="dash-service-detail-tools">
+            <span class="dash-service-detail-caption" id="dashActividadAgentsInfo">Haz clic en un sector del
+              gráfico.</span>
+            <button type="button" id="dashActividadAgentsExportBtn"
+              class="btn btn-outline-success btn-sm dash-service-detail-export" disabled>
+              <i class="bi bi-file-earmark-excel"></i>Excel
+            </button>
+          </span>
+        </div>
+        <div class="card-body p-2">
+          <div id="dashActividadAgentsEmpty" class="dash-service-detail-empty">
+            Selecciona un servicio en el donut para listar agentes y días asignados en el rango filtrado.
+          </div>
+          <div id="dashActividadAgentsTable" class="dash-service-detail-table dash-chart-hidden"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-    <!-- Barras horizontales: por empleo -->
-    <div class="col-12 col-md-4">
+  <!-- ── Fila 3: Distribuciones auxiliares ───────────────────────────────────── -->
+  <div class="row g-3">
+    <div class="col-12 col-md-6">
       <div class="card border-0 shadow-sm h-100">
         <div class="card-header bg-white border-bottom py-2 px-3">
           <span class="fw-semibold small">
@@ -289,8 +364,7 @@
       </div>
     </div>
 
-    <!-- Barras: por pelotón -->
-    <div class="col-12 col-md-4">
+    <div class="col-12 col-md-6">
       <div class="card border-0 shadow-sm h-100">
         <div class="card-header bg-white border-bottom py-2 px-3">
           <span class="fw-semibold small">

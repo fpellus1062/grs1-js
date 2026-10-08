@@ -7,6 +7,11 @@
       : function () {
           return '';
         };
+  const renderColorBadgeHtml =
+    typeof utils.renderColorBadgeHtml === 'function'
+      ? utils.renderColorBadgeHtml
+      : null;
+  const TABULATOR_LANGS = window['GRS1TabulatorLangs'] || {};
 
   const SESSION_AUTH_KEYS = Array.isArray(app.sessionAuthKeys)
     ? app.sessionAuthKeys
@@ -894,6 +899,43 @@
     await app.triggerDashboardRefresh({ force: true });
   };
 
+  async function loadDashboardAgentesMetaCached(headers) {
+    let cacheKey = String((app && app.globalState && app.globalState.activeArsId) || '');
+    if (app._dashAgentesMetaKey === cacheKey && app._dashAgentesMetaPromise) {
+      return app._dashAgentesMetaPromise;
+    }
+
+    app._dashAgentesMetaKey = cacheKey;
+    app._dashAgentesMetaPromise = (async function () {
+      let response = await fetch('/api/agentes/meta', { headers: headers });
+      if (!response.ok) {
+        throw new Error('No se pudieron cargar los metadatos de agentes');
+      }
+      let metaJson = await response.json();
+      if (app.agentesState) {
+        app.agentesState.situaciones = Array.isArray(metaJson.situaciones)
+          ? metaJson.situaciones
+          : [];
+        app.agentesState.pelotones = Array.isArray(metaJson.pelotones)
+          ? metaJson.pelotones
+          : [];
+        app.agentesState.empleos = Array.isArray(metaJson.empleos)
+          ? metaJson.empleos
+          : [];
+      }
+      return metaJson;
+    })();
+
+    try {
+      return await app._dashAgentesMetaPromise;
+    } catch (error) {
+      if (app._dashAgentesMetaKey === cacheKey) {
+        app._dashAgentesMetaPromise = null;
+      }
+      throw error;
+    }
+  }
+
   app.refreshDashboardStats = async function refreshDashboardStats() {
     // Guardar instancias para poder hacer resize
     if (!app._dashCharts) app._dashCharts = {};
@@ -902,15 +944,15 @@
       const headers = { Authorization: `Bearer ${app.globalState.token}` };
       const [agentesResponse, metaResponse] = await Promise.all([
         fetch('/api/agentes', { headers }),
-        fetch('/api/agentes/meta', { headers }),
+        loadDashboardAgentesMetaCached(headers),
       ]);
 
-      if (!agentesResponse.ok || !metaResponse.ok) {
+      if (!agentesResponse.ok) {
         throw new Error('No se pudieron cargar las estadísticas de agentes');
       }
 
       const agentesJson = await agentesResponse.clone().json();
-      const metaJson = await metaResponse.clone().json();
+      const metaJson = metaResponse || {};
       const agentes = Array.isArray(agentesJson.agentes)
         ? agentesJson.agentes
         : [];
@@ -947,10 +989,12 @@
         let el = document.getElementById(id);
         if (el) el.textContent = val;
       };
-      setKpi('kpiTotalAgentes', agentes.length);
-      setKpi('kpiTotalPelotones', distinctPelotones.size);
-      setKpi('kpiTotalEmpleos', distinctEmpleos.size);
-      setKpi('kpiTotalSituaciones', distinctSituaciones.size);
+      if (!document.getElementById('kpiAgentesDisponibles')) {
+        setKpi('kpiTotalAgentes', agentes.length);
+        setKpi('kpiTotalPelotones', distinctPelotones.size);
+        setKpi('kpiTotalEmpleos', distinctEmpleos.size);
+        setKpi('kpiTotalSituaciones', distinctSituaciones.size);
+      }
 
       // ── Agregar conteos ────────────────────────────────────────
       let byEmp = new Map(); // empleo_id    → { nombre, color, count }
@@ -1125,15 +1169,6 @@
         });
       }
     } catch (error) {
-      [
-        'kpiTotalAgentes',
-        'kpiTotalPelotones',
-        'kpiTotalEmpleos',
-        'kpiTotalSituaciones',
-      ].forEach(function (id) {
-        let el = document.getElementById(id);
-        if (el) el.textContent = '—';
-      });
       console.error('[Dashboard] Error cargando estadísticas:', error.message);
     }
   };
@@ -1151,6 +1186,40 @@
       : '—';
   }
 
+  app.refreshDashboardOperationalPanel =
+    async function refreshDashboardOperationalPanel() {
+      return;
+    };
+
+  function detectDashboardActivePreset(anio, mes) {
+    let range = getDashboardDateRange(anio, mes);
+    if (!range || !range.start || !range.end) return '';
+
+    let bounds = getDashboardRangeBounds(anio, mes);
+    let minIso = String(bounds.start || '').slice(0, 10);
+    let maxIso = String(bounds.end || '').slice(0, 10);
+    let todayIso = clampIsoDate(getDashboardMadridTodayIso(), minIso, maxIso);
+    let sevenEnd = clampIsoDate(isoPlusDays(todayIso, 6), minIso, maxIso);
+
+    if (range.start === minIso && range.end === maxIso) return 'all';
+    if (range.start === todayIso && range.end === todayIso) return 'today';
+    if (range.start === todayIso && range.end === sevenEnd) return '7d';
+    return '';
+  }
+
+  function updateDashboardPresetButtons(anio, mes) {
+    let activePreset = detectDashboardActivePreset(anio, mes);
+    document
+      .querySelectorAll('#dashDatePresetWrap [data-preset]')
+      .forEach(function (button) {
+        if (!(button instanceof HTMLElement)) return;
+        let preset = String(button.getAttribute('data-preset') || '').toLowerCase();
+        let isActive = !!activePreset && preset === activePreset;
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+      });
+  }
+
   function setDashboardBadgeFuente(context) {
     let ctx = context || {};
     let fuente = ctx.fuente || '—';
@@ -1161,9 +1230,9 @@
     let text =
       'Fuente: ' +
       fuente +
-      ' · Año: ' +
+      ' · ' +
       anio +
-      ' · Mes: ' +
+      ' · ' +
       mes +
       ' · ' +
       detalle +
@@ -1400,7 +1469,7 @@
 
     let detalle =
       fuente === 'borrador'
-        ? 'Borrador: ' +
+        ? ' ' +
           getSelectOptionText(
             borradorSel,
             borradorId ? 'Borrador seleccionado' : 'Sin selección'
@@ -1522,6 +1591,7 @@
     fromEl.value = fromVal;
     toEl.value = toVal;
     app._dashDateRange = { start: fromVal, end: toVal };
+    updateDashboardPresetButtons(anio, mes);
     return app._dashDateRange;
   }
 
@@ -1582,6 +1652,7 @@
     fromEl.value = fromVal;
     toEl.value = toVal;
     app._dashDateRange = { start: fromVal, end: toVal };
+    updateDashboardPresetButtons(anio, mes);
     return app._dashDateRange;
   }
 
@@ -1832,6 +1903,322 @@
         app.escapeHtml(message);
       ph.style.display = '';
     });
+    resetDashboardActividadDetalle(
+      message || 'No hay datos para mostrar el detalle por servicio.'
+    );
+  }
+
+  function getDashboardActividadDetalleElements() {
+    return {
+      info: document.getElementById('dashActividadAgentsInfo'),
+      empty: document.getElementById('dashActividadAgentsEmpty'),
+      table: document.getElementById('dashActividadAgentsTable'),
+      exportBtn: /** @type {HTMLButtonElement | null} */ (
+        document.getElementById('dashActividadAgentsExportBtn')
+      ),
+    };
+  }
+
+  function getDashboardActividadDetallePeriodoLabel(anio, mes) {
+    let meses = getDashboardMesesLabels();
+    let mesIndex = Number(mes) - 1;
+    let mesLabel =
+      Number.isInteger(mesIndex) && mesIndex >= 0 && mesIndex < meses.length
+        ? meses[mesIndex]
+        : String(mes || '');
+    return [mesLabel, anio].filter(Boolean).join(' ');
+  }
+
+  function updateDashboardActividadDetalleExportState(disabled) {
+    let refs = getDashboardActividadDetalleElements();
+    if (refs.exportBtn) refs.exportBtn.disabled = !!disabled;
+  }
+
+  function sanitizeDashboardExportLabel(value) {
+    return String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/gi, '_')
+      .replace(/^_+|_+$/g, '') || 'servicio';
+  }
+
+  function formatDashboardDiaLabel(iso) {
+    let value = String(iso || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return '';
+    return value.slice(8, 10) + '/' + value.slice(5, 7);
+  }
+
+  function resolveDashboardAgenteNombre(row) {
+    if (!row) return '-';
+    let partesPreferidas = [
+      row.nombre || row.agente_nombre,
+      row.apellido_1 || row.agente_apellido1 || row.apellido1,
+    ]
+      .map(function (value) {
+        return String(value || '').trim();
+      })
+      .filter(Boolean);
+    if (partesPreferidas.length) return partesPreferidas.join(' ');
+    let nombre = String(
+      row.nombre_completo || row.agente || row.nombres || ''
+    ).trim();
+    if (nombre) return nombre;
+    let partes = [
+      row.apellidos,
+      row.apellido_1,
+      row.agente_apellido1,
+      row.apellido1,
+      row.apellido_2,
+      row.agente_apellido2,
+      row.apellido2,
+      row.nombres,
+    ]
+      .map(function (value) {
+        return String(value || '').trim();
+      })
+      .filter(Boolean);
+    return partes.join(' ') || '-';
+  }
+
+  function buildDashboardEmpleosMetaMap(metaData) {
+    let empleos = Array.isArray(metaData && metaData.empleos)
+      ? metaData.empleos
+      : [];
+    return new Map(
+      empleos
+        .map(function (empleo) {
+          let id = String(
+            empleo && empleo.id_empleo != null ? empleo.id_empleo : ''
+          ).trim();
+          if (!id) return null;
+          return [
+            id,
+            {
+              nombre: String(
+                (empleo &&
+                  (empleo.descripcion || empleo.empleo_nombre || empleo.empleo)) ||
+                  ''
+              ).trim(),
+              color: normalizeDashboardColor(empleo && empleo.color),
+            },
+          ];
+        })
+        .filter(Boolean)
+    );
+  }
+
+  function resolveDashboardAgenteEmpleo(row, empleosMetaById) {
+    if (!row) return '-';
+    let direct = String(
+      row.empleo_nombre ||
+        row.agente_empleo ||
+        row.empleo ||
+        row.empleo_desc ||
+        row.escala ||
+        row.escalafon ||
+        ''
+    ).trim();
+    if (direct) return direct;
+    let empleoId = String(
+      row.empleo_id != null
+        ? row.empleo_id
+        : row.agente_empleo_id != null
+          ? row.agente_empleo_id
+          : ''
+    ).trim();
+    if (empleoId && empleosMetaById instanceof Map && empleosMetaById.has(empleoId)) {
+      return String(empleosMetaById.get(empleoId).nombre || '').trim() || '-';
+    }
+    return '-';
+  }
+
+  function resolveDashboardAgenteEmpleoColor(row, empleosMetaById) {
+    let directColor = normalizeDashboardColor(
+      row && (row.empleo_color || row.color_empleo)
+        ? row.empleo_color || row.color_empleo
+        : ''
+    );
+    if (directColor) return directColor;
+    let empleoId = String(
+      row && row.empleo_id != null
+        ? row.empleo_id
+        : row && row.agente_empleo_id != null
+          ? row.agente_empleo_id
+          : ''
+    ).trim();
+    if (empleoId && empleosMetaById instanceof Map && empleosMetaById.has(empleoId)) {
+      return normalizeDashboardColor(empleosMetaById.get(empleoId).color || '');
+    }
+    return '';
+  }
+
+  function ensureDashboardActividadDetalleTable() {
+    let refs = getDashboardActividadDetalleElements();
+    let TabulatorCtor = window.Tabulator;
+    if (!refs.table || typeof TabulatorCtor !== 'function') return null;
+    if (app._dashActividadDetalleTable) return app._dashActividadDetalleTable;
+
+    app._dashActividadDetalleTable = new TabulatorCtor(refs.table, {
+      locale: 'es-es',
+      langs: TABULATOR_LANGS,
+      layout: 'fitColumns',
+      reactiveData: false,
+      height: 280,
+      rowHeight: 26,
+      placeholder: 'Selecciona un servicio en el gráfico.',
+      columnDefaults: {
+        headerSort: true,
+        resizable: true,
+        headerFilterPlaceholder: 'Filtrar...',
+        vertAlign: 'middle',
+      },
+      initialSort: [
+        { column: 'tip', dir: 'asc' },
+        { column: 'nombre', dir: 'asc' },
+      ],
+      columns: [
+        {
+          title: 'TIP',
+          field: 'tip',
+          width: 90,
+          headerFilter: 'input',
+          hozAlign: 'center',
+        },
+        {
+          title: 'Nombre',
+          field: 'nombre',
+          minWidth: 170,
+          headerFilter: 'input',
+        },
+        {
+          title: 'Empleo',
+          field: 'empleo',
+          minWidth: 120,
+          headerFilter: 'input',
+          formatter: function (cell) {
+            let data = cell && typeof cell.getRow === 'function'
+              ? cell.getRow().getData()
+              : null;
+            let empleo = data && data.empleo ? data.empleo : '-';
+            let empleoColor = normalizeDashboardColor(
+              data && data.empleoColor ? data.empleoColor : ''
+            );
+            if (renderColorBadgeHtml && empleoColor) {
+              return renderColorBadgeHtml(empleo, empleoColor, {
+                className: 'badge',
+                padding: '.35em .55em',
+                whiteSpace: 'normal',
+                lineHeight: '1.1',
+                escapeHtmlFn: app.escapeHtml,
+              });
+            }
+            return app.escapeHtml(empleo);
+          },
+        },
+        {
+          title: 'Días',
+          field: 'diasLabel',
+          minWidth: 180,
+          formatter: function (cell) {
+            let value = cell ? cell.getValue() : '';
+            return app.escapeHtml(String(value || '-'));
+          },
+          tooltip: function (_e, cell) {
+            let data = cell && typeof cell.getRow === 'function'
+              ? cell.getRow().getData()
+              : null;
+            return Array.isArray(data && data.dias) && data.dias.length
+              ? data.dias.join(', ')
+              : 'Sin días';
+          },
+        },
+      ],
+      data: [],
+    });
+
+    if (refs.exportBtn && !refs.exportBtn.dataset.bound) {
+      refs.exportBtn.dataset.bound = '1';
+      refs.exportBtn.addEventListener('click', function () {
+        let table = app._dashActividadDetalleTable;
+        let selection = app._dashActividadDetalleSeleccionMeta || null;
+        if (!table || !selection || !Array.isArray(selection.rows) || !selection.rows.length) {
+          return;
+        }
+        let filename =
+          'dashboard_servicio_' +
+          sanitizeDashboardExportLabel(selection.label) +
+          '_' +
+          String(selection.periodo || 'periodo').replace(/\s+/g, '_') +
+          '.xlsx';
+        table.download('xlsx', filename, {
+          sheetName: 'Servicio',
+        });
+      });
+    }
+
+    return app._dashActividadDetalleTable;
+  }
+
+  function resetDashboardActividadDetalle(message) {
+    let refs = getDashboardActividadDetalleElements();
+    if (refs.info) {
+      refs.info.textContent = 'Haz clic en un sector del gráfico.';
+    }
+    if (refs.empty) {
+      refs.empty.textContent =
+        message ||
+        'Selecciona un servicio en el donut para listar agentes y días asignados en el rango filtrado.';
+      refs.empty.style.display = '';
+    }
+    if (refs.table) refs.table.style.display = 'none';
+    updateDashboardActividadDetalleExportState(true);
+    if (app._dashActividadDetalleTable) {
+      app._dashActividadDetalleTable.setData([]);
+    }
+    app._dashActividadDetalleSeleccion = null;
+    app._dashActividadDetalleSeleccionMeta = null;
+  }
+
+  function renderDashboardActividadDetalle(actId, actividadDetalleMap, meta) {
+    let refs = getDashboardActividadDetalleElements();
+    if (!refs.empty || !refs.table || !refs.info) return;
+
+    let detail = actividadDetalleMap instanceof Map ? actividadDetalleMap.get(actId) : null;
+    if (!detail || !Array.isArray(detail.rows) || !detail.rows.length) {
+      refs.info.textContent = 'Sin agentes para el servicio seleccionado';
+      refs.empty.textContent = 'No hay agentes para ese servicio dentro del rango filtrado.';
+      refs.empty.style.display = '';
+      refs.table.style.display = 'none';
+      if (app._dashActividadDetalleTable) {
+        app._dashActividadDetalleTable.setData([]);
+      }
+      return;
+    }
+
+    refs.table.style.display = 'block';
+    let table = ensureDashboardActividadDetalleTable();
+    let periodoText = meta && meta.periodoLabel ? ' · ' + meta.periodoLabel : '';
+    let rangeText = meta && meta.rangeLabel ? ' · ' + meta.rangeLabel : '';
+    refs.info.textContent =
+      detail.label +
+      ' · ' +
+      String(detail.rows.length) +
+      ' agentes' +
+      periodoText +
+      rangeText;
+    refs.empty.style.display = 'none';
+    if (table) {
+      table.setData(detail.rows);
+      if (typeof table.redraw === 'function') table.redraw(true);
+    }
+    app._dashActividadDetalleSeleccionMeta = {
+      actId: actId,
+      label: detail.label,
+      rows: detail.rows,
+      periodo: meta && meta.periodoLabel ? meta.periodoLabel : '',
+      rango: meta && meta.rangeLabel ? meta.rangeLabel : '',
+    };
+    updateDashboardActividadDetalleExportState(false);
   }
 
   // ── Heatmap: cargar select de borradores / fuente ─────────────────────
@@ -1912,12 +2299,16 @@
         if (toEl && fromEl.value) {
           toEl.value = fromEl.value;
         }
+        let p = app._dashHeatmapPeriod || {};
+        updateDashboardPresetButtons(p.anio, p.mes);
         refreshDashboardFromCurrentFilters();
       });
     }
     if (toEl && !toEl.dataset.bound) {
       toEl.dataset.bound = '1';
       toEl.addEventListener('change', function () {
+        let p = app._dashHeatmapPeriod || {};
+        updateDashboardPresetButtons(p.anio, p.mes);
         refreshDashboardFromCurrentFilters();
       });
     }
@@ -1946,6 +2337,7 @@
     let mes = selected.mes;
 
     if (!anio || !mes) {
+      app._dashboardBorradores = [];
       setDashboardSelectorsNoData();
       setDashboardNoDataInfo(
         'No hay cuadrantes disponibles para la ARS activa.'
@@ -1978,6 +2370,7 @@
     }
 
     let activeRange = syncDashboardDateRangeInputs(anio, mes);
+  updateDashboardPresetButtons(anio, mes);
 
     let fuente = app._dashHeatmapSource;
     let isBorradorSource = fuente === 'borrador';
@@ -1986,6 +2379,7 @@
     setDashboardNoDataInfo('');
 
     if (!isBorradorSource) {
+      app._dashboardBorradores = [];
       setDashboardBadgeFuente({
         fuente: 'Definitivo',
         anio: anio,
@@ -2014,6 +2408,7 @@
       if (!res.ok) throw new Error('No se pudieron cargar los borradores');
       let data = await res.json();
       let borradores = Array.isArray(data) ? data : data.borradores || [];
+      app._dashboardBorradores = borradores;
 
       if (!borradores.length) {
         let noDataHtml = '<option value="">Sin datos...</option>';
@@ -2024,7 +2419,7 @@
           fuente: 'Borrador',
           anio: anio,
           mes: mes,
-          detalle: 'Borrador: Sin datos',
+          detalle: ' Sin datos',
           rango: getDashboardRangeLabel(activeRange),
         });
         setDashboardNoDataInfo(
@@ -2058,7 +2453,7 @@
               fuente: 'Borrador',
               anio: p.anio,
               mes: p.mes,
-              detalle: 'Borrador: ' + getSelectOptionText(sel, 'Borrador'),
+              detalle: ' ' + getSelectOptionText(sel, 'Borrador'),
               rango: getDashboardRangeLabel(getDashboardDateRange(p.anio, p.mes)),
             });
             refreshDashboardSourceCharts(sel.value, p.anio, p.mes);
@@ -2084,11 +2479,12 @@
         fuente: 'Borrador',
         anio: anio,
         mes: mes,
-        detalle: 'Borrador: ' + getSelectOptionText(sel, 'Borrador'),
+        detalle: ' ' + getSelectOptionText(sel, 'Borrador'),
         rango: getDashboardRangeLabel(activeRange),
       });
       await refreshDashboardSourceCharts(selectedId, anio, mes);
     } catch (e) {
+      app._dashboardBorradores = [];
       let errHtml = '<option value="">Error al cargar borradores</option>';
       sel.innerHTML = errHtml;
       setDashboardBorradorControlsVisible(source === 'borrador');
@@ -2099,7 +2495,7 @@
         fuente: 'Borrador',
         anio: anio,
         mes: mes,
-        detalle: 'Borrador: Error de carga',
+        detalle: ' Error de carga',
         rango: getDashboardRangeLabel(activeRange),
       });
       renderDashboardNoFuenteData('Error al cargar borradores del período.');
@@ -2120,26 +2516,14 @@
       if (placeholder) placeholder.style.display = 'none';
       if (loading) loading.style.display = 'block';
       chartEl.style.display = 'none';
+      resetDashboardActividadDetalle();
 
       try {
-        let headers = getDashboardHeaders();
-        let [cuadData, actsRes] = await Promise.all([
-          fetchDashboardCuadranteData(anio, mes, borradorId, headers),
-          fetch('/api/actividades', { headers: headers }),
-        ]);
-
-        if (!actsRes.ok) {
-          throw new Error('Error al cargar actividades (' + actsRes.status + ')');
-        }
-
-        let actsData = await actsRes.json();
-        let actsList = Array.isArray(actsData)
-          ? actsData
-          : Array.isArray(actsData.actividades)
-            ? actsData.actividades
-            : Array.isArray(actsData.data)
-              ? actsData.data
-              : [];
+        let contexto = await loadDashboardTemporalContext(borradorId, anio, mes);
+        let actsList = Array.isArray(contexto.metaData && contexto.metaData.actividades)
+          ? contexto.metaData.actividades
+          : [];
+        let empleosMetaById = contexto.empleosMetaById;
         let actMetaMap = new Map();
         actsList.forEach(function (a) {
           let id = Number(a.id_actividad || a.id);
@@ -2152,32 +2536,10 @@
               : nombre || codigo || '#' + String(id);
           actMetaMap.set(id, label);
         });
-
-        let isBorrador = !!(
-          cuadData &&
-          cuadData.control &&
-          cuadData.control.borrador_id &&
-          cuadData.control.estado !== 'sin_borrador'
-        );
-        let rows = isBorrador
-          ? Array.isArray(cuadData.borrador)
-            ? cuadData.borrador
-            : []
-          : Array.isArray(cuadData.definitivo)
-            ? cuadData.definitivo
-            : [];
-        let dateRange = getDashboardDateRange(anio, mes);
-        rows = filterRowsByDashboardDateRange(rows, dateRange);
-        let servicios = isBorrador
-          ? Array.isArray(cuadData.borradorServicios)
-            ? cuadData.borradorServicios
-            : []
-          : Array.isArray(cuadData.definitivoServicios)
-            ? cuadData.definitivoServicios
-            : [];
-        let servicioKeyField = isBorrador
-          ? 'asignacion_borrador_id'
-          : 'asignacion_id';
+        let rows = contexto.rows;
+        let servicios = contexto.servicios;
+        let servicioKeyField = contexto.servicioKeyField;
+        let dateRange = contexto.dateRange;
 
         let serviciosByAsig = new Map();
         servicios.forEach(function (s) {
@@ -2190,23 +2552,77 @@
         });
 
         let actividadAgents = new Map();
+        let actividadDetalleRaw = new Map();
         rows.forEach(function (row) {
           let agenteId = Number(row && row.agente_id);
           if (!Number.isInteger(agenteId) || agenteId <= 0) return;
           let acts = serviciosByAsig.get(Number(row && row.id)) || [];
           let uniqueActs = new Set(acts);
+          let isoDate = getRowIsoDate(row);
           uniqueActs.forEach(function (actId) {
             if (!actividadAgents.has(actId)) actividadAgents.set(actId, new Set());
             actividadAgents.get(actId).add(agenteId);
+
+            if (!actividadDetalleRaw.has(actId)) {
+              actividadDetalleRaw.set(actId, new Map());
+            }
+            let detallePorAgente = actividadDetalleRaw.get(actId);
+            let detail = detallePorAgente.get(agenteId);
+            if (!detail) {
+              detail = {
+                agente_id: agenteId,
+                tip: String(
+                  row && (row.tip || row.agente_tip) ? row.tip || row.agente_tip : ''
+                ).trim() || '-',
+                nombre: resolveDashboardAgenteNombre(row),
+                empleo: resolveDashboardAgenteEmpleo(row, empleosMetaById),
+                empleoColor: resolveDashboardAgenteEmpleoColor(row, empleosMetaById),
+                diasSet: new Set(),
+              };
+              detallePorAgente.set(agenteId, detail);
+            }
+            if (isoDate) detail.diasSet.add(isoDate);
           });
         });
 
         let acts = [];
+        let actividadDetalleMap = new Map();
         actividadAgents.forEach(function (agentsSet, actId) {
           let count = agentsSet ? agentsSet.size : 0;
           if (!count) return;
+          let detailRows = Array.from(
+            (actividadDetalleRaw.get(actId) || new Map()).values()
+          )
+            .map(function (item) {
+              let dias = Array.from(item.diasSet || []).sort();
+              return {
+                agente_id: item.agente_id,
+                tip: item.tip,
+                nombre: item.nombre,
+                empleo: item.empleo,
+                empleoColor: item.empleoColor,
+                dias: dias.map(formatDashboardDiaLabel),
+                diasLabel: dias.map(formatDashboardDiaLabel).join(', '),
+              };
+            })
+            .sort(function (left, right) {
+              let leftTip = String(left.tip || '');
+              let rightTip = String(right.tip || '');
+              if (leftTip !== rightTip) return leftTip.localeCompare(rightTip, 'es');
+              return String(left.nombre || '').localeCompare(
+                String(right.nombre || ''),
+                'es'
+              );
+            });
+          let label = actMetaMap.get(actId) || '#' + String(actId);
+          actividadDetalleMap.set(actId, {
+            actId: actId,
+            label: label,
+            rows: detailRows,
+          });
           acts.push({
-            label: actMetaMap.get(actId) || '#' + String(actId),
+            actId: actId,
+            label: label,
             count: count,
           });
         });
@@ -2214,11 +2630,22 @@
         if (loading) loading.style.display = 'none';
 
         if (!acts.length) {
+          if (app._dashCharts['chartSituacion']) {
+            try {
+              app._dashCharts['chartSituacion'].dispose();
+            } catch (e) {
+              // noop
+            }
+            delete app._dashCharts['chartSituacion'];
+          }
           if (placeholder) {
             placeholder.innerHTML =
               '<i class="bi bi-pie-chart d-block fs-1 opacity-25 mb-2"></i>Sin actividades en el rango de días seleccionado.';
             placeholder.style.display = '';
           }
+          resetDashboardActividadDetalle(
+            'No hay actividades en el rango filtrado para mostrar detalle.'
+          );
           return;
         }
 
@@ -2233,6 +2660,7 @@
         }
         let chart = echarts.init(chartEl, null, { renderer: 'svg' });
         app._dashCharts['chartSituacion'] = chart;
+        ensureDashboardActividadDetalleTable();
 
         acts.sort(function (a, b) {
           return b.count - a.count;
@@ -2242,6 +2670,7 @@
           return {
             value: d.count,
             name: d.label,
+            actId: d.actId,
           };
         });
 
@@ -2267,6 +2696,36 @@
             },
           ],
         });
+
+        chart.off('click');
+        chart.on('click', function (params) {
+          let paramsData = params && typeof params === 'object' ? params.data : null;
+          let actId = Number(
+            paramsData && typeof paramsData === 'object' && 'actId' in paramsData
+              ? paramsData.actId
+              : 0
+          );
+          if (!Number.isInteger(actId) || actId <= 0) return;
+          app._dashActividadDetalleSeleccion = actId;
+          renderDashboardActividadDetalle(actId, actividadDetalleMap, {
+            periodoLabel: getDashboardActividadDetallePeriodoLabel(anio, mes),
+            rangeLabel: getDashboardRangeLabel(dateRange),
+          });
+        });
+
+        if (
+          Number.isInteger(Number(app._dashActividadDetalleSeleccion)) &&
+          actividadDetalleMap.has(Number(app._dashActividadDetalleSeleccion))
+        ) {
+          renderDashboardActividadDetalle(
+            Number(app._dashActividadDetalleSeleccion),
+            actividadDetalleMap,
+            {
+              periodoLabel: getDashboardActividadDetallePeriodoLabel(anio, mes),
+              rangeLabel: getDashboardRangeLabel(dateRange),
+            }
+          );
+        }
       } catch (e) {
         if (loading) loading.style.display = 'none';
         if (placeholder) {
@@ -2274,60 +2733,90 @@
             '<i class="bi bi-pie-chart d-block fs-1 opacity-25 mb-2"></i>Error al cargar actividades.';
           placeholder.style.display = '';
         }
+        resetDashboardActividadDetalle(
+          'No se pudo cargar el detalle del servicio seleccionado.'
+        );
         console.error('[Dashboard][ActividadesDonut]', e.message);
       }
     };
 
   async function loadDashboardTemporalContext(borradorId, anio, mes) {
-    let headers = getDashboardHeaders();
-    let [cuadData, metaRes] = await Promise.all([
-      fetchDashboardCuadranteData(anio, mes, borradorId, headers),
-      fetch('/api/asignaciones/meta', { headers: headers }),
-    ]);
+    let dateRange = getDashboardDateRange(anio, mes);
+    let cacheKey = [
+      String((app && app.globalState && app.globalState.activeArsId) || ''),
+      String(anio || ''),
+      String(mes || ''),
+      String(borradorId || 'definitivo'),
+      String((dateRange && dateRange.start) || ''),
+      String((dateRange && dateRange.end) || ''),
+    ].join('|');
 
-    if (!metaRes.ok) {
-      throw new Error(
-        'Error al cargar metadatos de actividades (' + metaRes.status + ')'
-      );
+    if (app._dashTemporalContextKey === cacheKey && app._dashTemporalContextPromise) {
+      return app._dashTemporalContextPromise;
     }
 
-    let metaData = await metaRes.json();
-    let isBorrador = !!(
-      cuadData &&
-      cuadData.control &&
-      cuadData.control.borrador_id &&
-      cuadData.control.estado !== 'sin_borrador'
-    );
+    app._dashTemporalContextKey = cacheKey;
+    app._dashTemporalContextPromise = (async function () {
+      let headers = getDashboardHeaders();
+      let [cuadData, metaRes, agentesMetaData] = await Promise.all([
+        fetchDashboardCuadranteData(anio, mes, borradorId, headers),
+        fetch('/api/asignaciones/meta', { headers: headers }),
+        loadDashboardAgentesMetaCached(headers),
+      ]);
 
-    let rows = isBorrador
-      ? Array.isArray(cuadData.borrador)
-        ? cuadData.borrador
-        : []
-      : Array.isArray(cuadData.definitivo)
-        ? cuadData.definitivo
-        : [];
+      if (!metaRes.ok) {
+        throw new Error(
+          'Error al cargar metadatos de actividades (' + metaRes.status + ')'
+        );
+      }
 
-    let dateRange = getDashboardDateRange(anio, mes);
-    rows = filterRowsByDashboardDateRange(rows, dateRange);
+      let metaData = await metaRes.json();
+      let isBorrador = !!(
+        cuadData &&
+        cuadData.control &&
+        cuadData.control.borrador_id &&
+        cuadData.control.estado !== 'sin_borrador'
+      );
 
-    let servicios = isBorrador
-      ? Array.isArray(cuadData.borradorServicios)
-        ? cuadData.borradorServicios
-        : []
-      : Array.isArray(cuadData.definitivoServicios)
-        ? cuadData.definitivoServicios
-        : [];
+      let rows = isBorrador
+        ? Array.isArray(cuadData.borrador)
+          ? cuadData.borrador
+          : []
+        : Array.isArray(cuadData.definitivo)
+          ? cuadData.definitivo
+          : [];
+      rows = filterRowsByDashboardDateRange(rows, dateRange);
 
-    return {
-      headers: headers,
-      cuadData: cuadData,
-      metaData: metaData,
-      rows: rows,
-      servicios: servicios,
-      servicioKeyField: isBorrador ? 'asignacion_borrador_id' : 'asignacion_id',
-      dateRange: dateRange,
-      isBorrador: isBorrador,
-    };
+      let servicios = isBorrador
+        ? Array.isArray(cuadData.borradorServicios)
+          ? cuadData.borradorServicios
+          : []
+        : Array.isArray(cuadData.definitivoServicios)
+          ? cuadData.definitivoServicios
+          : [];
+
+      return {
+        headers: headers,
+        cuadData: cuadData,
+        metaData: metaData,
+        agentesMetaData: agentesMetaData,
+        rows: rows,
+        servicios: servicios,
+        servicioKeyField: isBorrador ? 'asignacion_borrador_id' : 'asignacion_id',
+        dateRange: dateRange,
+        isBorrador: isBorrador,
+        empleosMetaById: buildDashboardEmpleosMetaMap(agentesMetaData),
+      };
+    })();
+
+    try {
+      return await app._dashTemporalContextPromise;
+    } catch (error) {
+      if (app._dashTemporalContextKey === cacheKey) {
+        app._dashTemporalContextPromise = null;
+      }
+      throw error;
+    }
   }
 
   app.refreshDashboardGrupoNivel3Stack =
@@ -2699,19 +3188,10 @@
       chartEl.style.display = 'none';
 
       try {
-        let headers = getDashboardHeaders();
-        let [cuadData, metaRes] = await Promise.all([
-          fetchDashboardCuadranteData(anio, mes, borradorId, headers),
-          fetch('/api/asignaciones/meta', { headers: headers }),
-        ]);
-
-        let actividadesMeta = [];
-        if (metaRes && metaRes.ok) {
-          let metaJson = await metaRes.json();
-          actividadesMeta = Array.isArray(metaJson && metaJson.actividades)
-            ? metaJson.actividades
-            : [];
-        }
+        let contexto = await loadDashboardTemporalContext(borradorId, anio, mes);
+        let actividadesMeta = Array.isArray(contexto.metaData && contexto.metaData.actividades)
+          ? contexto.metaData.actividades
+          : [];
 
         let actNivelColorById = new Map();
         actividadesMeta.forEach(function (a) {
@@ -2721,35 +3201,9 @@
           if (color) actNivelColorById.set(actId, color);
         });
 
-        let isBorrador = !!(
-          cuadData &&
-          cuadData.control &&
-          cuadData.control.borrador_id &&
-          cuadData.control.estado !== 'sin_borrador'
-        );
-
-        let rows = isBorrador
-          ? Array.isArray(cuadData.borrador)
-            ? cuadData.borrador
-            : []
-          : Array.isArray(cuadData.definitivo)
-            ? cuadData.definitivo
-            : [];
-
-        let dateRange = getDashboardDateRange(anio, mes);
-        rows = filterRowsByDashboardDateRange(rows, dateRange);
-
-        let servicios = isBorrador
-          ? Array.isArray(cuadData.borradorServicios)
-            ? cuadData.borradorServicios
-            : []
-          : Array.isArray(cuadData.definitivoServicios)
-            ? cuadData.definitivoServicios
-            : [];
-
-        let servicioKeyField = isBorrador
-          ? 'asignacion_borrador_id'
-          : 'asignacion_id';
+        let rows = contexto.rows;
+        let servicios = contexto.servicios;
+        let servicioKeyField = contexto.servicioKeyField;
 
         if (!rows.length || !servicios.length) {
           if (loading) loading.style.display = 'none';

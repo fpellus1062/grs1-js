@@ -2022,6 +2022,7 @@ exports.getLedgerMovimientos = async ({
   anio,
   mes,
   agente_id,
+  empleo_id,
 }) => {
   const hasObservacionesColumn = await hasLedgerObservacionesColumn();
   const params = [arsUnidadId, agente_id];
@@ -2029,7 +2030,15 @@ exports.getLedgerMovimientos = async ({
     'm.ars_unidad_id::text = $1::text',
     'm.agente_id = $2',
   ];
+  const empleoIdNormalized = normalizeEmpleoId(empleo_id);
   const viewWhere = [];
+
+  if (empleoIdNormalized) {
+    params.push(empleoIdNormalized);
+    baseWhere.push(
+      `COALESCE(m.empleo_id::text, '__NULL__') = COALESCE($${params.length}::text, '__NULL__')`
+    );
+  }
 
   if (anio) {
     params.push(anio);
@@ -2064,7 +2073,8 @@ exports.getLedgerMovimientos = async ({
                COALESCE(
                  SUM(m.signo * m.cantidad_dias) OVER (
                    PARTITION BY m.ars_unidad_id::text,
-                                m.agente_id
+                                m.agente_id,
+                                COALESCE(m.empleo_id::text, '__NULL__')
                    ORDER BY m.fecha ASC, m.created_at ASC, m.id ASC
                    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
                  ),

@@ -295,6 +295,7 @@ exports.getLedgerMovimientos = async (req, res, next) => {
       anio: Number(req.query.anio),
       mes: parseOptionalNumber(req.query.mes),
       agente_id: Number(req.query.agente_id),
+      empleo_id: req.query.empleo_id ? String(req.query.empleo_id) : null,
     });
     res.json({ ok: true, movimientos });
   } catch (error) {
@@ -315,6 +316,7 @@ exports.exportLedgerMovimientosExcel = async (req, res, next) => {
       anio,
       mes,
       agente_id: agenteId,
+      empleo_id: req.query.empleo_id ? String(req.query.empleo_id) : null,
     });
 
     const wb = new ExcelJS.Workbook();

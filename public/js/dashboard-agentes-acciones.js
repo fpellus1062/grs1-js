@@ -580,12 +580,6 @@
     return raw;
   }
 
-  function normalizeNullableBoolean(value) {
-    if (value == null || value === '') return null;
-    if (typeof value === 'boolean') return value;
-    return parseBoolean(value);
-  }
-
   function buildAltasPayloadRows(rows) {
     let empleoLookup = buildEmpleoLookup();
     let pelotonLookup = buildPelotonLookup();
@@ -704,6 +698,7 @@
       });
     }
     if (val === 'warn') {
+      // @ts-ignore
       return window.GRS1Utils.renderSemanticBadgeHtml('×', 'warning', {
         escapeHtmlFn: esc,
         title: warnMsg,
