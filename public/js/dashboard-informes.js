@@ -25,6 +25,8 @@
     borradorId: null,
     borradores: [],
     periodos: [],
+    fuenteControl: null,
+    fuenteAlineacion: null,
   };
 
   function el(id) {
@@ -68,6 +70,64 @@
     }
   }
 
+  async function fetchFuenteControl(anio, mes, source, borradorId) {
+    if (!anio || !mes) return null;
+    const params = new URLSearchParams();
+    if (String(source || '').toLowerCase() === 'borrador' && borradorId) {
+      params.set('borrador_id', String(borradorId));
+    } else {
+      params.set('source', 'definitivo');
+    }
+    const resp = await fetch(
+      `/api/asignaciones/cuadrante/${anio}/${mes}?${params.toString()}`,
+      { headers: getHeaders(), cache: 'no-store' }
+    );
+    if (!resp.ok) return null;
+    const json = await resp.json();
+    return json && json.control ? json.control : null;
+  }
+
+  function buildFuenteAlineacionInfo(source, borradores, borradorId, control) {
+    if (typeof app.getFuenteAlineacionInfo !== 'function') return null;
+    return app.getFuenteAlineacionInfo({
+      source: source,
+      borradores: borradores,
+      selectedBorradorId: borradorId,
+      control: control,
+    });
+  }
+
+  function renderFuenteAlineacionBadge(anchorId, badgeId, info) {
+    if (typeof app.renderFuenteAlineacionBadge !== 'function') return;
+    app.renderFuenteAlineacionBadge(anchorId, badgeId, info);
+  }
+
+  async function actualizarAlineacionFuentePrincipal() {
+    const anioSel = /** @type {HTMLSelectElement | null} */ (el('informesAnio'));
+    const mesSel = /** @type {HTMLSelectElement | null} */ (el('informesMes'));
+    const tipoSel = /** @type {HTMLSelectElement | null} */ (el('informesTipo'));
+    const borradorSel = /** @type {HTMLSelectElement | null} */ (el('informesBorrador'));
+    const anio = Number((anioSel && anioSel.value) || state.anio || 0);
+    const mes = Number((mesSel && mesSel.value) || state.mes || 0);
+    const tipo = String((tipoSel && tipoSel.value) || 'definitivo').toLowerCase();
+    const borradorId =
+      tipo === 'borrador'
+        ? String((borradorSel && borradorSel.value) || state.borradorId || '')
+        : '';
+    state.fuenteControl = await fetchFuenteControl(anio, mes, tipo, borradorId);
+    state.fuenteAlineacion = buildFuenteAlineacionInfo(
+      tipo,
+      state.borradores,
+      borradorId,
+      state.fuenteControl
+    );
+    renderFuenteAlineacionBadge(
+      'informesTipo',
+      'informesFuenteAlineacionBadge',
+      state.fuenteAlineacion
+    );
+  }
+
   function actualizarResumenFuente() {
     // @ts-ignore
     const anio = el('informesAnio')?.value || '—';
@@ -78,6 +138,15 @@
     const tipo = el('informesTipo')?.value || 'definitivo';
     const resumen = el('informesFuenteResumen');
     if (!resumen) return;
+    const estadoTxt =
+      state.fuenteAlineacion && state.fuenteAlineacion.summary
+        ? ` · Estado: ${state.fuenteAlineacion.summary}`
+        : '';
+    renderFuenteAlineacionBadge(
+      'informesTipo',
+      'informesFuenteAlineacionBadge',
+      state.fuenteAlineacion
+    );
 
     if (tipo === 'borrador') {
       const borradorSel = el('informesBorrador');
@@ -90,11 +159,11 @@
           ? borradorSel.options[borradorSel.selectedIndex]?.textContent ||
             'Sin borrador'
           : 'Sin borrador';
-      resumen.textContent = `Fuente: Borrador${borradorId ? ` (${borradorTxt})` : ''} · Período: ${mes} ${anio}`;
+      resumen.textContent = `Fuente: Borrador${borradorId ? ` (${borradorTxt})` : ''} · Periodo: ${mes} ${anio}${estadoTxt}`;
       return;
     }
 
-    resumen.textContent = `Fuente: Definitivo · Período: ${mes} ${anio}`;
+    resumen.textContent = `Fuente: Definitivo · Periodo: ${mes} ${anio}${estadoTxt}`;
   }
 
   function buildPeriodos(cuadrantes) {
@@ -640,10 +709,12 @@
         sel.value = selected;
         state.borradorId = selected;
       }
+      await actualizarAlineacionFuentePrincipal();
       actualizarResumenFuente();
     } catch (err) {
       sel.innerHTML = '<option value="">Error al cargar borradores</option>';
       state.borradorId = null;
+      await actualizarAlineacionFuentePrincipal();
       actualizarResumenFuente();
     }
   }
@@ -669,6 +740,7 @@
     // @ts-ignore
     sel.value = '';
     state.borradorId = null;
+    await actualizarAlineacionFuentePrincipal();
   }
 
   async function exportar(formato = 'xlsx') {
@@ -809,6 +881,7 @@
         poblarPeriodoDisponible(anioActual, mesActual);
         await actualizarVisibilidadBorrador();
         await poblarFechasCuadrante();
+        await actualizarAlineacionFuentePrincipal();
       } catch (err) {
         setError(
           err.message ||
@@ -822,6 +895,7 @@
       // @ts-ignore
       state.borradorId = el('informesBorrador')?.value || null;
       await poblarFechasCuadrante();
+      await actualizarAlineacionFuentePrincipal();
       actualizarResumenFuente();
     });
 
@@ -831,6 +905,7 @@
       // @ts-ignore
       if (el('informesTipo')?.value === 'borrador') await cargarBorradores();
       await poblarFechasCuadrante();
+      await actualizarAlineacionFuentePrincipal();
       actualizarResumenFuente();
     });
 
@@ -838,6 +913,7 @@
       // @ts-ignore
       if (el('informesTipo')?.value === 'borrador') await cargarBorradores();
       await poblarFechasCuadrante();
+      await actualizarAlineacionFuentePrincipal();
       actualizarResumenFuente();
     });
   }
@@ -853,9 +929,37 @@
     mes: null,
     borradorId: null,
     borradores: [],
+    fuenteControl: null,
+    fuenteAlineacion: null,
   };
 
   function elRA(id) { return document.getElementById(id); }
+
+  async function actualizarAlineacionRA() {
+    const fuenteSel = /** @type {HTMLSelectElement | null} */ (elRA('raFuente'));
+    const anioSel = /** @type {HTMLSelectElement | null} */ (elRA('raAnio'));
+    const mesSel = /** @type {HTMLSelectElement | null} */ (elRA('raMes'));
+    const borradorSel = /** @type {HTMLSelectElement | null} */ (elRA('raBorrador'));
+    const source = String((fuenteSel && fuenteSel.value) || 'definitivo').toLowerCase();
+    const anio = Number((anioSel && anioSel.value) || stateRA.anio || 0);
+    const mes = Number((mesSel && mesSel.value) || stateRA.mes || 0);
+    const borradorId =
+      source === 'borrador'
+        ? String((borradorSel && borradorSel.value) || stateRA.borradorId || '')
+        : '';
+    stateRA.fuenteControl = await fetchFuenteControl(anio, mes, source, borradorId);
+    stateRA.fuenteAlineacion = buildFuenteAlineacionInfo(
+      source,
+      stateRA.borradores,
+      borradorId,
+      stateRA.fuenteControl
+    );
+    renderFuenteAlineacionBadge(
+      'raFuente',
+      'raFuenteAlineacionBadge',
+      stateRA.fuenteAlineacion
+    );
+  }
 
   async function cargarPeriodosRA(preferredAnio, preferredMes) {
     // @ts-ignore
@@ -1086,6 +1190,7 @@
     } else {
       stateRA.borradorId = null;
     }
+    await actualizarAlineacionRA();
     await cargarFechasDisponiblesRA();
   }
 
@@ -1399,6 +1504,7 @@
     bindOnce('raBorrador', 'change', async () => {
       // @ts-ignore
       stateRA.borradorId = elRA('raBorrador')?.value || null;
+      await actualizarAlineacionRA();
       await cargarFechasDisponiblesRA();
     });
 
@@ -1424,6 +1530,8 @@
     mes: null,
     borradorId: null,
     borradores: [],
+    fuenteControl: null,
+    fuenteAlineacion: null,
     applyFechaCambioFilter: false,
     insights: null,
     logs: [],
@@ -1457,6 +1565,28 @@
 
   function elIA(id) {
     return /** @type {any} */ (document.getElementById(id));
+  }
+
+  async function actualizarAlineacionIA() {
+    const source = String(elIA('iaFuente')?.value || 'definitivo').toLowerCase();
+    const anio = Number(elIA('iaAnio')?.value || stateIA.anio || 0);
+    const mes = Number(elIA('iaMes')?.value || stateIA.mes || 0);
+    const borradorId =
+      source === 'borrador'
+        ? String(elIA('iaBorrador')?.value || stateIA.borradorId || '')
+        : '';
+    stateIA.fuenteControl = await fetchFuenteControl(anio, mes, source, borradorId);
+    stateIA.fuenteAlineacion = buildFuenteAlineacionInfo(
+      source,
+      stateIA.borradores,
+      borradorId,
+      stateIA.fuenteControl
+    );
+    renderFuenteAlineacionBadge(
+      'iaFuente',
+      'iaFuenteAlineacionBadge',
+      stateIA.fuenteAlineacion
+    );
   }
 
   const IA_CHECKLIST_META = {
@@ -2321,9 +2451,11 @@
     if (wrap) wrap.style.display = source === 'borrador' ? 'block' : 'none';
     if (source === 'borrador') {
       await cargarBorradoresIA();
+      await actualizarAlineacionIA();
       return;
     }
     stateIA.borradorId = null;
+    await actualizarAlineacionIA();
   }
 
   async function refrescarPeriodoYRangoIA(preferredAnio, preferredMes) {
@@ -2351,6 +2483,7 @@
       ? stateIA.rangoCuadrante.fechas
       : [];
     sincronizarRangoIA();
+    await actualizarAlineacionIA();
   }
 
   function getIaFilters() {

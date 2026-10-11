@@ -893,6 +893,28 @@
     sel.value = exists ? String(selectedId) : String(items[0].id);
   }
 
+  function updateAgenteDetalleFuenteAlineacion(context) {
+    if (
+      typeof app.getFuenteAlineacionInfo !== 'function' ||
+      typeof app.renderFuenteAlineacionBadge !== 'function'
+    ) {
+      return;
+    }
+
+    let ctx = context || {};
+    let info = app.getFuenteAlineacionInfo({
+      source: ctx.fuente || getAgenteDetalleFuente(),
+      borradores: Array.isArray(ctx.borradores) ? ctx.borradores : [],
+      selectedBorradorId: ctx.borradorId || null,
+      control: ctx.cuadranteData && ctx.cuadranteData.control ? ctx.cuadranteData.control : null,
+    });
+    app.renderFuenteAlineacionBadge(
+      'agenteAsigDetalleFuente',
+      'agenteAsigDetalleFuenteAlineacionBadge',
+      info
+    );
+  }
+
   async function fetchAgenteAsignacionesDetalleContext(options) {
     let opts = options || {};
     let selectedRows = getSelectedAgenteRows();
@@ -974,6 +996,7 @@
     setAgenteAsignacionesDetalleState('Cargando cuadrante del agente...');
     let context = await fetchAgenteAsignacionesDetalleContext(options);
     populateAgenteDetalleBorradoresSelect(context.borradores, context.borradorId);
+    updateAgenteDetalleFuenteAlineacion(context);
 
     let agente = context.agente;
     let periodo = context.periodo;

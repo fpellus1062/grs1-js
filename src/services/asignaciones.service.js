@@ -1173,6 +1173,11 @@ exports.getCuadrante = (
     const source =
       options && options.source ? String(options.source).toLowerCase() : null;
     const forceDefinitivo = source === 'definitivo';
+    const canonico = await getCanonicoBorradorByPeriodo(client, {
+      anio,
+      mes,
+      arsUnidadId: arsId,
+    });
     const borrador = forceDefinitivo
       ? null
       : // @ts-ignore
@@ -1185,7 +1190,28 @@ exports.getCuadrante = (
           arsUnidadId: arsId,
         });
 
-    let control = { estado: 'sin_borrador', borrador_id: null };
+    let controlCanonico = canonico
+      ? {
+          id: canonico.id,
+          estado: canonico.estado || 'borrador',
+          borrador_id: canonico.id,
+          nombre: canonico.nombre,
+          version: canonico.version,
+          revision: canonico.revision,
+          created_at: canonico.created_at,
+          updated_at: canonico.updated_at,
+        }
+      : null;
+    let control = {
+      estado: 'sin_borrador',
+      borrador_id: null,
+      canonico: controlCanonico,
+      alineacion: controlCanonico
+        ? controlCanonico.estado === 'modificado'
+          ? 'pendiente_consolidacion'
+          : 'alineado'
+        : 'sin_canonico',
+    };
     if (borrador) {
       const latestBorradorRes = await client.query(
         `SELECT id, nombre, version, estado, revision, created_at, updated_at
@@ -1202,6 +1228,12 @@ exports.getCuadrante = (
         revision: latestBorrador.revision,
         created_at: latestBorrador.created_at,
         updated_at: latestBorrador.updated_at,
+        canonico: controlCanonico,
+        alineacion: controlCanonico
+          ? controlCanonico.estado === 'modificado'
+            ? 'pendiente_consolidacion'
+            : 'alineado'
+          : 'sin_canonico',
       };
     }
 

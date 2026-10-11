@@ -402,7 +402,7 @@
 
     if (badge) {
       badge.classList.toggle('d-none', !hasCanonico);
-      badge.textContent = hasCanonico ? 'Período cerrado' : '';
+      badge.textContent = hasCanonico ? 'Periodo cerrado' : '';
       badge.title = hasCanonico
         ? 'Ya existe un borrador canónico validado/modificado para este período'
         : '';
@@ -421,6 +421,7 @@
       app.asignacionesState.borradorId = null;
       app.asignacionesState.borradores = [];
       updateNuevoBorradorBtnState();
+      updateFuenteAlineacionBadge();
       return;
     }
 
@@ -454,6 +455,7 @@
     updateObsBtnStyle();
     updateConsolidarDevengosBtnState();
     updateNuevoBorradorBtnState();
+    updateFuenteAlineacionBadge();
   }
 
   app.loadAsignacionesBorradores = async function loadAsignacionesBorradores(
@@ -822,6 +824,33 @@
     return 'Borrador · ' + getCurrentBorradorLabel();
   }
 
+  function updateFuenteAlineacionBadge() {
+    if (
+      typeof app.getFuenteAlineacionInfo !== 'function' ||
+      typeof app.renderFuenteAlineacionBadge !== 'function'
+    ) {
+      return;
+    }
+
+    let borradores = app.asignacionesState.borradores || [];
+    let selectedId = getSelectedBorradorId();
+    let selectedBorrador = borradores.find(function (item) {
+      return Number(item && item.id) === Number(selectedId);
+    });
+    let info = app.getFuenteAlineacionInfo({
+      source: 'borrador',
+      borradores: borradores,
+      selectedBorradorId: selectedId,
+      selectedBorrador: selectedBorrador || null,
+      control: app.asignacionesState.control || null,
+    });
+    app.renderFuenteAlineacionBadge(
+      'asigBorrador',
+      'asigFuenteAlineacionBadge',
+      info
+    );
+  }
+
   // ── Conversión mes string ↔ number ──────────────────────────────
 
   function mesStringToNumber(value) {
@@ -896,6 +925,7 @@
   app._asig.getSelectedHistorialAgentIds = getSelectedHistorialAgentIds;
   app._asig.getCurrentBorradorLabel = getCurrentBorradorLabel;
   app._asig.getCurrentFuenteLabel = getCurrentFuenteLabel;
+  app._asig.updateFuenteAlineacionBadge = updateFuenteAlineacionBadge;
 
   app._asig.mesStringToNumber = mesStringToNumber;
   app._asig.mesNumberToString = mesNumberToString;

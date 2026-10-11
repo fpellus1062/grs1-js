@@ -333,7 +333,7 @@ exports.buildHistorialPdf = async (
           text: [
             nombreBorrador
               ? `Borrador: ${nombreBorrador}`
-              : `Período: ${periodo}`,
+              : `Periodo: ${periodo}`,
             usuarioNombre ? `  ·  Propietario: ${usuarioNombre}` : '',
             `  ·  ARS: ${tenantLabel}`,
           ].join(''),

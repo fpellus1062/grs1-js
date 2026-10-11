@@ -895,8 +895,31 @@
     return app._dashboardRefreshInFlight;
   };
 
+  app.invalidateDashboardDataCache = function invalidateDashboardDataCache() {
+    app._dashboardLastRefreshAt = 0;
+    app._dashTemporalContextKey = null;
+    app._dashTemporalContextPromise = null;
+    app._dashCuadranteContextKey = null;
+    app._dashCuadranteContext = null;
+    app._dashboardBorradores = [];
+  };
+
+  app.markDashboardDataDirty = function markDashboardDataDirty() {
+    app._dashboardDataDirty = true;
+    if (typeof app.invalidateDashboardDataCache === 'function') {
+      app.invalidateDashboardDataCache();
+    }
+  };
+
+  app.clearDashboardDataDirty = function clearDashboardDataDirty() {
+    app._dashboardDataDirty = false;
+  };
+
   app.initializeDashboard = async function initializeDashboard() {
     await app.triggerDashboardRefresh({ force: true });
+    if (typeof app.clearDashboardDataDirty === 'function') {
+      app.clearDashboardDataDirty();
+    }
   };
 
   async function loadDashboardAgentesMetaCached(headers) {
@@ -907,7 +930,10 @@
 
     app._dashAgentesMetaKey = cacheKey;
     app._dashAgentesMetaPromise = (async function () {
-      let response = await fetch('/api/agentes/meta', { headers: headers });
+      let response = await fetch('/api/agentes/meta', {
+        headers: headers,
+        cache: 'no-store',
+      });
       if (!response.ok) {
         throw new Error('No se pudieron cargar los metadatos de agentes');
       }
@@ -939,6 +965,16 @@
   app.refreshDashboardStats = async function refreshDashboardStats() {
     // Guardar instancias para poder hacer resize
     if (!app._dashCharts) app._dashCharts = {};
+
+    if (
+      app._dashActividadDetalleSeleccion &&
+      (app._dashActividadDetalleSeleccion.type === 'empleo' ||
+        app._dashActividadDetalleSeleccion.type === 'peloton')
+    ) {
+      app._dashActividadDetalleSeleccion = null;
+      app._dashActividadDetalleSeleccionMeta = null;
+      resetDashboardActividadDetalle('Haz clic en un gráfico para ver el detalle.');
+    }
 
     try {
       const headers = { Authorization: `Bearer ${app.globalState.token}` };
@@ -1125,13 +1161,17 @@
               data: empArr.map(function (d) {
                 return {
                   value: d.count,
-                  itemStyle: { color: d.color || GC_GREEN },
+                  itemStyle: {
+                    color: d.color || GC_GREEN,
+                  },
                 };
               }),
               label: { show: true, position: 'right', fontSize: 10 },
             },
           ],
         });
+
+        chartEmp.off('click');
       }
 
       // ── Chart 3: Barras pelotón ────────────────────────────────
@@ -1160,13 +1200,17 @@
               data: pelArr.map(function (d) {
                 return {
                   value: d.count,
-                  itemStyle: { color: d.color || GC_GREEN },
+                  itemStyle: {
+                    color: d.color || GC_GREEN,
+                  },
                 };
               }),
               label: { show: true, position: 'top', fontSize: 10 },
             },
           ],
         });
+
+        chartPel.off('click');
       }
     } catch (error) {
       console.error('[Dashboard] Error cargando estadísticas:', error.message);
@@ -1220,6 +1264,207 @@
       });
   }
 
+  function normalizeFuenteEstado(value) {
+    return String(value || '')
+      .trim()
+      .toLowerCase();
+  }
+
+  function isCanonicoFuenteEstado(value) {
+    let estado = normalizeFuenteEstado(value);
+    return estado === 'validado' || estado === 'modificado';
+  }
+
+  function findCanonicoFuenteBorrador(borradores) {
+    let items = Array.isArray(borradores) ? borradores : [];
+    return (
+      items.find(function (item) {
+        return isCanonicoFuenteEstado(item && item.estado);
+      }) || null
+    );
+  }
+
+  function formatFuenteAlineacionTimestamp(value) {
+    let raw = String(value || '').trim();
+    if (!raw) return '';
+    let DateTime = window.luxon && window.luxon.DateTime;
+    if (DateTime) {
+      let dt = DateTime.fromISO(raw, { zone: 'Europe/Madrid' });
+      if (dt.isValid) return dt.setLocale('es').toFormat('dd/LL/yyyy HH:mm');
+    }
+    let date = new Date(raw);
+    if (Number.isNaN(date.getTime())) return raw;
+    return date.toLocaleString('es-ES', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+
+  function buildFuenteBorradorDetail(borrador) {
+    if (!borrador) return '';
+    let parts = [
+      (borrador.nombre || 'Borrador') + ' v' + String(borrador.version || 1),
+    ];
+    if (Number(borrador.revision) > 0) {
+      parts.push('rev ' + String(borrador.revision));
+    }
+    let updatedAt = formatFuenteAlineacionTimestamp(
+      borrador.updated_at || borrador.created_at
+    );
+    if (updatedAt) {
+      parts.push('actualizado ' + updatedAt);
+    }
+    return parts.join(' · ');
+  }
+
+  app.getFuenteAlineacionInfo = function getFuenteAlineacionInfo(options) {
+    let opts = options || {};
+    let source = String(opts.source || 'definitivo').toLowerCase();
+    let borradores = Array.isArray(opts.borradores) ? opts.borradores : [];
+    let control = opts.control && typeof opts.control === 'object' ? opts.control : null;
+    let selectedId = Number(opts.selectedBorradorId || 0);
+    let selectedBorrador =
+      opts.selectedBorrador ||
+      borradores.find(function (item) {
+        return Number(item && item.id) === selectedId;
+      }) ||
+      null;
+    let canonico =
+      (control && control.canonico && typeof control.canonico === 'object'
+        ? control.canonico
+        : null) || findCanonicoFuenteBorrador(borradores);
+
+    if (!canonico) {
+      return {
+        status: 'sin_canonico',
+        tone: 'secondary',
+        label: 'Sin referencia canónica',
+        summary: 'Sin canónico del período',
+        message:
+          'Todavía no existe un borrador canónico validado o modificado para este período.',
+        detail: '',
+      };
+    }
+
+    let canonicoEstado = normalizeFuenteEstado(canonico.estado);
+    let canonicoDetail = buildFuenteBorradorDetail(canonico);
+
+    if (source === 'definitivo') {
+      if (canonicoEstado === 'modificado') {
+        return {
+          status: 'pendiente',
+          tone: 'warning',
+          label: 'Consolidación pendiente',
+          summary: 'Definitivo pendiente de actualización',
+          message:
+            'Hay cambios en el borrador canónico que todavía no están consolidados en Definitivo.',
+          detail: canonicoDetail,
+        };
+      }
+      return {
+        status: 'alineado',
+        tone: 'success',
+        label: 'Alineado',
+        summary: 'Definitivo sincronizado',
+        message: 'El Definitivo refleja el último estado consolidado del borrador canónico.',
+        detail: canonicoDetail,
+      };
+    }
+
+    if (!selectedBorrador) {
+      return {
+        status: 'sin_borrador',
+        tone: 'secondary',
+        label: 'Seleccione borrador',
+        summary: 'Borrador no seleccionado',
+        message: 'Selecciona un borrador para comparar su estado con el Definitivo.',
+        detail: canonicoDetail ? 'Canónico: ' + canonicoDetail : '',
+      };
+    }
+
+    let selectedDetail = buildFuenteBorradorDetail(selectedBorrador);
+    let isCanonico = Number(selectedBorrador.id) === Number(canonico.id);
+    let selectedCanonicoEstado = isCanonico
+      ? canonicoEstado
+      : normalizeFuenteEstado(selectedBorrador.estado);
+    if (isCanonico && selectedCanonicoEstado === 'modificado') {
+      return {
+        status: 'pendiente',
+        tone: 'warning',
+        label: 'Consolidación pendiente',
+        summary: 'Canónico con cambios sin consolidar',
+        message:
+          'Estás viendo el borrador canónico y sus cambios todavía no han pasado a Definitivo.',
+        detail: selectedDetail,
+      };
+    }
+    if (isCanonico && selectedCanonicoEstado === 'validado') {
+      return {
+        status: 'alineado',
+        tone: 'success',
+        label: 'Alineado',
+        summary: 'Canónico sincronizado',
+        message: 'El borrador canónico coincide con el Definitivo actualmente publicado.',
+        detail: selectedDetail,
+      };
+    }
+
+    return {
+      status: 'trabajo',
+      tone: 'info',
+      label: 'Borrador de trabajo',
+      summary: 'Edición fuera del canónico',
+      message: isCanonico
+        ? 'Estás trabajando en un borrador aún no consolidado en Definitivo.'
+        : 'Estás viendo un borrador de trabajo distinto del canónico del período.',
+      detail: isCanonico
+        ? selectedDetail
+        : 'Canónico: ' + canonicoDetail,
+    };
+  };
+
+  app.renderFuenteAlineacionBadge = function renderFuenteAlineacionBadge(
+    anchorId,
+    badgeId,
+    info
+  ) {
+    let anchor = document.getElementById(anchorId);
+    if (!anchor || !anchor.parentNode) return;
+    let badge = document.getElementById(badgeId);
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.id = badgeId;
+      badge.className = 'badge rounded-pill border';
+      anchor.insertAdjacentElement('afterend', badge);
+    }
+
+    let tone = info && info.tone ? String(info.tone) : 'secondary';
+    badge.className = 'badge rounded-pill border';
+    if (tone === 'success') {
+      badge.classList.add('text-bg-success');
+    } else if (tone === 'warning') {
+      badge.classList.add('text-bg-warning');
+    } else if (tone === 'info') {
+      badge.classList.add('text-bg-info');
+    } else {
+      badge.classList.add('bg-light', 'text-dark');
+    }
+
+    badge.style.marginLeft = '.35rem';
+    badge.style.fontSize = '.72rem';
+    badge.style.whiteSpace = 'nowrap';
+    badge.textContent = info && info.label ? info.label : 'Sin estado';
+    badge.title = [
+      info && info.message ? info.message : '',
+      info && info.detail ? info.detail : '',
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  };
+
   function setDashboardBadgeFuente(context) {
     let ctx = context || {};
     let fuente = ctx.fuente || '—';
@@ -1227,6 +1472,7 @@
     let mes = Number(ctx.mes) > 0 ? getDashboardMesLabel(ctx.mes) : '—';
     let detalle = ctx.detalle || 'Detalle: —';
     let rango = ctx.rango || '';
+    let alineacionInfo = ctx.alineacionInfo || null;
     let text =
       'Fuente: ' +
       fuente +
@@ -1236,12 +1482,20 @@
       mes +
       ' · ' +
       detalle +
-      (rango ? ' · Días: ' + rango : '');
+      (rango ? ' · Días: ' + rango : '') +
+      (alineacionInfo && alineacionInfo.summary
+        ? ' · Estado: ' + alineacionInfo.summary
+        : '');
     ['dashHeatmap2Info', 'dashGrupoNivel3Info', 'dashMatrixInfo', 'dashActividadInfo'].forEach(
       function (id) {
         let el = document.getElementById(id);
         if (el) el.textContent = text;
       }
+    );
+    app.renderFuenteAlineacionBadge(
+      'dashDataSourceSel',
+      'dashFuenteAlineacionBadge',
+      alineacionInfo
     );
   }
 
@@ -1477,12 +1731,20 @@
         : 'Asignación: Definitivo';
 
     let range = getDashboardDateRange(anio, mes);
+    let contexto = await loadDashboardTemporalContext(borradorId, anio, mes);
+    let alineacionInfo = app.getFuenteAlineacionInfo({
+      source: fuente,
+      borradores: app._dashboardBorradores,
+      selectedBorradorId: borradorId,
+      control: contexto && contexto.cuadData ? contexto.cuadData.control : null,
+    });
     setDashboardBadgeFuente({
       fuente: fuente === 'borrador' ? 'Borrador' : 'Definitivo',
       anio: anio,
       mes: mes,
       detalle: detalle,
       rango: getDashboardRangeLabel(range),
+      alineacionInfo: alineacionInfo,
     });
 
     await refreshDashboardSourceCharts(borradorId, anio, mes);
@@ -1816,6 +2078,7 @@
     let requests = periodos.map(function (p) {
       return fetch(buildCuadranteDashboardUrl(p.anio, p.mes, borradorId), {
         headers: headers,
+        cache: 'no-store',
       });
     });
     let responses = await Promise.all(requests);
@@ -1910,6 +2173,7 @@
 
   function getDashboardActividadDetalleElements() {
     return {
+      title: document.getElementById('dashActividadAgentsTitle'),
       info: document.getElementById('dashActividadAgentsInfo'),
       empty: document.getElementById('dashActividadAgentsEmpty'),
       table: document.getElementById('dashActividadAgentsTable'),
@@ -1934,12 +2198,346 @@
     if (refs.exportBtn) refs.exportBtn.disabled = !!disabled;
   }
 
+  function getDashboardDetalleTitleByType(type) {
+    switch (String(type || '')) {
+      case 'actividad':
+        return 'Agentes del servicio seleccionado';
+      case 'matrix':
+        return 'Agentes de la actividad y fecha seleccionadas';
+      case 'niveles':
+        return 'Agentes del nivel seleccionado';
+      case 'grupo-nivel3':
+        return 'Agentes de la categoría seleccionada';
+      case 'empleo':
+        return 'Agentes del empleo seleccionado';
+      case 'peloton':
+        return 'Agentes del pelotón seleccionado';
+      default:
+        return 'Detalle de agentes';
+    }
+  }
+
+  function getDashboardChartIdForDetailType(type) {
+    switch (String(type || '')) {
+      case 'actividad':
+        return 'chartSituacion';
+      case 'matrix':
+        return 'chartMatrix';
+      case 'niveles':
+        return 'chartHeatmap2';
+      case 'grupo-nivel3':
+        return 'chartGrupoNivel3Stack';
+      case 'empleo':
+        return 'chartEmpleo';
+      case 'peloton':
+        return 'chartPeloton';
+      default:
+        return '';
+    }
+  }
+
+  function updateDashboardActividadDetalleTitle(type) {
+    let refs = getDashboardActividadDetalleElements();
+    if (refs.title) {
+      refs.title.textContent = getDashboardDetalleTitleByType(type);
+    }
+  }
+
+  function clearDashboardActiveChartFrame() {
+    [
+      'chartSituacion',
+      'chartMatrix',
+      'chartHeatmap2',
+      'chartGrupoNivel3Stack',
+      'chartEmpleo',
+      'chartPeloton',
+    ].forEach(function (chartId) {
+      let chartEl = document.getElementById(chartId);
+      if (!chartEl) return;
+      chartEl.style.outline = '';
+      chartEl.style.outlineOffset = '';
+      chartEl.style.borderRadius = '';
+      chartEl.style.boxShadow = '';
+    });
+  }
+
+  function updateDashboardActiveChartFrame(type) {
+    clearDashboardActiveChartFrame();
+    let chartId = getDashboardChartIdForDetailType(type);
+    if (!chartId) return;
+    let chartEl = document.getElementById(chartId);
+    if (!chartEl) return;
+    chartEl.style.outline = '2px solid var(--primary-gc-color, #276836)';
+    chartEl.style.outlineOffset = '2px';
+    chartEl.style.borderRadius = '8px';
+    chartEl.style.boxShadow = '0 0 0 4px rgba(39, 104, 54, 0.12)';
+  }
+
   function sanitizeDashboardExportLabel(value) {
     return String(value || '')
       .trim()
       .toLowerCase()
       .replace(/[^a-z0-9]+/gi, '_')
       .replace(/^_+|_+$/g, '') || 'servicio';
+  }
+
+  function buildDashboardActividadMetaMap(metaData) {
+    let actividades = Array.isArray(metaData && metaData.actividades)
+      ? metaData.actividades
+      : [];
+    let actividadMetaMap = new Map();
+
+    actividades.forEach(function (actividad) {
+      let actId = Number(
+        actividad &&
+          (actividad.id_actividad != null ? actividad.id_actividad : actividad.id)
+      );
+      if (!Number.isInteger(actId) || actId <= 0) return;
+
+      let codigo = String(
+        (actividad && (actividad.codigo || actividad.actividad)) || ''
+      ).trim();
+      let nombre = String((actividad && actividad.nombre) || '').trim();
+      let label =
+        codigo && nombre && codigo !== nombre
+          ? codigo + ' · ' + nombre
+          : nombre || codigo || '#' + String(actId);
+
+      let nivelOrdenRaw = Number(actividad && actividad.nivel_grupo_orden);
+
+      actividadMetaMap.set(actId, {
+        actId: actId,
+        label: label,
+        color:
+          normalizeDashboardColor(
+            actividad &&
+              (actividad.actividad_color || actividad.color || actividad.grupo_color)
+          ) || '',
+        nivelNombre:
+          String((actividad && actividad.nivel_grupo_nombre) || '').trim() ||
+          'Sin nivel',
+        nivelOrden: Number.isFinite(nivelOrdenRaw) ? nivelOrdenRaw : 9999,
+        nivelColor:
+          normalizeDashboardColor(actividad && actividad.nivel_grupo_color) || '',
+        categoriaNombre:
+          String((actividad && actividad.grupo_nombre) || '').trim() || 'Sin grupo',
+        categoriaColor:
+          normalizeDashboardColor(actividad && actividad.grupo_color) ||
+          normalizeDashboardColor(actividad && actividad.nivel_grupo_color) ||
+          '',
+      });
+    });
+
+    return actividadMetaMap;
+  }
+
+  function buildDashboardServiciosByAsignacion(
+    servicios,
+    servicioKeyField,
+    actividadMetaMap
+  ) {
+    let serviciosByAsig = new Map();
+
+    (Array.isArray(servicios) ? servicios : []).forEach(function (servicio) {
+      let asignacionId = Number(servicio && servicio[servicioKeyField]);
+      let actId = Number(servicio && servicio.actividad_id);
+      if (!Number.isInteger(asignacionId) || asignacionId <= 0) return;
+      if (!Number.isInteger(actId) || actId <= 0) return;
+
+      let actividadMeta =
+        actividadMetaMap instanceof Map ? actividadMetaMap.get(actId) : null;
+      let servicioItem = {
+        actId: actId,
+        label: actividadMeta ? actividadMeta.label : '#' + String(actId),
+        color:
+          (actividadMeta &&
+            (actividadMeta.color || actividadMeta.categoriaColor || actividadMeta.nivelColor)) ||
+          '',
+        nivelNombre: actividadMeta ? actividadMeta.nivelNombre : 'Sin nivel',
+        nivelOrden: actividadMeta ? actividadMeta.nivelOrden : 9999,
+        categoriaNombre: actividadMeta ? actividadMeta.categoriaNombre : 'Sin grupo',
+        categoriaColor:
+          (actividadMeta && (actividadMeta.categoriaColor || actividadMeta.nivelColor)) || '',
+      };
+
+      if (!serviciosByAsig.has(asignacionId)) {
+        serviciosByAsig.set(asignacionId, []);
+      }
+      serviciosByAsig.get(asignacionId).push(servicioItem);
+    });
+
+    return serviciosByAsig;
+  }
+
+  function buildDashboardAgentDetailRows(sourceRows, empleosMetaById, options) {
+    let opts = options || {};
+    let rows = Array.isArray(sourceRows) ? sourceRows : [];
+    let assignmentFilter =
+      typeof opts.assignmentFilter === 'function' ? opts.assignmentFilter : null;
+    let serviceFilter =
+      typeof opts.serviceFilter === 'function' ? opts.serviceFilter : null;
+    let serviciosByAsig =
+      opts.serviciosByAsignacion instanceof Map ? opts.serviciosByAsignacion : new Map();
+    let seedAgents = Array.isArray(opts.seedAgents) ? opts.seedAgents : [];
+    let includeAgentsWithoutServices = !!opts.includeAgentsWithoutServices;
+    let detailByAgent = new Map();
+
+    function ensureDetail(agentRow) {
+      let agenteId = Number(
+        agentRow && (agentRow.agente_id != null ? agentRow.agente_id : agentRow.id)
+      );
+      if (!Number.isInteger(agenteId) || agenteId <= 0) return null;
+      if (detailByAgent.has(agenteId)) return detailByAgent.get(agenteId);
+
+      let detail = {
+        agente_id: agenteId,
+        tip:
+          String(
+            agentRow && (agentRow.tip || agentRow.agente_tip)
+              ? agentRow.tip || agentRow.agente_tip
+              : ''
+          ).trim() || '-',
+        nombre: resolveDashboardAgenteNombre(agentRow),
+        empleo: resolveDashboardAgenteEmpleo(agentRow, empleosMetaById),
+        empleoColor: resolveDashboardAgenteEmpleoColor(agentRow, empleosMetaById),
+        diasSet: new Set(),
+        serviciosMap: new Map(),
+      };
+      detailByAgent.set(agenteId, detail);
+      return detail;
+    }
+
+    seedAgents.forEach(function (agentRow) {
+      ensureDetail(agentRow);
+    });
+
+    rows.forEach(function (row) {
+      if (assignmentFilter && !assignmentFilter(row)) return;
+
+      let serviciosAsignacion = serviciosByAsig.get(Number(row && row.id)) || [];
+      let matchingServices = serviceFilter
+        ? serviciosAsignacion.filter(function (serviceItem) {
+            return serviceFilter(serviceItem, row);
+          })
+        : serviciosAsignacion.slice();
+
+      if (!matchingServices.length && !includeAgentsWithoutServices) {
+        return;
+      }
+
+      let detail = ensureDetail(row);
+      if (!detail) return;
+
+      matchingServices.forEach(function (serviceItem) {
+        let key = String(
+          serviceItem && (serviceItem.actId != null ? serviceItem.actId : serviceItem.label)
+        );
+        if (!detail.serviciosMap.has(key)) {
+          detail.serviciosMap.set(key, {
+            label: String((serviceItem && serviceItem.label) || '').trim() || 'Sin servicio',
+            color: normalizeDashboardColor(serviceItem && serviceItem.color) || '',
+          });
+        }
+      });
+
+      let isoDate = getRowIsoDate(row);
+      if (isoDate) detail.diasSet.add(isoDate);
+    });
+
+    return Array.from(detailByAgent.values())
+      .map(function (detail) {
+        let diasIso = Array.from(detail.diasSet || []).sort(function (a, b) {
+          return a.localeCompare(b);
+        });
+        let servicios = Array.from(detail.serviciosMap.values()).sort(function (left, right) {
+          return String((left && left.label) || '').localeCompare(
+            String((right && right.label) || ''),
+            'es',
+            { sensitivity: 'base' }
+          );
+        });
+        return {
+          agente_id: detail.agente_id,
+          tip: detail.tip,
+          nombre: detail.nombre,
+          empleo: detail.empleo,
+          empleoColor: detail.empleoColor,
+          servicios: servicios,
+          serviciosLabel: servicios
+            .map(function (serviceItem) {
+              return String((serviceItem && serviceItem.label) || '').trim();
+            })
+            .filter(Boolean)
+            .join(', '),
+          dias: diasIso.map(formatDashboardDiaLabel),
+          diasLabel: diasIso.map(formatDashboardDiaLabel).join(', '),
+        };
+      })
+      .sort(function (left, right) {
+        let leftTip = String(left.tip || '');
+        let rightTip = String(right.tip || '');
+        if (leftTip !== rightTip) return leftTip.localeCompare(rightTip, 'es');
+        return String(left.nombre || '').localeCompare(String(right.nombre || ''), 'es');
+      });
+  }
+
+  function renderDashboardActividadDetalleSelection(detail, meta) {
+    let refs = getDashboardActividadDetalleElements();
+    if (!refs.empty || !refs.table || !refs.info) return;
+    let selectionType = app._dashActividadDetalleSeleccion
+      ? app._dashActividadDetalleSeleccion.type
+      : '';
+    updateDashboardActividadDetalleTitle(selectionType);
+    updateDashboardActiveChartFrame(selectionType);
+
+    let rows = Array.isArray(detail && detail.rows) ? detail.rows : [];
+    if (!rows.length) {
+      refs.info.textContent = 'Sin agentes para la selección actual';
+      refs.empty.textContent =
+        'No hay agentes ni servicios para la selección actual dentro del rango filtrado.';
+      refs.empty.style.display = '';
+      refs.table.style.display = 'none';
+      if (app._dashActividadDetalleTable) {
+        app._dashActividadDetalleTable.setData([]);
+      }
+      app._dashActividadDetalleSeleccionMeta = null;
+      updateDashboardActividadDetalleExportState(true);
+      return;
+    }
+
+    refs.table.style.display = 'block';
+    let table = ensureDashboardActividadDetalleTable();
+    let periodoText = meta && meta.periodoLabel ? ' · ' + meta.periodoLabel : '';
+    let rangeText = meta && meta.rangeLabel ? ' · ' + meta.rangeLabel : '';
+    refs.info.textContent =
+      String((detail && detail.label) || 'Detalle') +
+      ' · ' +
+      String(rows.length) +
+      ' agentes' +
+      periodoText +
+      rangeText;
+    refs.empty.style.display = 'none';
+    if (table) {
+      table.setData(rows);
+      if (typeof table.redraw === 'function') table.redraw(true);
+    }
+    app._dashActividadDetalleSeleccionMeta = {
+      label: detail && detail.label ? detail.label : 'detalle',
+      rows: rows,
+      periodo: meta && meta.periodoLabel ? meta.periodoLabel : '',
+      rango: meta && meta.rangeLabel ? meta.rangeLabel : '',
+    };
+    updateDashboardActividadDetalleExportState(false);
+  }
+
+  function getDashboardDetalleSelectionKey(type) {
+    let selection = app._dashActividadDetalleSeleccion;
+    if (!selection || selection.type !== type) return null;
+    return selection.key;
+  }
+
+  function setDashboardDetalleSelection(type, key) {
+    app._dashActividadDetalleSeleccion = { type: type, key: key };
   }
 
   function formatDashboardDiaLabel(iso) {
@@ -2073,8 +2671,7 @@
         vertAlign: 'middle',
       },
       initialSort: [
-        { column: 'tip', dir: 'asc' },
-        { column: 'nombre', dir: 'asc' },
+        { column: 'tip', dir: 'asc' }
       ],
       columns: [
         {
@@ -2113,6 +2710,40 @@
               });
             }
             return app.escapeHtml(empleo);
+          },
+        },
+        {
+          title: 'Servicio',
+          field: 'serviciosLabel',
+          minWidth: 190,
+          headerFilter: 'input',
+          formatter: function (cell) {
+            let data =
+              cell && typeof cell.getRow === 'function' ? cell.getRow().getData() : null;
+            let servicios = Array.isArray(data && data.servicios) ? data.servicios : [];
+            if (!servicios.length) {
+              return '<span class="text-muted">-</span>';
+            }
+            return servicios
+              .map(function (serviceItem) {
+                let label = String((serviceItem && serviceItem.label) || '').trim() || '-';
+                let color = normalizeDashboardColor(serviceItem && serviceItem.color);
+                if (renderColorBadgeHtml && color) {
+                  return renderColorBadgeHtml(label, color, {
+                    className: 'badge me-1 mb-1',
+                    padding: '.3em .5em',
+                    whiteSpace: 'normal',
+                    lineHeight: '1.1',
+                    escapeHtmlFn: app.escapeHtml,
+                  });
+                }
+                return (
+                  '<span class="badge text-bg-light border me-1 mb-1">' +
+                  app.escapeHtml(label) +
+                  '</span>'
+                );
+              })
+              .join('');
           },
         },
         {
@@ -2161,13 +2792,15 @@
 
   function resetDashboardActividadDetalle(message) {
     let refs = getDashboardActividadDetalleElements();
+    updateDashboardActividadDetalleTitle('');
+    clearDashboardActiveChartFrame();
     if (refs.info) {
-      refs.info.textContent = 'Haz clic en un sector del gráfico.';
+      refs.info.textContent = 'Haz clic en un gráfico para ver el detalle.';
     }
     if (refs.empty) {
       refs.empty.textContent =
         message ||
-        'Selecciona un servicio en el donut para listar agentes y días asignados en el rango filtrado.';
+        'Selecciona un gráfico para listar agentes, servicios y días asignados en el rango filtrado.';
       refs.empty.style.display = '';
     }
     if (refs.table) refs.table.style.display = 'none';
@@ -2180,45 +2813,8 @@
   }
 
   function renderDashboardActividadDetalle(actId, actividadDetalleMap, meta) {
-    let refs = getDashboardActividadDetalleElements();
-    if (!refs.empty || !refs.table || !refs.info) return;
-
     let detail = actividadDetalleMap instanceof Map ? actividadDetalleMap.get(actId) : null;
-    if (!detail || !Array.isArray(detail.rows) || !detail.rows.length) {
-      refs.info.textContent = 'Sin agentes para el servicio seleccionado';
-      refs.empty.textContent = 'No hay agentes para ese servicio dentro del rango filtrado.';
-      refs.empty.style.display = '';
-      refs.table.style.display = 'none';
-      if (app._dashActividadDetalleTable) {
-        app._dashActividadDetalleTable.setData([]);
-      }
-      return;
-    }
-
-    refs.table.style.display = 'block';
-    let table = ensureDashboardActividadDetalleTable();
-    let periodoText = meta && meta.periodoLabel ? ' · ' + meta.periodoLabel : '';
-    let rangeText = meta && meta.rangeLabel ? ' · ' + meta.rangeLabel : '';
-    refs.info.textContent =
-      detail.label +
-      ' · ' +
-      String(detail.rows.length) +
-      ' agentes' +
-      periodoText +
-      rangeText;
-    refs.empty.style.display = 'none';
-    if (table) {
-      table.setData(detail.rows);
-      if (typeof table.redraw === 'function') table.redraw(true);
-    }
-    app._dashActividadDetalleSeleccionMeta = {
-      actId: actId,
-      label: detail.label,
-      rows: detail.rows,
-      periodo: meta && meta.periodoLabel ? meta.periodoLabel : '',
-      rango: meta && meta.rangeLabel ? meta.rangeLabel : '',
-    };
-    updateDashboardActividadDetalleExportState(false);
+    renderDashboardActividadDetalleSelection(detail, meta);
   }
 
   // ── Heatmap: cargar select de borradores / fuente ─────────────────────
@@ -2380,14 +2976,7 @@
 
     if (!isBorradorSource) {
       app._dashboardBorradores = [];
-      setDashboardBadgeFuente({
-        fuente: 'Definitivo',
-        anio: anio,
-        mes: mes,
-        detalle: 'Asignación: Definitivo',
-        rango: getDashboardRangeLabel(activeRange),
-      });
-      await refreshDashboardSourceCharts(null, anio, mes);
+      await refreshDashboardFromCurrentFilters();
       return;
     }
 
@@ -2447,16 +3036,8 @@
       if (!sel.dataset.bound) {
         sel.dataset.bound = '1';
         sel.addEventListener('change', function () {
-          let p = app._dashHeatmapPeriod || {};
           if (sel.value) {
-            setDashboardBadgeFuente({
-              fuente: 'Borrador',
-              anio: p.anio,
-              mes: p.mes,
-              detalle: ' ' + getSelectOptionText(sel, 'Borrador'),
-              rango: getDashboardRangeLabel(getDashboardDateRange(p.anio, p.mes)),
-            });
-            refreshDashboardSourceCharts(sel.value, p.anio, p.mes);
+            refreshDashboardFromCurrentFilters();
           } else {
             renderDashboardNoFuenteData(
               'Selecciona un borrador para visualizar los gráficos.'
@@ -2475,14 +3056,7 @@
       }
       sel.value = selectedId;
       setDashboardNoDataInfo('');
-      setDashboardBadgeFuente({
-        fuente: 'Borrador',
-        anio: anio,
-        mes: mes,
-        detalle: ' ' + getSelectOptionText(sel, 'Borrador'),
-        rango: getDashboardRangeLabel(activeRange),
-      });
-      await refreshDashboardSourceCharts(selectedId, anio, mes);
+      await refreshDashboardFromCurrentFilters();
     } catch (e) {
       app._dashboardBorradores = [];
       let errHtml = '<option value="">Error al cargar borradores</option>';
@@ -2520,68 +3094,32 @@
 
       try {
         let contexto = await loadDashboardTemporalContext(borradorId, anio, mes);
-        let actsList = Array.isArray(contexto.metaData && contexto.metaData.actividades)
-          ? contexto.metaData.actividades
-          : [];
         let empleosMetaById = contexto.empleosMetaById;
-        let actMetaMap = new Map();
-        actsList.forEach(function (a) {
-          let id = Number(a.id_actividad || a.id);
-          if (!Number.isInteger(id) || id <= 0) return;
-          let codigo = String(a.actividad || a.codigo || '').trim();
-          let nombre = String(a.nombre || '').trim();
-          let label =
-            codigo && nombre && codigo !== nombre
-              ? codigo + ' · ' + nombre
-              : nombre || codigo || '#' + String(id);
-          actMetaMap.set(id, label);
-        });
+        let actividadMetaMap = buildDashboardActividadMetaMap(contexto.metaData);
         let rows = contexto.rows;
         let servicios = contexto.servicios;
         let servicioKeyField = contexto.servicioKeyField;
         let dateRange = contexto.dateRange;
 
-        let serviciosByAsig = new Map();
-        servicios.forEach(function (s) {
-          let asigId = Number(s && s[servicioKeyField]);
-          let actId = Number(s && s.actividad_id);
-          if (!Number.isInteger(asigId) || asigId <= 0) return;
-          if (!Number.isInteger(actId) || actId <= 0) return;
-          if (!serviciosByAsig.has(asigId)) serviciosByAsig.set(asigId, []);
-          serviciosByAsig.get(asigId).push(actId);
-        });
+        let serviciosByAsig = buildDashboardServiciosByAsignacion(
+          servicios,
+          servicioKeyField,
+          actividadMetaMap
+        );
 
         let actividadAgents = new Map();
-        let actividadDetalleRaw = new Map();
         rows.forEach(function (row) {
           let agenteId = Number(row && row.agente_id);
           if (!Number.isInteger(agenteId) || agenteId <= 0) return;
           let acts = serviciosByAsig.get(Number(row && row.id)) || [];
-          let uniqueActs = new Set(acts);
-          let isoDate = getRowIsoDate(row);
+          let uniqueActs = new Set(
+            acts.map(function (serviceItem) {
+              return Number(serviceItem && serviceItem.actId);
+            })
+          );
           uniqueActs.forEach(function (actId) {
             if (!actividadAgents.has(actId)) actividadAgents.set(actId, new Set());
             actividadAgents.get(actId).add(agenteId);
-
-            if (!actividadDetalleRaw.has(actId)) {
-              actividadDetalleRaw.set(actId, new Map());
-            }
-            let detallePorAgente = actividadDetalleRaw.get(actId);
-            let detail = detallePorAgente.get(agenteId);
-            if (!detail) {
-              detail = {
-                agente_id: agenteId,
-                tip: String(
-                  row && (row.tip || row.agente_tip) ? row.tip || row.agente_tip : ''
-                ).trim() || '-',
-                nombre: resolveDashboardAgenteNombre(row),
-                empleo: resolveDashboardAgenteEmpleo(row, empleosMetaById),
-                empleoColor: resolveDashboardAgenteEmpleoColor(row, empleosMetaById),
-                diasSet: new Set(),
-              };
-              detallePorAgente.set(agenteId, detail);
-            }
-            if (isoDate) detail.diasSet.add(isoDate);
           });
         });
 
@@ -2590,31 +3128,14 @@
         actividadAgents.forEach(function (agentsSet, actId) {
           let count = agentsSet ? agentsSet.size : 0;
           if (!count) return;
-          let detailRows = Array.from(
-            (actividadDetalleRaw.get(actId) || new Map()).values()
-          )
-            .map(function (item) {
-              let dias = Array.from(item.diasSet || []).sort();
-              return {
-                agente_id: item.agente_id,
-                tip: item.tip,
-                nombre: item.nombre,
-                empleo: item.empleo,
-                empleoColor: item.empleoColor,
-                dias: dias.map(formatDashboardDiaLabel),
-                diasLabel: dias.map(formatDashboardDiaLabel).join(', '),
-              };
-            })
-            .sort(function (left, right) {
-              let leftTip = String(left.tip || '');
-              let rightTip = String(right.tip || '');
-              if (leftTip !== rightTip) return leftTip.localeCompare(rightTip, 'es');
-              return String(left.nombre || '').localeCompare(
-                String(right.nombre || ''),
-                'es'
-              );
-            });
-          let label = actMetaMap.get(actId) || '#' + String(actId);
+          let detailRows = buildDashboardAgentDetailRows(rows, empleosMetaById, {
+            serviciosByAsignacion: serviciosByAsig,
+            serviceFilter: function (serviceItem) {
+              return Number(serviceItem && serviceItem.actId) === actId;
+            },
+          });
+          let actividadMeta = actividadMetaMap.get(actId);
+          let label = actividadMeta ? actividadMeta.label : '#' + String(actId);
           actividadDetalleMap.set(actId, {
             actId: actId,
             label: label,
@@ -2666,11 +3187,31 @@
           return b.count - a.count;
         });
 
+        let selectedActividadKey = Number(
+          getDashboardDetalleSelectionKey('actividad')
+        );
+        let selectedActividadIndex = -1;
+
         let actData = acts.map(function (d) {
+          let isSelected =
+            Number.isInteger(selectedActividadKey) && selectedActividadKey === d.actId;
+          if (isSelected) {
+            selectedActividadIndex = acts.indexOf(d);
+          }
           return {
             value: d.count,
             name: d.label,
             actId: d.actId,
+            selected: isSelected,
+            selectedOffset: isSelected ? 10 : 0,
+            itemStyle: isSelected
+              ? {
+                  borderColor: '#1f2937',
+                  borderWidth: 2,
+                  shadowBlur: 10,
+                  shadowColor: 'rgba(31,41,55,0.28)',
+                }
+              : undefined,
           };
         });
 
@@ -2679,6 +3220,7 @@
           series: [
             {
               type: 'pie',
+              selectedMode: 'single',
               radius: ['40%', '68%'],
               center: ['50%', '50%'],
               avoidLabelOverlap: true,
@@ -2697,8 +3239,23 @@
           ],
         });
 
+        if (selectedActividadIndex >= 0) {
+          chart.dispatchAction({
+            type: 'highlight',
+            seriesIndex: 0,
+            dataIndex: selectedActividadIndex,
+          });
+        }
+
         chart.off('click');
         chart.on('click', function (params) {
+          if (typeof params.dataIndex === 'number') {
+            chart.dispatchAction({
+              type: 'highlight',
+              seriesIndex: 0,
+              dataIndex: params.dataIndex,
+            });
+          }
           let paramsData = params && typeof params === 'object' ? params.data : null;
           let actId = Number(
             paramsData && typeof paramsData === 'object' && 'actId' in paramsData
@@ -2706,7 +3263,7 @@
               : 0
           );
           if (!Number.isInteger(actId) || actId <= 0) return;
-          app._dashActividadDetalleSeleccion = actId;
+          setDashboardDetalleSelection('actividad', actId);
           renderDashboardActividadDetalle(actId, actividadDetalleMap, {
             periodoLabel: getDashboardActividadDetallePeriodoLabel(anio, mes),
             rangeLabel: getDashboardRangeLabel(dateRange),
@@ -2714,11 +3271,11 @@
         });
 
         if (
-          Number.isInteger(Number(app._dashActividadDetalleSeleccion)) &&
-          actividadDetalleMap.has(Number(app._dashActividadDetalleSeleccion))
+          Number.isInteger(Number(getDashboardDetalleSelectionKey('actividad'))) &&
+          actividadDetalleMap.has(Number(getDashboardDetalleSelectionKey('actividad')))
         ) {
           renderDashboardActividadDetalle(
-            Number(app._dashActividadDetalleSeleccion),
+            Number(getDashboardDetalleSelectionKey('actividad')),
             actividadDetalleMap,
             {
               periodoLabel: getDashboardActividadDetallePeriodoLabel(anio, mes),
@@ -2760,7 +3317,7 @@
       let headers = getDashboardHeaders();
       let [cuadData, metaRes, agentesMetaData] = await Promise.all([
         fetchDashboardCuadranteData(anio, mes, borradorId, headers),
-        fetch('/api/asignaciones/meta', { headers: headers }),
+        fetch('/api/asignaciones/meta', { headers: headers, cache: 'no-store' }),
         loadDashboardAgentesMetaCached(headers),
       ]);
 
@@ -2862,9 +3419,13 @@
         let rows = contexto.rows;
         let servicios = contexto.servicios;
         let servicioKeyField = contexto.servicioKeyField;
-        let actividades = Array.isArray(contexto.metaData.actividades)
-          ? contexto.metaData.actividades
-          : [];
+        let actividadMetaMap = buildDashboardActividadMetaMap(contexto.metaData);
+        let empleosMetaById = contexto.empleosMetaById;
+        let serviciosByAsig = buildDashboardServiciosByAsignacion(
+          servicios,
+          servicioKeyField,
+          actividadMetaMap
+        );
 
         if (!rows.length || !servicios.length) {
           renderPlaceholder(
@@ -2874,45 +3435,18 @@
         }
 
         let actividadToCategoria = new Map();
-        let actividadDetalleMeta = new Map();
         let detailColorByLabel = new Map();
         let categorias = new Map();
-        actividades.forEach(function (actividad) {
-          let actividadId = Number(actividad && actividad.id_actividad);
-          if (!Number.isInteger(actividadId) || actividadId <= 0) return;
+        actividadMetaMap.forEach(function (actividadMeta, actividadId) {
+          if (Number(actividadMeta.nivelOrden) !== 3) return;
 
-          // Solo nivel 3 (NO DISPONIBLES)
-          let nivelOrden = Number(actividad && actividad.nivel_grupo_orden);
-          if (nivelOrden !== 3) return;
-
-          // Categoría = grupo_actividad (dentro del nivel 3)
-          let categoriaNombre = String(
-            (actividad && actividad.grupo_nombre) || ''
-          ).trim();
-          if (!categoriaNombre) categoriaNombre = 'Sin grupo';
-
-          // Color de categoría = color del grupo_actividad
+          let categoriaNombre = actividadMeta.categoriaNombre || 'Sin grupo';
           let categoriaColor =
-            normalizeDashboardColor(actividad && actividad.grupo_color) ||
-            normalizeDashboardColor(actividad && actividad.nivel_grupo_color) ||
-            GC_GREEN;
-
-          let codigo = String(actividad && (actividad.codigo || actividad.actividad) || '').trim();
-          let nombre = String(actividad && actividad.nombre || '').trim();
-          let detalleLabel =
-            codigo && nombre && codigo !== nombre
-              ? codigo + ' · ' + nombre
-              : nombre || codigo || '#' + String(actividadId);
-          let detalleColor =
-            normalizeDashboardColor(actividad && actividad.actividad_color) ||
-            categoriaColor ||
-            GC_GREEN;
+            actividadMeta.categoriaColor || actividadMeta.nivelColor || GC_GREEN;
+          let detalleLabel = actividadMeta.label;
+          let detalleColor = actividadMeta.color || categoriaColor || GC_GREEN;
 
           actividadToCategoria.set(actividadId, categoriaNombre);
-          actividadDetalleMeta.set(actividadId, {
-            label: detalleLabel,
-            color: detalleColor,
-          });
           if (!detailColorByLabel.has(detalleLabel)) {
             detailColorByLabel.set(detalleLabel, detalleColor);
           }
@@ -2931,20 +3465,21 @@
         }
 
         let categoriasByAsignacion = new Map();
-        servicios.forEach(function (servicio) {
-          let asignacionId = Number(servicio && servicio[servicioKeyField]);
-          let actividadId = Number(servicio && servicio.actividad_id);
-          let categoriaNombre = actividadToCategoria.get(actividadId);
-          let detalleMeta = actividadDetalleMeta.get(actividadId);
-          if (!Number.isInteger(asignacionId) || asignacionId <= 0) return;
-          if (!categoriaNombre) return;
-          if (!detalleMeta) return;
-          if (!categoriasByAsignacion.has(asignacionId)) {
-            categoriasByAsignacion.set(asignacionId, []);
-          }
-          categoriasByAsignacion.get(asignacionId).push({
-            categoriaNombre: categoriaNombre,
-            detalleLabel: detalleMeta.label,
+        serviciosByAsig.forEach(function (serviceItems, asignacionId) {
+          serviceItems.forEach(function (serviceItem) {
+            let actividadId = Number(serviceItem && serviceItem.actId);
+            let categoriaNombre = actividadToCategoria.get(actividadId);
+            let detalleMeta = serviceItem;
+            if (!Number.isInteger(asignacionId) || asignacionId <= 0) return;
+            if (!categoriaNombre) return;
+            if (!detalleMeta) return;
+            if (!categoriasByAsignacion.has(asignacionId)) {
+              categoriasByAsignacion.set(asignacionId, []);
+            }
+            categoriasByAsignacion.get(asignacionId).push({
+              categoriaNombre: categoriaNombre,
+              detalleLabel: detalleMeta.label,
+            });
           });
         });
 
@@ -3139,6 +3674,9 @@
           series: categoriasArr.reduce(function (seriesList, item) {
             let stackKey = 'categoria-' + String(item.id);
             item.details.forEach(function (detail) {
+              let selectedKey = String(
+                getDashboardDetalleSelectionKey('grupo-nivel3') || ''
+              );
               seriesList.push({
                 name: item.nombre,
                 type: 'bar',
@@ -3150,9 +3688,19 @@
                   let dayMap = dayCategoriaDetailAgents.get(iso);
                   let categoryMap = dayMap ? dayMap.get(item.id) : null;
                   let agents = categoryMap ? categoryMap.get(detail.label) : null;
+                  let currentKey = [item.nombre, detail.label, iso].join('|');
+                  let isSelected = !!selectedKey && currentKey === selectedKey;
                   return {
                     value: agents ? agents.size : 0,
                     detail: detail.label,
+                    itemStyle: isSelected
+                      ? {
+                          borderColor: '#1f2937',
+                          borderWidth: 2,
+                          shadowBlur: 8,
+                          shadowColor: 'rgba(31,41,55,0.28)',
+                        }
+                      : undefined,
                   };
                 }),
               });
@@ -3160,6 +3708,103 @@
             return seriesList;
           }, []),
         });
+
+        chart.off('click');
+        chart.on('click', function (params) {
+          if (
+            typeof params.seriesIndex === 'number' &&
+            typeof params.dataIndex === 'number'
+          ) {
+            chart.dispatchAction({
+              type: 'highlight',
+              seriesIndex: params.seriesIndex,
+              dataIndex: params.dataIndex,
+            });
+          }
+          let fecha = fechas[Number(params && params.dataIndex)] || '';
+          let categoriaNombre = String((params && params.seriesName) || '').trim();
+          let dataItem = /** @type {{ detail?: unknown } | null} */ (
+            params && params.data && typeof params.data === 'object'
+              ? params.data
+              : null
+          );
+          let detailLabel = String(dataItem && dataItem.detail ? dataItem.detail : '').trim();
+          if (!fecha || !categoriaNombre || !detailLabel) return;
+
+          let selectionKey = [categoriaNombre, detailLabel, fecha].join('|');
+          let detailRows = buildDashboardAgentDetailRows(rows, empleosMetaById, {
+            serviciosByAsignacion: serviciosByAsig,
+            assignmentFilter: function (row) {
+              return getRowIsoDate(row) === fecha;
+            },
+            serviceFilter: function (serviceItem) {
+              return (
+                String((serviceItem && serviceItem.categoriaNombre) || '') ===
+                  categoriaNombre &&
+                String((serviceItem && serviceItem.label) || '') === detailLabel
+              );
+            },
+          });
+
+          setDashboardDetalleSelection('grupo-nivel3', selectionKey);
+          renderDashboardActividadDetalleSelection(
+            {
+              key: selectionKey,
+              label:
+                categoriaNombre +
+                ' · ' +
+                detailLabel +
+                ' · ' +
+                formatDashboardDiaLabel(fecha),
+              rows: detailRows,
+            },
+            {
+              periodoLabel: getDashboardActividadDetallePeriodoLabel(anio, mes),
+              rangeLabel: getDashboardRangeLabel(contexto.dateRange),
+            }
+          );
+        });
+
+        let selectedGrupoNivel3Key = getDashboardDetalleSelectionKey('grupo-nivel3');
+        if (selectedGrupoNivel3Key) {
+          let selectedParts = String(selectedGrupoNivel3Key).split('|');
+          if (selectedParts.length === 3) {
+            let selectedCategoria = selectedParts[0];
+            let selectedDetail = selectedParts[1];
+            let selectedFecha = selectedParts[2];
+            let selectedRows = buildDashboardAgentDetailRows(rows, empleosMetaById, {
+              serviciosByAsignacion: serviciosByAsig,
+              assignmentFilter: function (row) {
+                return getRowIsoDate(row) === selectedFecha;
+              },
+              serviceFilter: function (serviceItem) {
+                return (
+                  String((serviceItem && serviceItem.categoriaNombre) || '') ===
+                    selectedCategoria &&
+                  String((serviceItem && serviceItem.label) || '') === selectedDetail
+                );
+              },
+            });
+            if (selectedRows.length) {
+              renderDashboardActividadDetalleSelection(
+                {
+                  key: selectedGrupoNivel3Key,
+                  label:
+                    selectedCategoria +
+                    ' · ' +
+                    selectedDetail +
+                    ' · ' +
+                    formatDashboardDiaLabel(selectedFecha),
+                  rows: selectedRows,
+                },
+                {
+                  periodoLabel: getDashboardActividadDetallePeriodoLabel(anio, mes),
+                  rangeLabel: getDashboardRangeLabel(contexto.dateRange),
+                }
+              );
+            }
+          }
+        }
       } catch (error) {
         renderPlaceholder('Error al cargar grupos de actividad de nivel 3.');
         console.error('[Dashboard][GrupoNivel3Stack]', error.message);
@@ -3192,6 +3837,8 @@
         let actividadesMeta = Array.isArray(contexto.metaData && contexto.metaData.actividades)
           ? contexto.metaData.actividades
           : [];
+        let actividadMetaMap = buildDashboardActividadMetaMap(contexto.metaData);
+        let empleosMetaById = contexto.empleosMetaById;
 
         let actNivelColorById = new Map();
         actividadesMeta.forEach(function (a) {
@@ -3216,20 +3863,22 @@
         }
 
         let actividadColorMap = new Map();
-        let serviciosByAsig = new Map();
-        servicios.forEach(function (s) {
-          let asigId = Number(s && s[servicioKeyField]);
-          if (!Number.isInteger(asigId) || asigId <= 0) return;
-          let actName =
-            String((s && (s.actividad_nombre || s.actividad_codigo)) || '').trim() ||
-            (s && s.actividad_id ? '#' + s.actividad_id : 'Sin actividad');
-          let actId = Number(s && s.actividad_id);
-          let actColor = Number.isInteger(actId) ? actNivelColorById.get(actId) : '';
-          if (!serviciosByAsig.has(asigId)) serviciosByAsig.set(asigId, []);
-          serviciosByAsig.get(asigId).push(actName);
-          if (actColor && !actividadColorMap.has(actName)) {
-            actividadColorMap.set(actName, actColor);
-          }
+        let serviciosByAsig = buildDashboardServiciosByAsignacion(
+          servicios,
+          servicioKeyField,
+          actividadMetaMap
+        );
+        serviciosByAsig.forEach(function (serviceItems) {
+          serviceItems.forEach(function (serviceItem) {
+            let actName = String((serviceItem && serviceItem.label) || '').trim();
+            if (!actName) return;
+            let actColor = normalizeDashboardColor(
+              serviceItem && (serviceItem.nivelColor || serviceItem.color)
+            );
+            if (actColor && !actividadColorMap.has(actName)) {
+              actividadColorMap.set(actName, actColor);
+            }
+          });
         });
 
         let matrixMap = new Map(); // actividad -> fecha_iso -> Set(agente)
@@ -3242,7 +3891,9 @@
           let iso = getRowIsoDate(row);
           if (!iso) return;
 
-          acts.forEach(function (actName) {
+          acts.forEach(function (serviceItem) {
+            let actName = String((serviceItem && serviceItem.label) || '').trim();
+            if (!actName) return;
             if (!matrixMap.has(actName)) matrixMap.set(actName, new Map());
             let byDia = matrixMap.get(actName);
             if (!byDia.has(iso)) byDia.set(iso, new Set());
@@ -3399,7 +4050,102 @@
           ],
         };
 
+        let selectedMatrixKey = String(
+          getDashboardDetalleSelectionKey('matrix') || ''
+        );
+        if (selectedMatrixKey) {
+          data = data.map(function (entry) {
+            let currentKey = [
+              actividades[Number(entry[1]) || 0] || '',
+              String(entry[3] || ''),
+            ].join('|');
+            if (currentKey !== selectedMatrixKey) return entry;
+            return {
+              value: entry,
+              itemStyle: {
+                borderColor: '#1f2937',
+                borderWidth: 2,
+                shadowBlur: 8,
+                shadowColor: 'rgba(31,41,55,0.28)',
+              },
+            };
+          });
+          fallbackOption.series[0].data = data;
+        }
+
         chart.setOption(fallbackOption);
+
+        chart.off('click');
+        chart.on('click', function (params) {
+          if (typeof params.dataIndex === 'number') {
+            chart.dispatchAction({
+              type: 'highlight',
+              seriesIndex: 0,
+              dataIndex: params.dataIndex,
+            });
+          }
+          let value = params && params.value ? params.value : [];
+          let dayIndex = Number(value[0]);
+          let activityIndex = Number(value[1]);
+          let fecha = dias[dayIndex] || '';
+          let actividadLabel = actividades[activityIndex] || '';
+          if (!fecha || !actividadLabel) return;
+
+          let selectionKey = [actividadLabel, fecha].join('|');
+          let detailRows = buildDashboardAgentDetailRows(rows, empleosMetaById, {
+            serviciosByAsignacion: serviciosByAsig,
+            assignmentFilter: function (row) {
+              return getRowIsoDate(row) === fecha;
+            },
+            serviceFilter: function (serviceItem) {
+              return String((serviceItem && serviceItem.label) || '') === actividadLabel;
+            },
+          });
+
+          setDashboardDetalleSelection('matrix', selectionKey);
+          renderDashboardActividadDetalleSelection(
+            {
+              key: selectionKey,
+              label: actividadLabel + ' · ' + formatDashboardDiaLabel(fecha),
+              rows: detailRows,
+            },
+            {
+              periodoLabel: getDashboardActividadDetallePeriodoLabel(anio, mes),
+              rangeLabel: getDashboardRangeLabel(contexto.dateRange),
+            }
+          );
+        });
+
+        let persistedMatrixKey = getDashboardDetalleSelectionKey('matrix');
+        if (persistedMatrixKey) {
+          let selectedParts = String(persistedMatrixKey).split('|');
+          if (selectedParts.length === 2) {
+            let selectedActividad = selectedParts[0];
+            let selectedFecha = selectedParts[1];
+            let selectedRows = buildDashboardAgentDetailRows(rows, empleosMetaById, {
+              serviciosByAsignacion: serviciosByAsig,
+              assignmentFilter: function (row) {
+                return getRowIsoDate(row) === selectedFecha;
+              },
+              serviceFilter: function (serviceItem) {
+                return String((serviceItem && serviceItem.label) || '') === selectedActividad;
+              },
+            });
+            if (selectedRows.length) {
+              renderDashboardActividadDetalleSelection(
+                {
+                  key: persistedMatrixKey,
+                  label: selectedActividad + ' · ' + formatDashboardDiaLabel(selectedFecha),
+                  rows: selectedRows,
+                },
+                {
+                  periodoLabel: getDashboardActividadDetallePeriodoLabel(anio, mes),
+                  rangeLabel: getDashboardRangeLabel(contexto.dateRange),
+                }
+              );
+            }
+          }
+        }
       } catch (e) {
         if (loading) loading.style.display = 'none';
         if (placeholder) {
@@ -3428,6 +4174,8 @@
         let actividades = Array.isArray(contexto.metaData.actividades)
           ? contexto.metaData.actividades
           : [];
+        let actividadMetaMap = buildDashboardActividadMetaMap(contexto.metaData);
+        let empleosMetaById = contexto.empleosMetaById;
 
         if (!rows.length) {
           if (loading) loading.style.display = 'none';
@@ -3462,15 +4210,11 @@
           }
         });
 
-        let serviciosByAsig = new Map();
-        servicios.forEach(function (s) {
-          let asigId = Number(s && s[servicioKeyField]);
-          let actId = Number(s && s.actividad_id);
-          if (!Number.isInteger(asigId) || asigId <= 0) return;
-          if (!Number.isInteger(actId) || actId <= 0) return;
-          if (!serviciosByAsig.has(asigId)) serviciosByAsig.set(asigId, []);
-          serviciosByAsig.get(asigId).push(actId);
-        });
+        let serviciosByAsig = buildDashboardServiciosByAsignacion(
+          servicios,
+          servicioKeyField,
+          actividadMetaMap
+        );
 
         let DateTime = window.luxon && window.luxon.DateTime;
         let dayLevelAgents = new Map(); // fecha_iso -> Map(nivel -> Set(agente_id))
@@ -3485,8 +4229,10 @@
 
           if (!dayLevelAgents.has(iso)) dayLevelAgents.set(iso, new Map());
           let levelsForRow = new Set();
-          acts.forEach(function (actId) {
-            levelsForRow.add(actNivelMap.get(actId) || 'Sin nivel');
+          acts.forEach(function (serviceItem) {
+            levelsForRow.add(
+              String((serviceItem && serviceItem.nivelNombre) || '') || 'Sin nivel'
+            );
           });
 
           levelsForRow.forEach(function (nivelNombre) {
@@ -3519,6 +4265,9 @@
 
         let series = niveles.map(function (nivelNombre) {
           let meta = nivelMeta.get(nivelNombre) || { color: '#64748b' };
+          let selectedLevelKey = String(
+            getDashboardDetalleSelectionKey('niveles') || ''
+          );
           return {
             name: nivelNombre,
             type: 'bar',
@@ -3529,14 +4278,31 @@
             data: fechas.map(function (iso) {
               let dayMap = dayLevelAgents.get(iso);
               let agentSet = dayMap ? dayMap.get(nivelNombre) : null;
-              return agentSet ? agentSet.size : 0;
+              let currentKey = [nivelNombre, iso].join('|');
+              let isSelected = !!selectedLevelKey && currentKey === selectedLevelKey;
+              return {
+                value: agentSet ? agentSet.size : 0,
+                itemStyle: isSelected
+                  ? {
+                      color: meta.color || '#64748b',
+                      borderColor: '#1f2937',
+                      borderWidth: 2,
+                      shadowBlur: 8,
+                      shadowColor: 'rgba(31,41,55,0.28)',
+                    }
+                  : undefined,
+              };
             }),
           };
         });
 
         let hasValues = series.some(function (s) {
-          return (s.data || []).some(function (v) {
-            return Number(v) > 0;
+          return (s.data || []).some(function (point) {
+            let value =
+              point && typeof point === 'object' && 'value' in point
+                ? Number(point.value)
+                : Number(point);
+            return value > 0;
           });
         });
 
@@ -3633,6 +4399,78 @@
           },
           series: series,
         });
+
+        chart.off('click');
+        chart.on('click', function (params) {
+          if (
+            typeof params.seriesIndex === 'number' &&
+            typeof params.dataIndex === 'number'
+          ) {
+            chart.dispatchAction({
+              type: 'highlight',
+              seriesIndex: params.seriesIndex,
+              dataIndex: params.dataIndex,
+            });
+          }
+          let fecha = fechas[Number(params && params.dataIndex)] || '';
+          let nivelNombre = String((params && params.seriesName) || '').trim();
+          if (!fecha || !nivelNombre) return;
+
+          let selectionKey = [nivelNombre, fecha].join('|');
+          let detailRows = buildDashboardAgentDetailRows(rows, empleosMetaById, {
+            serviciosByAsignacion: serviciosByAsig,
+            assignmentFilter: function (row) {
+              return getRowIsoDate(row) === fecha;
+            },
+            serviceFilter: function (serviceItem) {
+              return String((serviceItem && serviceItem.nivelNombre) || '') === nivelNombre;
+            },
+          });
+
+          setDashboardDetalleSelection('niveles', selectionKey);
+          renderDashboardActividadDetalleSelection(
+            {
+              key: selectionKey,
+              label: nivelNombre + ' · ' + formatDashboardDiaLabel(fecha),
+              rows: detailRows,
+            },
+            {
+              periodoLabel: getDashboardActividadDetallePeriodoLabel(anio, mes),
+              rangeLabel: getDashboardRangeLabel(contexto.dateRange),
+            }
+          );
+        });
+
+        let selectedLevelKey = getDashboardDetalleSelectionKey('niveles');
+        if (selectedLevelKey) {
+          let selectedParts = String(selectedLevelKey).split('|');
+          if (selectedParts.length === 2) {
+            let selectedNivel = selectedParts[0];
+            let selectedFecha = selectedParts[1];
+            let selectedRows = buildDashboardAgentDetailRows(rows, empleosMetaById, {
+              serviciosByAsignacion: serviciosByAsig,
+              assignmentFilter: function (row) {
+                return getRowIsoDate(row) === selectedFecha;
+              },
+              serviceFilter: function (serviceItem) {
+                return String((serviceItem && serviceItem.nivelNombre) || '') === selectedNivel;
+              },
+            });
+            if (selectedRows.length) {
+              renderDashboardActividadDetalleSelection(
+                {
+                  key: selectedLevelKey,
+                  label: selectedNivel + ' · ' + formatDashboardDiaLabel(selectedFecha),
+                  rows: selectedRows,
+                },
+                {
+                  periodoLabel: getDashboardActividadDetallePeriodoLabel(anio, mes),
+                  rangeLabel: getDashboardRangeLabel(contexto.dateRange),
+                }
+              );
+            }
+          }
+        }
       } catch (e) {
         if (loading) loading.style.display = 'none';
         if (placeholder) {
@@ -4139,6 +4977,7 @@
 
   app.showSection = function showSection(sectionName, options = {}) {
     const { updateHash = true } = options;
+    const previousSection = app.currentSection;
     const normalizedSection = app.normalizeSection(sectionName);
     const targetSection = app.canAccessSection(normalizedSection)
       ? normalizedSection
@@ -4171,9 +5010,19 @@
       app.initializedSections[targetSection] &&
       typeof app.triggerDashboardRefresh === 'function'
     ) {
-      Promise.resolve(app.triggerDashboardRefresh()).catch((error) => {
-        console.error('Error refreshing dashboard stats:', error);
-      });
+      const shouldForceRefresh =
+        previousSection !== 'dashboard' && app._dashboardDataDirty === true;
+      Promise.resolve(
+        app.triggerDashboardRefresh({ force: shouldForceRefresh })
+      )
+        .then(function () {
+          if (shouldForceRefresh && typeof app.clearDashboardDataDirty === 'function') {
+            app.clearDashboardDataDirty();
+          }
+        })
+        .catch((error) => {
+          console.error('Error refreshing dashboard stats:', error);
+        });
     }
 
     if (

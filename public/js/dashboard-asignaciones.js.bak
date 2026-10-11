@@ -2510,7 +2510,7 @@ function mesNumberToString(mes) {
         (payload.agenteNombre || "#" + payload.agente_id) +
         "  |  Fecha: " +
         fechaTxt +
-        "  |  Período: " +
+        "  |  Periodo: " +
         p.anio +
         "/" +
         String(p.mes).padStart(2, "0");

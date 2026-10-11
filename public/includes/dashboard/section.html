@@ -202,6 +202,13 @@
         <option value="borrador">Borrador</option>
         <option value="definitivo">Definitivo</option>
       </select>
+
+      <select id="dashHeatmapBorradorSel" class="form-select form-select-sm dash-borrador-control dash-select-borrador"
+        title="Borrador">
+        <option value="">Cargando borradores...</option>
+      </select>
+      <span class="dash-borrador-wrap" id="dashBorradorWrap">
+      </span>
       <select id="dashHeatmapAnioSel" class="form-select form-select-sm dash-select-anio" title="Año"></select>
       <select id="dashHeatmapMesSel" class="form-select form-select-sm dash-select-mes" title="Mes"></select>
       <span class="d-inline-flex align-items-center gap-1" title="Rango de días del cuadrante seleccionado">
@@ -218,12 +225,7 @@
         <button type="button" class="btn btn-outline-secondary" data-preset="7d">7d</button>
         <button type="button" class="btn btn-outline-secondary" data-preset="all">Todo</button>
       </span>
-      <span class="dash-borrador-wrap" id="dashBorradorWrap">
-        <select id="dashHeatmapBorradorSel"
-          class="form-select form-select-sm dash-borrador-control dash-select-borrador" title="Borrador">
-          <option value="">Cargando borradores...</option>
-        </select>
-      </span>
+
     </div>
     <div class="card-body py-2 px-3 dash-loading-hidden" id="dashNoDataInfoWrap">
       <div class="alert alert-info mb-0 py-2 small" id="dashNoDataInfoText">No hay cuadrantes disponibles para la ARS
@@ -327,11 +329,11 @@
         <div class="card-header bg-white border-bottom py-2 px-3 d-flex align-items-center gap-2 flex-wrap">
           <span class="fw-semibold small me-auto">
             <i class="bi bi-table me-1 dash-icon-blue"></i>
-            Agentes del servicio seleccionado
+            <span id="dashActividadAgentsTitle">Detalle de agentes</span>
           </span>
           <span class="dash-service-detail-tools">
-            <span class="dash-service-detail-caption" id="dashActividadAgentsInfo">Haz clic en un sector del
-              gráfico.</span>
+            <span class="dash-service-detail-caption" id="dashActividadAgentsInfo">Haz clic en un gráfico para ver el
+              detalle.</span>
             <button type="button" id="dashActividadAgentsExportBtn"
               class="btn btn-outline-success btn-sm dash-service-detail-export" disabled>
               <i class="bi bi-file-earmark-excel"></i>Excel
@@ -340,7 +342,7 @@
         </div>
         <div class="card-body p-2">
           <div id="dashActividadAgentsEmpty" class="dash-service-detail-empty">
-            Selecciona un servicio en el donut para listar agentes y días asignados en el rango filtrado.
+            Selecciona un gráfico para listar agentes, servicios y días dentro del rango filtrado.
           </div>
           <div id="dashActividadAgentsTable" class="dash-service-detail-table dash-chart-hidden"></div>
         </div>

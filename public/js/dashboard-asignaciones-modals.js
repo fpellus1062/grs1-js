@@ -834,7 +834,7 @@
         '<span class="badge ms-1" style="background:var(--primary-gc-color,#276836);color:#fff;">' +
         app.escapeHtml(fechaTxt) +
         '</span>' +
-        '<span class="ms-2"><strong>Período:</strong> ' +
+        '<span class="ms-2"><strong>Periodo:</strong> ' +
         app.escapeHtml(String(p.anio) + '/' + String(p.mes).padStart(2, '0')) +
         '</span>';
     }

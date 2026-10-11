@@ -58,6 +58,12 @@
       .toFormat('dd/MM/yyyy HH:mm:ss');
   }
 
+  function markDashboardDataChanged() {
+    if (typeof app.markDashboardDataDirty === 'function') {
+      app.markDashboardDataDirty();
+    }
+  }
+
   function resolveActividadGrupoMap() {
     let actividades =
       (app.asignacionesState.meta && app.asignacionesState.meta.actividades) ||
@@ -1541,6 +1547,8 @@
         await waitValidarProgressClose();
         bootstrap.Modal.getOrCreateInstance(modalEl).hide();
         _.showAlert('Borrador validado correctamente' + reglasTxt, 'success');
+        markDashboardDataChanged();
+        await app.loadAsignacionesBorradores(borradorId);
         await app.loadAsignacionesCuadrante();
         resetValidarProgress();
       } catch (e) {
@@ -1823,6 +1831,9 @@
       );
       _.refreshMetaResumenFromState();
       _.renderEstado(merged.control || null);
+      if (typeof _.updateFuenteAlineacionBadge === 'function') {
+        _.updateFuenteAlineacionBadge();
+      }
       _.renderGridTabulator(merged, periodo.anio, periodo.mes);
     } catch (e) {
       _.showAlert(e.message, 'danger');
@@ -2152,6 +2163,9 @@
           if (typeof _.updateConsolidarDevengosBtnState === 'function') {
             _.updateConsolidarDevengosBtnState();
           }
+          if (typeof _.updateFuenteAlineacionBadge === 'function') {
+            _.updateFuenteAlineacionBadge();
+          }
           app.loadAsignacionesCuadrante();
         });
       }
@@ -2236,6 +2250,7 @@
             }
             await app.loadAsignacionesBorradores(newBorradorId);
             _.showAlert('Borrador creado: ' + nombre, 'success');
+            markDashboardDataChanged();
             await app.loadAsignacionesCuadrante(newBorradorId);
           } catch (e) {
             _.showAlert(e.message, 'danger');
@@ -2758,6 +2773,7 @@
                 }
 
                 _.updateBulkProgress(85, 'Recargando cuadrante...');
+                markDashboardDataChanged();
                 await app.loadAsignacionesCuadrante();
                 _.updateBulkProgress(
                   100,
@@ -2894,6 +2910,7 @@
                   'Borrador eliminado para selección indicada',
                   'success'
                 );
+                markDashboardDataChanged();
                 await app.loadAsignacionesCuadrante();
               } catch (e) {
                 _.showAlert(e.message, 'danger');
@@ -3116,6 +3133,7 @@
                 if (borradorEl2 && data.destino_borrador_id)
                   // @ts-ignore
                   borradorEl2.value = String(data.destino_borrador_id);
+                markDashboardDataChanged();
                 await app.loadAsignacionesCuadrante();
               } catch (e) {
                 _.showAlert(e.message, 'danger');
@@ -3261,6 +3279,7 @@
                 (data && data.message) || 'Devengos consolidados',
                 'success'
               );
+              markDashboardDataChanged();
               await app.loadAsignacionesCuadrante();
             } catch (e) {
               clearInterval(ticker);

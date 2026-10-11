@@ -205,7 +205,7 @@ async function refreshPeriodoStatus(client, periodoId, arsId, userId) {
   );
 
   if (!result.rows.length) {
-    throw new Error('Período no encontrado.');
+    throw new Error('Periodo no encontrado.');
   }
 
   const row = result.rows[0];
@@ -701,7 +701,7 @@ async function registerEjecucionForPeriodo(client, arsId, periodoId, payload, us
     [periodoId, arsId]
   );
   if (!periodoRes.rows.length) {
-    throw new Error('Período no encontrado.');
+    throw new Error('Periodo no encontrado.');
   }
 
   const periodo = periodoRes.rows[0];
@@ -1021,7 +1021,7 @@ exports.sancionarPeriodo = async (arsId, payload, userId) => {
   );
 
   if (!result.rows.length) {
-    throw new Error('Período no encontrado para sancionar.');
+    throw new Error('Periodo no encontrado para sancionar.');
   }
 
   return result.rows[0];
