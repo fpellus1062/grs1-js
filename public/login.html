@@ -39,7 +39,12 @@
         <button type="submit" class="btn btn-primary">Iniciar sesión</button>
       </form>
 
-      <div id="error" class="text-danger mt-3 text-center"></div>
+      <div
+        id="error"
+        class="alert alert-danger mt-3 text-center d-none"
+        role="alert"
+        aria-live="assertive"
+      ></div>
     </div>
   </div>
 
@@ -54,6 +59,7 @@
         const errorDiv = document.getElementById('error');
 
         errorDiv.textContent = '';
+        errorDiv.classList.add('d-none');
 
         try {
           const response = await fetch(
@@ -121,7 +127,9 @@
           // Redirigir al dashboard
           window.location.href = 'dashboard.html';
         } catch (error) {
-          errorDiv.textContent = error.message;
+          errorDiv.textContent =
+            error.message || 'No se pudo iniciar sesión. Inténtalo de nuevo.';
+          errorDiv.classList.remove('d-none');
         }
       });
   </script>

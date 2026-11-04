@@ -17,6 +17,10 @@ const SOCKET_TIMEOUT_MS = Number(
   process.env.SOCKET_TIMEOUT_MS || 10 * 60 * 1000
 );
 
+require('./src/services/bootstrap-admin.service')
+  .bootstrapAdmin()
+  .catch((err) => console.error('[bootstrap-admin] Error:', err.message));
+
 const server = app.listen(PORT, () => {
   console.log(`Servidor corriendo en puerto ${PORT}`);
 });

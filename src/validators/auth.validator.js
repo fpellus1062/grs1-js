@@ -6,6 +6,8 @@ const PASSWORD_REGEX =
 const PASSWORD_MSG =
   'Mínimo 12 caracteres con mayúscula, minúscula, número y carácter especial';
 
+exports.PASSWORD_REGEX = PASSWORD_REGEX;
+
 exports.registerSchema = Joi.object({
   nombre: Joi.string().min(2).max(100).required().messages({
     'string.empty': 'El nombre no puede estar vacío',

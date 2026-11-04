@@ -122,6 +122,7 @@ app.use(cors());
 // 5 minutos para dar tiempo a generar archivos grandes
 app.use((req, res, next) => {
   res.setTimeout(5 * 60 * 1000, () => {
+    if (res.headersSent || res.writableEnded) return;
     res.status(408).json({ ok: false, message: 'Request timeout' });
   });
   next();
