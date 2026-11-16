@@ -1,0 +1,325 @@
+<div class="d-flex align-items-center gap-2 border-bottom border-3 border-warning pb-2 mb-4">
+    <h1 class="text-warning m-0">
+        <i class="bi bi-database-fill-down"></i>
+        Copias de Seguridad
+    </h1>
+</div>
+
+<div class="row g-4">
+
+    <!-- Exportar copia de seguridad -->
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-primary bg-opacity-10 border-0 rounded-top-4 py-3">
+                <h5 class="mb-0 fw-bold text-primary">
+                    <i class="bi bi-box-arrow-up me-2"></i>
+                    Exportar copia de seguridad
+                </h5>
+            </div>
+
+            <div class="card-body">
+
+                <p class="text-muted">
+                    Permite exportar información de la aplicación en formato JSON
+                    para conservar una copia de seguridad o trasladar los datos
+                    a otra instalación.
+                </p>
+
+                <h6 class="fw-bold text-primary">1. Seleccionar el periodo</h6>
+
+                <p class="small">
+                    Indica las fechas de inicio y fin que delimitan los registros
+                    que deseas exportar.
+                </p>
+
+                <ul class="small">
+                    <li><strong>Desde:</strong> Fecha inicial del periodo.</li>
+                    <li><strong>Hasta:</strong> Fecha final del periodo.</li>
+                    <li>El intervalo se aplica a las tablas de trabajo seleccionadas.</li>
+                </ul>
+
+                <h6 class="fw-bold text-primary">2. Definir la carpeta de destino</h6>
+
+                <p class="small">
+                    Introduce un nombre para identificar la carpeta de la exportación.
+                    No es necesario indicar una ruta completa, ya que la aplicación
+                    utiliza el área segura de almacenamiento de copias de seguridad
+                    del servidor.
+                </p>
+
+                <div class="alert alert-info py-2 small">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Dentro de la carpeta indicada se creará automáticamente
+                    una subcarpeta con el nombre:
+                    <br>
+                    <code>backup_AAAAMMDD_HHMMSS</code>
+                    <br>
+                    El nombre incorpora la fecha y hora de creación.
+                </div>
+
+                <h6 class="fw-bold text-primary">3. Seleccionar las tablas de trabajo</h6>
+
+                <p class="small">
+                    Marca las tablas cuyos registros deseas incluir en la exportación.
+                    Estas tablas utilizan el intervalo de fechas indicado.
+                </p>
+
+                <ul class="small">
+                    <li>Auditorías de accesos (login).</li>
+                    <li>Auditorías de turnos.</li>
+                    <li>Auditorías de planificación.</li>
+                    <li>Periodos y ejecuciones de requisitos de agentes.</li>
+                    <li>Planes de planificación y sus asignaciones.</li>
+                    <li>Cuadrantes de planificación e importaciones.</li>
+                    <li>Otras tablas operativas disponibles en el listado.</li>
+                </ul>
+
+                <p class="small">
+                    Puedes marcar individualmente las tablas o utilizar
+                    <strong>Marcar todos</strong> para seleccionar todas las disponibles.
+                </p>
+
+                <h6 class="fw-bold text-primary">4. Seleccionar los catálogos maestros</h6>
+
+                <p class="small">
+                    De forma opcional, puedes incorporar los catálogos maestros
+                    de la aplicación.
+                </p>
+
+                <ul class="small">
+                    <li>Provincias y comunidades.</li>
+                    <li>ARS (unidades).</li>
+                    <li>Empleos.</li>
+                    <li>Pelotones.</li>
+                    <li>Situaciones de agente.</li>
+                    <li>Niveles de grupo.</li>
+                    <li>Otros catálogos disponibles.</li>
+                </ul>
+
+                <div class="alert alert-warning py-2 small">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    Los catálogos maestros se exportan completos,
+                    independientemente del intervalo de fechas seleccionado.
+                </div>
+
+                <h6 class="fw-bold text-primary">5. Generar la exportación</h6>
+
+                <ol class="small mb-0">
+                    <li>Pulsa <strong>Vista previa</strong> para comprobar los datos que se van a exportar.</li>
+                    <li>Revisa las tablas y los registros incluidos.</li>
+                    <li>Pulsa <strong>Exportar</strong> para generar la copia de seguridad.</li>
+                    <li>La aplicación almacenará los archivos JSON en la carpeta correspondiente del servidor.</li>
+                </ol>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Importar copia de seguridad -->
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-success bg-opacity-10 border-0 rounded-top-4 py-3">
+                <h5 class="mb-0 fw-bold text-success">
+                    <i class="bi bi-box-arrow-in-down me-2"></i>
+                    Importar copia de seguridad
+                </h5>
+            </div>
+
+            <div class="card-body">
+
+                <p class="text-muted">
+                    Permite recuperar información previamente exportada,
+                    seleccionando la copia de seguridad y las tablas que
+                    se desean incorporar a la base de datos.
+                </p>
+
+                <h6 class="fw-bold text-success">1. Seleccionar la copia de seguridad</h6>
+
+                <p class="small">
+                    En el campo <strong>Copia de seguridad</strong>, selecciona
+                    una de las copias previamente generadas mediante la función
+                    de exportación.
+                </p>
+
+                <ul class="small">
+                    <li>Se muestran las copias de seguridad disponibles.</li>
+                    <li>Selecciona la copia que contiene la información que deseas recuperar.</li>
+                    <li>El icono de actualización permite refrescar el listado de copias disponibles.</li>
+                </ul>
+
+                <h6 class="fw-bold text-success">2. Establecer el intervalo de fechas</h6>
+
+                <p class="small">
+                    Puedes indicar las fechas de inicio y fin para limitar
+                    los registros que se van a importar en las tablas de trabajo.
+                </p>
+
+                <ul class="small">
+                    <li><strong>Desde:</strong> Fecha inicial del intervalo.</li>
+                    <li><strong>Hasta:</strong> Fecha final del intervalo.</li>
+                </ul>
+
+                <div class="alert alert-info py-2 small">
+                    <i class="bi bi-info-circle me-1"></i>
+                    El intervalo de fechas solamente afecta a las tablas de trabajo
+                    seleccionadas. Los catálogos maestros se importan siempre completos.
+                </div>
+
+                <h6 class="fw-bold text-success">3. Seleccionar las tablas que se van a importar</h6>
+
+                <p class="small">
+                    Una vez seleccionada la copia de seguridad, aparecerán
+                    las tablas disponibles para su recuperación.
+                </p>
+
+                <ul class="small">
+                    <li>Selecciona las tablas que deseas recuperar.</li>
+                    <li>Puedes seleccionar una o varias tablas.</li>
+                    <li>Las tablas de trabajo respetarán el intervalo de fechas indicado.</li>
+                    <li>Los catálogos maestros se importarán completos.</li>
+                </ul>
+
+                <h6 class="fw-bold text-success">4. Ejecutar la importación</h6>
+
+                <ol class="small">
+                    <li>Comprueba que has seleccionado la copia correcta.</li>
+                    <li>Revisa el intervalo de fechas.</li>
+                    <li>Selecciona las tablas que deseas importar.</li>
+                    <li>Pulsa el botón <strong>Importar</strong>.</li>
+                    <li>Espera a que finalice el proceso de recuperación.</li>
+                </ol>
+
+                <div class="alert alert-success py-2 small mb-0">
+                    <i class="bi bi-check-circle me-1"></i>
+                    <strong>Control de duplicados:</strong>
+                    Los registros existentes no se duplican.
+                    Se conserva el identificador original de los registros importados.
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Diferencias entre exportación e importación -->
+    <div class="col-12">
+        <div class="card shadow-sm border-0 rounded-4">
+            <div class="card-header bg-info bg-opacity-10 border-0 rounded-top-4 py-3">
+                <h5 class="mb-0 fw-bold text-info">
+                    <i class="bi bi-arrow-left-right me-2"></i>
+                    Diferencias entre tablas de trabajo y catálogos maestros
+                </h5>
+            </div>
+
+            <div class="card-body">
+
+                <p class="small text-muted">
+                    La aplicación distingue dos tipos de información a la hora
+                    de realizar las copias de seguridad:
+                </p>
+
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered align-middle small">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Característica</th>
+                                <th>Tablas de trabajo</th>
+                                <th>Catálogos maestros</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Selección</td>
+                                <td>Individual o todas.</td>
+                                <td>Individual o todos.</td>
+                            </tr>
+                            <tr>
+                                <td>Filtro por fechas</td>
+                                <td>Sí.</td>
+                                <td>No.</td>
+                            </tr>
+                            <tr>
+                                <td>Exportación</td>
+                                <td>Registros del periodo seleccionado.</td>
+                                <td>Contenido completo.</td>
+                            </tr>
+                            <tr>
+                                <td>Importación</td>
+                                <td>Registros del periodo seleccionado.</td>
+                                <td>Contenido completo.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Notas importantes -->
+    <div class="col-12">
+        <div class="card shadow-sm border-0 rounded-4">
+            <div class="card-header bg-danger bg-opacity-10 border-0 rounded-top-4 py-3">
+                <h5 class="mb-0 fw-bold text-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Recomendaciones y notas importantes
+                </h5>
+            </div>
+
+            <div class="card-body">
+
+                <ul class="small mb-0">
+                    <li class="mb-2">
+                        <strong>Realizar copias periódicas:</strong>
+                        Es recomendable generar copias de seguridad con regularidad
+                        para disponer de información recuperable ante cualquier incidencia.
+                    </li>
+
+                    <li class="mb-2">
+                        <strong>Seleccionar correctamente el periodo:</strong>
+                        Comprueba las fechas de inicio y fin antes de exportar o importar
+                        información.
+                    </li>
+
+                    <li class="mb-2">
+                        <strong>Identificar las copias:</strong>
+                        Utiliza nombres descriptivos para las carpetas de destino,
+                        facilitando su localización posterior.
+                    </li>
+
+                    <li class="mb-2">
+                        <strong>Almacenamiento:</strong>
+                        Las copias se guardan en el área segura de backups configurada
+                        en el servidor, no en una carpeta de descarga del navegador.
+                    </li>
+
+                    <li class="mb-2">
+                        <strong>Importación selectiva:</strong>
+                        No es necesario recuperar todas las tablas. Selecciona
+                        únicamente aquellas cuya información necesites incorporar.
+                    </li>
+
+                    <li class="mb-2">
+                        <strong>Identificadores originales:</strong>
+                        Durante la importación se conservan los identificadores
+                        originales y se evita duplicar registros existentes.
+                    </li>
+
+                    <li class="mb-2">
+                        <strong>Catálogos maestros:</strong>
+                        Recuerda que no están sujetos al intervalo de fechas.
+                        Siempre se exportan e importan completos cuando se seleccionan.
+                    </li>
+
+                    <li>
+                        <strong>Precaución:</strong>
+                        Antes de realizar una operación de recuperación,
+                        comprueba que has seleccionado la copia de seguridad
+                        y las tablas correctas.
+                    </li>
+                </ul>
+
+            </div>
+        </div>
+    </div>
+
+</div>

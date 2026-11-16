@@ -2,6 +2,9 @@ const db = require('../config/db');
 
 // ─── Calendarios (cabecera) ─────────────────────────────────────────────────
 
+/**
+ * @param {{ arsId?: string | number }} [filtros]
+ */
 exports.getAll = async ({ arsId } = {}) => {
   const params = [];
   const where = arsId ? ` WHERE c.ars_unidad_id = $${params.push(arsId)}` : '';

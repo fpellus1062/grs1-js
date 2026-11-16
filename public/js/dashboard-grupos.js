@@ -5,7 +5,7 @@
  * ======================================================================== */
 (function () {
   let app = window.GRS1Dashboard;
-  let utils = window['GRS1Utils'] || {};
+  let utils = /** @type {Partial<GRS1UtilsApi>} */ (window['GRS1Utils'] || {});
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -111,7 +111,7 @@
     let cntEl = document.getElementById('pendingCountGrupo');
     let saveBtn = document.getElementById('btnSaveGrupo');
     let discardBtn = document.getElementById('btnDiscardGrupo');
-    if (cntEl) cntEl.textContent = count;
+    if (cntEl) cntEl.textContent = String(count);
     if (bar) {
       bar.classList.toggle('pending-changes-active', count > 0);
       bar.classList.toggle('pending-changes-idle', count === 0);
@@ -419,7 +419,7 @@
         modalEl.addEventListener(
           'hide.bs.modal',
           function () {
-            if (document.activeElement) document.activeElement.blur();
+            if (document.activeElement) /** @type {HTMLElement} */ (document.activeElement).blur();
           },
           { once: true }
         );

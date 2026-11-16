@@ -4,6 +4,10 @@ const TABLA_GRUPOS_CANDIDATAS = ['grupos_actividad'];
 const TABLA_NIVELES = 'niveles_grupo';
 const TABLA_ACTIVIDADES = 'actividades';
 
+function hasOwn(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
 let tablaGruposCache = null;
 
 async function getTablaGrupos() {
@@ -268,7 +272,7 @@ exports.updateGrupo = async (id, data) => {
   let parent_id_grupo = row.parent_id_grupo;
   let nivel = row[schema.grupoNivelCol];
 
-  if (Object.hasOwn(data, 'parent_id_grupo')) {
+  if (hasOwn(data, 'parent_id_grupo')) {
     parent_id_grupo = data.parent_id_grupo || null;
 
     if (parent_id_grupo != null && Number(parent_id_grupo) === Number(id)) {
@@ -310,26 +314,26 @@ exports.updateGrupo = async (id, data) => {
     }
   }
 
-  const nombre = Object.hasOwn(data, 'nombre')
+  const nombre = hasOwn(data, 'nombre')
     ? data.nombre.trim()
     : row.nombre;
-  const orden = Object.hasOwn(data, 'orden') ? data.orden : row.orden;
-  const activo = Object.hasOwn(data, 'activo') ? data.activo : row.activo;
-  const codigo = Object.hasOwn(data, 'codigo')
+  const orden = hasOwn(data, 'orden') ? data.orden : row.orden;
+  const activo = hasOwn(data, 'activo') ? data.activo : row.activo;
+  const codigo = hasOwn(data, 'codigo')
     ? data.codigo == null || String(data.codigo).trim() === ''
       ? null
       : String(data.codigo).trim()
     : schema.grupoCodigoCol
       ? row[schema.grupoCodigoCol]
       : null;
-  const color = Object.hasOwn(data, 'color')
+  const color = hasOwn(data, 'color')
     ? data.color == null || String(data.color).trim() === ''
       ? null
       : String(data.color).trim()
     : schema.grupoColorCol
       ? row[schema.grupoColorCol]
       : null;
-  if (Object.hasOwn(data, 'nivel')) {
+  if (hasOwn(data, 'nivel')) {
     nivel = data.nivel;
   }
 
@@ -461,29 +465,29 @@ exports.updateActividad = async (id, data) => {
   if (!existing.rows.length) throw new Error('Actividad no encontrada');
   const row = existing.rows[0];
 
-  if (Object.hasOwn(data, 'actividad')) {
+  if (hasOwn(data, 'actividad')) {
     throw new Error('El código no se puede modificar');
   }
 
-  const nombre = Object.hasOwn(data, 'nombre')
+  const nombre = hasOwn(data, 'nombre')
     ? data.nombre.trim()
     : row.nombre;
-  const disponible = Object.hasOwn(data, 'disponible')
+  const disponible = hasOwn(data, 'disponible')
     ? data.disponible || ''
     : row.disponible;
-  const grupo_id = Object.hasOwn(data, 'grupo_id')
+  const grupo_id = hasOwn(data, 'grupo_id')
     ? data.grupo_id
     : row.grupo_id;
-  const horario = Object.hasOwn(data, 'horario')
+  const horario = hasOwn(data, 'horario')
     ? data.horario || null
     : row.horario;
-  const hora_inicio = Object.hasOwn(data, 'hora_inicio')
+  const hora_inicio = hasOwn(data, 'hora_inicio')
     ? data.hora_inicio || null
     : row.hora_inicio;
-  const hora_fin = Object.hasOwn(data, 'hora_fin')
+  const hora_fin = hasOwn(data, 'hora_fin')
     ? data.hora_fin || null
     : row.hora_fin;
-  const color = Object.hasOwn(data, 'color') ? data.color || null : row.color;
+  const color = hasOwn(data, 'color') ? data.color || null : row.color;
 
   try {
     const result = await db.query(

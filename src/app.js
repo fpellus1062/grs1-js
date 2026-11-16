@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
+const { default: helmet } = require('helmet');
+const { rateLimit } = require('express-rate-limit');
 const errorMiddleware = require('./middlewares/error.middleware');
 const auth = require('./middlewares/auth.middleware');
 const compression = require('compression');

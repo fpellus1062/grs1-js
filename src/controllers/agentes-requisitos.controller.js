@@ -52,6 +52,16 @@ exports.updatePlantilla = async (req, res, next) => {
   }
 };
 
+exports.updatePlantillaEstado = async (req, res, next) => {
+  try {
+    const userId = Number(req.user && req.user.id) || null;
+    const result = await service.updatePlantillaEstado(req.arsId, Number(req.params.id), req.body.activo, userId);
+    res.json({ ok: true, message: 'Estado de plantilla actualizado correctamente', plantilla: result });
+  } catch (error) {
+    next(new ApiError(400, error.message || 'Error al actualizar estado de plantilla', error.detail || error));
+  }
+};
+
 exports.deletePlantilla = async (req, res, next) => {
   try {
     const userId = Number(req.user && req.user.id) || null;

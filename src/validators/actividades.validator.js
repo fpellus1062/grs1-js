@@ -1,7 +1,7 @@
 const Joi = require('joi');
 
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
-const disponibilidadValues = ['', '--a--', '--d--'];
+const PernoctaValues = ['', 'Normal', 'Pernocta'];
 const colorPattern = /^#[0-9a-fA-F]{6}$/;
 
 exports.createActividadSchema = Joi.object({
@@ -15,7 +15,7 @@ exports.createActividadSchema = Joi.object({
   }),
   disponible: Joi.string()
     .trim()
-    .valid(...disponibilidadValues)
+    .valid(...PernoctaValues)
     .allow(null)
     .default('')
     .messages({
@@ -51,10 +51,10 @@ exports.updateActividadSchema = Joi.object({
   }),
   disponible: Joi.string()
     .trim()
-    .valid(...disponibilidadValues)
+    .valid(...PernoctaValues)
     .allow(null)
     .messages({
-      'any.only': 'Disponible debe ser uno de los valores permitidos',
+      'any.only': 'Tipo de servicio debe ser uno de los valores permitidos',
     }),
   grupo_id: Joi.number().integer().allow(null, '').messages({
     'number.base': 'Grupo ID debe ser un número entero',

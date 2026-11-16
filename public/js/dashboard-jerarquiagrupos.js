@@ -1161,11 +1161,11 @@
 
   function disponibleFormatter(cell) {
     let v = cell.getValue();
-    if (v === '--a--')
-      return '<span class="badge bg-success" style="font-size:.68rem;">Activos</span>';
-    if (v === '--d--')
-      return '<span class="badge bg-secondary" style="font-size:.68rem;">De baja</span>';
-    return '<span class="badge bg-light text-dark border" style="font-size:.68rem;">General</span>';
+    if (v === 'Normal')
+      return '<span class="badge bg-success" style="font-size:.68rem;">Normal</span>';
+    if (v === 'Pernocta')
+      return '<span class="badge bg-warning" style="font-size:.68rem;">Pernocta</span>';
+    return '<span class="badge bg-light text-dark border" style="font-size:.68rem;">Normal</span>';
   }
 
   function actionBtns(editClass, deleteClass) {
@@ -1277,7 +1277,7 @@
           },
         },
         {
-          title: 'Disp.',
+          title: 'Servicio',
           field: 'disponible',
           width: 88,
           formatter: disponibleFormatter,

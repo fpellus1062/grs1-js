@@ -210,11 +210,11 @@
 
     const data = await response.json();
     app.actividadesState.grupos = Array.isArray(data.grupos) ? data.grupos : [];
-    app.actividadesState.disponibilidadOptions = Array.isArray(
-      data.disponibilidadOptions
+    app.actividadesState.PernoctaOptions = Array.isArray(
+      data.PernoctaOptions
     )
-      ? data.disponibilidadOptions
-      : ['', '--a--', '--d--'];
+      ? data.PernoctaOptions
+      : ['', 'Normal', 'Pernocta'];
     app.populateActividadFormOptions();
   };
 
@@ -341,7 +341,7 @@
           },
         },
         {
-          title: 'Disponible',
+          title: 'Servicio',
           field: 'disponible',
           width: 115,
           editor: function (cell, onRendered, success, cancel) {
@@ -349,9 +349,9 @@
             select.style.cssText =
               'width:100%;height:100%;border:none;padding:0 2px;font-size:0.72rem;background:transparent;cursor:pointer;';
             [
-              { label: 'Sin marca', value: '' },
-              { label: '--a--', value: '--a--' },
-              { label: '--d--', value: '--d--' },
+              { label: 'Normal', value: '' },
+              { label: 'Normal', value: 'Normal' },
+              { label: 'Pernocta', value: 'Pernocta' },
             ].forEach(function (item) {
               const opt = document.createElement('option');
               opt.value = item.value;
@@ -371,15 +371,15 @@
             return select;
           },
           formatter: function (cell) {
-            return cell.getValue() || 'Sin marca';
+            return cell.getValue() || 'Normal';
           },
           headerFilter: 'list',
           headerFilterParams: {
             values: {
               '': 'Todos',
-              __sin_marca__: 'Sin marca',
-              '--a--': '--a--',
-              '--d--': '--d--',
+              __sin_marca__: 'Normal',
+              'Normal': 'Normal',
+              'Pernocta': 'Pernocta',
             },
           },
           headerFilterEmptyCheck: function (value) {
@@ -661,7 +661,7 @@
                 }
 
                 if (field === 'disponible') {
-                  return row.disponible || 'Sin marca';
+                  return row.disponible || 'Normal';
                 }
 
                 if (field === 'fecha_baja') {
@@ -1033,7 +1033,7 @@
 
     let grupoNombre = app.getActividadGroupDisplay(a.grupo_id, a.grupo_nombre);
     let grupoColor = grupo ? grupo.color : null;
-    let disponibilidad = a.disponible || 'Sin marca';
+    let Pernocta = a.disponible || 'Normal';
 
     let html =
       '<div class="px-2 px-md-4 py-1">' +
@@ -1047,7 +1047,7 @@
       fichaActividadField('Grupo', actividadBadge(grupoNombre, grupoColor)) +
       fichaActividadField(
         'Disponible',
-        app.escapeHtml(String(disponibilidad))
+        app.escapeHtml(String(Pernocta))
       ) +
       fichaActividadField('Horario', app.escapeHtml(String(a.horario || ''))) +
       fichaActividadField(
@@ -1103,7 +1103,7 @@
     let rows = [
       ['ID', a.id_actividad || '-', 'Actividad', a.actividad || '-'],
       ['Nombre', a.nombre || '-', 'Grupo', grupoNombre || '-'],
-      ['Disponible', a.disponible || 'Sin marca', 'Horario', a.horario || '-'],
+      ['Disponible', a.disponible || 'Normal', 'Horario', a.horario || '-'],
       ['Hora inicio', a.hora_inicio || '-', 'Hora fin', a.hora_fin || '-'],
     ];
 

@@ -37,26 +37,39 @@
             <div class="card-header bg-success bg-opacity-10 border-0 rounded-top-4 py-3">
                 <h5 class="mb-0 fw-bold text-success">
                     <i class="bi bi-hand-index-thumb me-2"></i>
-                    Cómo asignar
+                    Cómo asignar Servicios
                 </h5>
             </div>
             <div class="card-body">
 
-                <h6 class="fw-bold text-success">Asignación individual</h6>
+                <h6 class="fw-bold text-success">Asignación individual Popup</h6>
                 <ol class="small mb-3">
                     <li>Busca o filtra el agente.</li>
                     <li>Selecciona el día.</li>
                     <li>Haz clic en la celda.</li>
                     <li>Elige el servicio.</li>
                 </ol>
-
+                <h6 class="fw-bold text-success">Asignación individual Historico</h6>
+                <ol class="small mb-3">
+                    <li>Pulsa el boton dcho del ratón sobre la celda.</li>
+                    <li>Aparece una lista de servicios asignados anteriormente en ese cuadrante. Elige el servicio
+                        deseado de la lista.</li>
+                </ol>
                 <h6 class="fw-bold text-success">Asignación masiva</h6>
                 <ol class="small">
                     <li>Filtra por pelotón, empleo o aptitud.</li>
                     <li>Selecciona los agentes (checkbox o Ctrl+click).</li>
                     <li>Selecciona el día o rango de días.</li>
                 </ol>
-
+                <h6 class="fw-bold text-success">Asignación Mediante Copiar y Pegar</h6>
+                <ol class="small mb-3">
+                    <li>Marcas las celdas deseadas, con click izquierdo y arrastrando op Ctrl+click para seleccionar
+                        múltiples celdas.</li>
+                    <li>Pulsa el botón derecho del ratón sobre las celdas seleccionadas y elige la opción de copiar.
+                    </li>
+                    <li>Pulsa el botón izdo. del ratón sobre la celda superior izquierda del rango de destino y elige la
+                        opción de pegar desde el menú contextual.</li>
+                </ol>
             </div>
         </div>
     </div>
@@ -71,30 +84,32 @@
                 </h5>
             </div>
             <div class="card-body">
-    
+
                 <a href="/help/asignaciones-herramientas.png" target="_blank">
                     <img src="/help/asignaciones-herramientas.png" alt="Herramientas de asignación"
                         class="img-fluid border rounded mb-3">
                 </a>
-    
+
                 <ul class="small">
                     <li><strong>Selector del Cuadrante:</strong> Muestra todos los cuadrantes activos.</li>
                     <li><strong>Selector del Borrador:</strong> Todas las versiones del cuadrante.</li>
-                    <li>Comentarios, Añadir y Eliminar Borrador
+                    <li><strong>Información y Estado:</strong> Pte Validación o Alineado con Definitivo.</li>
+                    <li><strong>Comentarios, Añadir y Eliminar Borrador:</strong>
                         <strong class="text-danger">Debe estar vacío de servicios.</strong>
                     </li>
                     <li><strong>Exportar a Excel o PDF:</strong> Exportación completa del cuadrante.</li>
                     <li><strong>Asignación Masiva:</strong> Servicios a múltiples agentes simultáneamente.</li>
                     <li><strong>Eliminar / Copiar Cuadrante:</strong> Gestión de cuadrantes existentes.</li>
                     <li><strong>Historial de Cambios:</strong> Registro de modificaciones.</li>
-                    <li><strong>Cálculo de Devengo:</strong> Recalcula los días devengados.</li>
+                    <li><strong>Vista del Cuadrante:</strong> Normal y con historico de cambios</li>
+                    <li><strong>Cálculo de Devengo:</strong> Recalcula los días devengados y actualiza el grid.</li>
                     <li><strong>Validar y Refrescar:</strong> Comprueba asignaciones y actualiza la vista.</li>
                 </ul>
-    
+
             </div>
         </div>
     </div>
-    
+
     <!-- Filtros Especiales -->
     <div class="col-12 col-lg-6">
         <div class="card shadow-sm border-0 rounded-4 h-100">
@@ -105,19 +120,19 @@
                 </h5>
             </div>
             <div class="card-body">
-    
+
                 <a href="/help/asignaciones-herramientas-filtros.png" target="_blank">
                     <img src="/help/asignaciones-herramientas-filtros.png" alt="Filtros de asignación"
                         class="img-fluid border rounded mb-3">
                 </a>
-    
+
                 <ul class="small">
                     <li><strong>Filtro general:</strong> Busca por nombre, pelotón o estado.</li>
                     <li><strong>Limpiar filtros:</strong> Restaura la vista completa.</li>
                     <li><strong>Filtro de Actividades:</strong> Actividades específicas, vacías o combinadas.</li>
                     <li><strong>Filtro por Pelotón, Empleo o Aptitud:</strong> Ideal para asignación masiva.</li>
                 </ul>
-    
+
             </div>
         </div>
     </div>
@@ -138,7 +153,7 @@
                     <li>Los filtros de columnas permiten múltiples criterios. Debes aceptar el filtro con Intro</li>
 
                     <div class="row g-4">
-                    
+
                         <!-- Operadores de texto -->
                         <div class="col-12 col-lg-6">
                             <div class="card shadow-sm border-0 rounded-4 h-100">
@@ -148,7 +163,7 @@
                                         Operadores de Texto
                                     </h5>
                                 </div>
-                    
+
                                 <div class="card-body">
                                     <div class="table-responsive">
                                         <table class="table table-sm table-bordered align-middle small mb-0">
@@ -194,10 +209,10 @@
                                         </table>
                                     </div>
                                 </div>
-                    
+
                             </div>
                         </div>
-                    
+
                         <!-- Operadores numéricos -->
                         <div class="col-12 col-lg-6">
                             <div class="card shadow-sm border-0 rounded-4 h-100">
@@ -207,7 +222,7 @@
                                         Operadores Numéricos
                                     </h5>
                                 </div>
-                    
+
                                 <div class="card-body">
                                     <div class="table-responsive">
                                         <table class="table table-sm table-bordered align-middle small mb-0">
@@ -253,12 +268,12 @@
                                         </table>
                                     </div>
                                 </div>
-                    
+
                             </div>
                         </div>
-                    
+
                     </div>
-                </br>
+                    </br>
                     <div class="card shadow-sm border-0 rounded-4">
                         <div class="card-header bg-secondary bg-opacity-10 border-0 rounded-top-4 py-3">
                             <h5 class="mb-0 fw-bold text-secondary">
@@ -266,9 +281,9 @@
                                 Ejemplos Prácticos
                             </h5>
                         </div>
-                    
+
                         <div class="card-body">
-                    
+
                             <div class="table-responsive">
                                 <table class="table table-sm table-bordered align-middle small mb-0">
                                     <thead class="table-light">
@@ -279,38 +294,38 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                    
+
                                         <tr>
                                             <td>Texto</td>
                                             <td>^garcia &#124;&#124; ^lopez</td>
                                             <td>Empieza por García O López</td>
                                         </tr>
-                    
+
                                         <tr>
                                             <td>Texto</td>
                                             <td>!baja &amp;&amp; ^cap</td>
                                             <td>No contiene “baja” Y empieza por “cap”</td>
                                         </tr>
-                    
+
                                         <tr>
                                             <td>Número</td>
                                             <td>&gt;=10 &amp;&amp; &lt;=20</td>
                                             <td>Entre 10 y 20 (inclusive)</td>
                                         </tr>
-                    
+
                                         <tr>
                                             <td>Número</td>
                                             <td>=1 &#124;&#124; =3 &#124;&#124; =5</td>
                                             <td>Es 1, 3 o 5</td>
                                         </tr>
-                    
+
                                     </tbody>
                                 </table>
                             </div>
-                    
+
                         </div>
                     </div>
-                    
+
                     <li><strong>Cálculo de Devengo:</strong> Se actualiza automáticamente en background y también puede
                         recalcularse manualmente.</li>
 

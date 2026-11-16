@@ -1,4 +1,5 @@
 (function () {
+  /** @type {Record<string, any>} */
   const app = (window.GRS1Dashboard = window.GRS1Dashboard || {});
 
   const turnoFields = {
@@ -32,7 +33,7 @@
         result[property] = getFieldValue(fieldId);
         return result;
       },
-      {}
+      /** @type {Record<string, any>} */ ({})
     );
 
     // Código siempre en mayúsculas

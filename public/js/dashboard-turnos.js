@@ -1,6 +1,6 @@
 (function () {
   const app = window.GRS1Dashboard;
-  const utils = window['GRS1Utils'] || {};
+  const utils = /** @type {Partial<GRS1UtilsApi>} */ (window['GRS1Utils'] || {});
   // ── Form helpers (consolidado) ─────────────────────────────
   app.turnosTemplates = {
     alert(message, type) {

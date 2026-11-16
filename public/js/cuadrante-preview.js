@@ -44,7 +44,7 @@ function renderCuadrantePreview(containerId, cuadrante, opts) {
   // Semanas
   Object.keys(semanas)
     .sort(function (a, b) {
-      return a - b;
+      return Number(a) - Number(b);
     })
     .forEach(function (semNum) {
       html += '<div class="cuadrante-week d-flex gap-1 mb-1">';

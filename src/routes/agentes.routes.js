@@ -21,6 +21,7 @@ const {
   createPlantillaSchema,
   updatePlantillaSchema,
   plantillaIdParamSchema,
+  plantillaEstadoSchema,
   assignPlantillaSchema,
   registerEjecucionSchema,
   registerEjecucionBulkSchema,
@@ -80,6 +81,13 @@ router.put(
   validate(plantillaIdParamSchema, 'params'),
   validate(updatePlantillaSchema),
   requisitosController.updatePlantilla
+);
+router.patch(
+  '/requisitos/plantillas/:id/estado',
+  authorize('agentes-requisitos:editar'),
+  validate(plantillaIdParamSchema, 'params'),
+  validate(plantillaEstadoSchema),
+  requisitosController.updatePlantillaEstado
 );
 router.delete(
   '/requisitos/plantillas/:id',

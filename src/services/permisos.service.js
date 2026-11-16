@@ -64,7 +64,7 @@ async function loadCache() {
  * Verificar si un rol tiene un permiso exacto
  * @param {number} roleId
  * @param {string} permisoClave - Ej: 'agentes:crear'
- * @returns {boolean}
+ * @returns {Promise<boolean>}
  */
 async function tienePermiso(roleId, permisoClave) {
   await loadCache();
@@ -77,7 +77,7 @@ async function tienePermiso(roleId, permisoClave) {
  * Verificar si un rol tiene AL MENOS UNO de varios permisos
  * @param {number} roleId
  * @param {string[]} permisosClaves
- * @returns {boolean}
+ * @returns {Promise<boolean>}
  */
 async function tieneAlgunPermiso(roleId, permisosClaves) {
   await loadCache();
@@ -89,7 +89,7 @@ async function tieneAlgunPermiso(roleId, permisosClaves) {
 /**
  * Obtener todos los permisos de un rol (para enviar al frontend en el login)
  * @param {number} roleId
- * @returns {string[]}
+ * @returns {Promise<string[]>}
  */
 async function getPermisosByRol(roleId) {
   await loadCache();

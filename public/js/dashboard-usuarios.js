@@ -51,7 +51,7 @@
     let filtered = app.tabulatorUsuarios.getData('active').length;
     if (totalEl) totalEl.textContent = total;
     if (filteredEl) filteredEl.textContent = filtered;
-    if (shownEl) shownEl.textContent = total - filtered;
+    if (shownEl) shownEl.textContent = String(total - filtered);
   }
 
   function normalizeArsIds(list) {

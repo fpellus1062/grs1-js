@@ -26,7 +26,7 @@
  * @property {number} id_actividad
  * @property {string} actividad    - Código de la actividad.
  * @property {string} nombre       - Nombre descriptivo.
- * @property {string} disponible   - Flag de disponibilidad ('S'/'N').
+ * @property {string} disponible   - Libre sin Funcion asignada.
  * @property {number|null} grupo_id
  * @property {string} horario
  * @property {string} hora_inicio  - HH:MM

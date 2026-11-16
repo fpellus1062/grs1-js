@@ -1,4 +1,5 @@
 (function () {
+  /** @type {Record<string, any>} */
   const app = (window.GRS1Dashboard = window.GRS1Dashboard || {});
 
   function validateNifNie(value) {

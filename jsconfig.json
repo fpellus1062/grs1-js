@@ -2,8 +2,8 @@
   "compilerOptions": {
     "checkJs": true,
     "strict": false,
-    "target": "ES2021",
-    "lib": ["ES2021", "DOM"],
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
     "noEmit": true
   },
   "include": ["public/js/**/*.js", "public/js/**/*.d.ts", "src/**/*.js"],

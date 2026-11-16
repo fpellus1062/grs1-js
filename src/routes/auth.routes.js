@@ -1,7 +1,6 @@
 const router = require('express').Router();
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const crypto = require('crypto');
-const { ipKeyGenerator } = require('express-rate-limit');
 const controller = require('../controllers/auth.controller');
 const validate = require('../middlewares/validate.middleware');
 const auth = require('../middlewares/auth.middleware');
@@ -27,10 +26,10 @@ const loginLimiter = rateLimit({
   skipSuccessfulRequests: true,
 
   keyGenerator: (req) => {
-    const email = req.body?.email || '';
+    const email = String(req.body?.email || '').trim().toLowerCase();
     const hash = crypto.createHash('sha256').update(email).digest('hex');
 
-    return `${ipKeyGenerator(req)}-${hash}`;
+    return `${ipKeyGenerator(req.ip || '')}-${hash}`;
   },
 
   message: {

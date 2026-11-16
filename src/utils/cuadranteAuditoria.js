@@ -76,7 +76,7 @@ module.exports = function registerCuadranteAuditoria(app, pool) {
 
         row.eachCell((cell, colNumber) => {
           if (colNumber > 1 && cell.value) {
-            const turnoNum = cell.value.replace('T', '');
+            const turnoNum = String(cell.value).replace('T', '');
 
             cell.fill = {
               type: 'pattern',

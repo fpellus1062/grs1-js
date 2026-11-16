@@ -13,10 +13,10 @@ module.exports.parseMyFile = async (filePath) => {
   } catch (error) {
     console.error(`Error al parsear el archivo ${filePath}:`, error.message);
 
-    const customError = new Error(
-      `Error al procesar el archivo ODS: ${error.message}`
+    const customError = Object.assign(
+      new Error(`Error al procesar el archivo ODS: ${error.message}`),
+      { status: 500 }
     );
-    customError.status = 500;
     throw customError;
   }
 };

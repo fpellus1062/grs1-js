@@ -82,13 +82,6 @@
     return h;
   }
 
-  function parseBoolean(v) {
-    let t = String(v == null ? '' : v)
-      .trim()
-      .toLowerCase();
-    return ['1', 'true', 'si', 'si\u0301', 'y', 'yes'].indexOf(t) >= 0;
-  }
-
   function normalizeCsvDate(value) {
     let raw = String(value == null ? '' : value).trim();
     if (!raw) return '';

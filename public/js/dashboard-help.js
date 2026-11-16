@@ -35,7 +35,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Event delegation for edit/delete buttons in table
   document.getElementById('tableBody').addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-action]');
+    const btn = /** @type {HTMLElement | null} */ (
+      /** @type {Element} */ (e.target).closest('button[data-action]')
+    );
     if (!btn) return;
     const action = btn.dataset.action;
     const id = Number(btn.dataset.id);
@@ -67,7 +69,7 @@ function renderTable() {
   const items = filter ? allItems.filter((i) => i.type === filter) : allItems;
   const tbody = document.getElementById('tableBody');
 
-  document.getElementById('badgeCount').textContent = allItems.length;
+  document.getElementById('badgeCount').textContent = String(allItems.length);
 
   if (items.length === 0) {
     tbody.innerHTML =

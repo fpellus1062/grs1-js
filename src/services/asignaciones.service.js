@@ -148,7 +148,7 @@ async function getRequisitosResumenByAgente(client, arsId) {
                 COALESCE(SUM(p.completado_total), 0)::int AS completado_total,
                 COALESCE(SUM(p.objetivo_total), 0)::int AS objetivo_total
            FROM agentes_requisitos_plantillas t
-           LEFT JOIN agentes_requisitos_periodos p
+           INNER JOIN agentes_requisitos_periodos p
              ON p.plantilla_id = t.id
             AND p.agente_id = a.id
             AND p.ars_unidad_id = a.ars_unidad_id

@@ -64,6 +64,9 @@
     "xlsx": "file:vendor/npm/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
+    "@types/compression": "^1.8.1",
+    "@types/express": "^5.0.6",
+    "@types/luxon": "^3.7.6",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
@@ -73,7 +76,8 @@
   "nodemonConfig": {
     "ignore": [
       "public/dist/**",
-      "**/*.map"
+      "**/*.map",
+      "data/backups/**"
     ]
   }
 }

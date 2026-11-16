@@ -806,7 +806,7 @@
 
         let cellModalEl = document.getElementById('asigCellModal');
         if (cellModalEl) {
-          let activeEl = document.activeElement;
+          let activeEl = /** @type {HTMLElement | null} */ (document.activeElement);
           if (activeEl && cellModalEl.contains(activeEl) && typeof activeEl.blur === 'function') {
             activeEl.blur();
           }

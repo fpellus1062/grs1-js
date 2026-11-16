@@ -43,8 +43,8 @@
       .replaceAll("'", '&#39;');
   }
 
-  function setAlert(message, type) {
-    let el = document.getElementById('alertContainerAgentesRequisitos');
+  function setAlert(message, type, targetId) {
+    let el = document.getElementById(targetId || 'alertContainerAgentesRequisitos');
     if (!el) return;
     if (!message) {
       el.innerHTML = '';
@@ -1099,7 +1099,7 @@
         let itemsHtml = historico.slice(0, maxItems).map(function (h) {
           let detalle = [
             '<span class="text-body-secondary">' + esc(formatHistFecha(h.fecha_prueba)) + '</span>',
-            '<span class="fw-semibold">+' + esc(String(Number(h.cantidad) || 0)) + '</span>',
+            '<span class="fw-semibold">' + (Number(h.cantidad) < 0 ? '' : '+') + esc(String(Number(h.cantidad) || 0)) + '</span>',
           ];
           if (h.observaciones) {
             detalle.push('<span class="text-muted">' + esc(String(h.observaciones)) + '</span>');
@@ -1287,6 +1287,19 @@
     if (state.plantillasTable) state.plantillasTable.replaceData(state.plantillasCrudRows);
   }
 
+  async function cambiarEstadoPlantilla(row, activo) {
+    let res = await fetch('/api/agentes/requisitos/plantillas/' + encodeURIComponent(String(row.id)) + '/estado', {
+      method: 'PATCH',
+      headers: getHeaders(true),
+      body: JSON.stringify({ activo: activo }),
+    });
+    let json = await res.json().catch(function () { return {}; });
+    if (!res.ok || !json.ok) {
+      throw new Error((json && (json.message || json.error)) || 'No se pudo actualizar el estado de la plantilla.');
+    }
+    return json.plantilla;
+  }
+
   function ensurePlantillasTable() {
     if (state.plantillasTable && state.plantillasTable.element && document.documentElement.contains(state.plantillasTable.element)) {
       return state.plantillasTable;
@@ -1316,14 +1329,40 @@
           field: 'activo',
           width: 85,
           hozAlign: 'center',
+          headerSort: false,
           formatter: function (cell) {
-            return cell.getValue()
-              ? window.GRS1Utils.renderSemanticBadgeHtml('Sí', 'success', {
-                  escapeHtmlFn: esc,
-                })
-              : window.GRS1Utils.renderSemanticBadgeHtml('No', 'secondary', {
-                  escapeHtmlFn: esc,
-                });
+            let row = cell.getRow();
+            let plantilla = row.getData();
+            let wrapper = document.createElement('div');
+            wrapper.className = 'form-check form-switch d-inline-block m-0';
+            let input = document.createElement('input');
+            input.type = 'checkbox';
+            input.className = 'form-check-input';
+            input.setAttribute('role', 'switch');
+            input.setAttribute('aria-label', 'Activar o desactivar plantilla ' + plantilla.nombre);
+            input.checked = !!plantilla.activo;
+            input.addEventListener('click', function (event) { event.stopPropagation(); });
+            input.addEventListener('change', function () {
+              let activo = input.checked;
+              input.checked = !!plantilla.activo;
+              let save = function () {
+                input.disabled = true;
+                cambiarEstadoPlantilla(plantilla, activo)
+                  .then(async function () {
+                    await row.update({ activo: activo });
+                    await Promise.all([loadMeta({ preserveAgentes: true }), loadPlantillasCrud()]);
+                    setAlert(activo ? 'Plantilla activada correctamente.' : 'Plantilla desactivada correctamente.', 'success', 'alertReqPlantillasCrud');
+                  })
+                  .catch(function (error) {
+                    setAlert(error.message || 'No se pudo actualizar el estado de la plantilla.', 'danger', 'alertReqPlantillasCrud');
+                  })
+                  .finally(function () { input.disabled = false; });
+              };
+              if (activo) save();
+              else openConfirmDeactivatePlantillaModal(plantilla, save);
+            });
+            wrapper.appendChild(input);
+            return wrapper;
           },
         },
       ],
@@ -1371,7 +1410,13 @@
     return Array.isArray(data) && data.length ? data[0] : null;
   }
 
-  async function loadMeta() {
+  async function loadMeta(options) {
+    let opts = options || {};
+    let plantillaSel = document.getElementById('reqAsignarPlantilla');
+    let selectedPlantillaId = String(opts.plantillaId || (plantillaSel && plantillaSel.value) || '');
+    let selectedAgenteIds = opts.preserveAgentes && state.assignAgentesTable
+      ? state.assignAgentesTable.getSelectedData().map(function (row) { return Number(row.id); })
+      : [];
     let res = await fetch('/api/agentes/requisitos/meta', { headers: getHeaders(false), cache: 'no-store' });
     if (!res.ok) throw new Error('No se pudo cargar metadatos de requisitos.');
     let json = await res.json();
@@ -1384,16 +1429,22 @@
     );
     state.meta.plantillas = Array.isArray(json.plantillas) ? json.plantillas : [];
 
-    let plantillaSel = document.getElementById('reqAsignarPlantilla');
     if (plantillaSel) {
       plantillaSel.innerHTML = state.meta.plantillas.map(function (p) {
         return '<option value="' + esc(String(p.id)) + '">' + esc(String(p.nombre)) + '</option>';
       }).join('');
+      if (!state.meta.plantillas.length) {
+        plantillaSel.innerHTML = '<option value="">Sin plantillas activas</option>';
+      } else if (state.meta.plantillas.some(function (p) { return String(p.id) === selectedPlantillaId; })) {
+        plantillaSel.value = selectedPlantillaId;
+      }
     }
 
     if (state.assignAgentesTable) {
-      state.assignAgentesTable.replaceData(state.meta.agentes || []);
-      state.assignAgentesTable.deselectRow();
+      await state.assignAgentesTable.replaceData(state.meta.agentes || []);
+      let availableIds = new Set(state.meta.agentes.map(function (row) { return Number(row.id); }));
+      let retainedIds = selectedAgenteIds.filter(function (id) { return availableIds.has(id); });
+      if (retainedIds.length) state.assignAgentesTable.selectRow(retainedIds);
       setAsignarSelCount();
     }
   }
@@ -1504,7 +1555,6 @@
       plazo_dias: plazoDiasRaw > 0 ? plazoDiasRaw : null,
       fecha_inicio_manual: periodoInicioManual || null,
       fecha_fin_manual: periodoFinManual || null,
-      activo: true,
       objetivos: objetivos,
     };
 
@@ -1523,8 +1573,8 @@
 
     bootstrap.Modal.getInstance(document.getElementById('reqPlantillaModal')).hide();
     setAlert(isEdit ? 'Plantilla actualizada correctamente.' : 'Plantilla creada correctamente.', 'success');
-    await loadMeta();
-    await loadPlantillasCrud().catch(function () {});
+    await loadMeta({ plantillaId: json.plantilla && json.plantilla.id, preserveAgentes: true });
+    await loadPlantillasCrud();
 
     if (state.reopenCrudAfterPlantilla) {
       let crudModalEl = document.getElementById('reqPlantillasCrudModal');
@@ -1545,6 +1595,12 @@
 
     let plantillaId = Number(getValue('reqAsignarPlantilla', '0') || 0);
     let fechaRef = getValue('reqAsignarFechaRef', '');
+    if (!Number.isSafeInteger(plantillaId) || plantillaId <= 0) {
+      throw new Error('Seleccione una plantilla activa antes de asignarla a los agentes.');
+    }
+    if (!fechaRef) {
+      throw new Error('Indique una fecha de referencia para asignar la plantilla.');
+    }
 
     let res = await fetch('/api/agentes/requisitos/asignaciones', {
       method: 'POST',
@@ -1561,7 +1617,7 @@
     }
 
     let result = json && json.result ? json.result : {};
-    setAlert('Asignación masiva completada. Creados: ' + String(result.created || 0) + ', omitidos: ' + String(result.skipped || 0) + '.', 'success');
+    setAlert('Asignación masiva completada. Creados: ' + String(result.created || 0) + ', omitidos: ' + String(result.skipped || 0) + '.', Number(result.created) > 0 ? 'success' : 'warning');
     if (state.assignAgentesTable) {
       state.assignAgentesTable.deselectRow();
       setAsignarSelCount();
@@ -1575,12 +1631,20 @@
       throw new Error('Seleccione al menos un período en la tabla.');
     }
 
+    let esAnulacion = getValue('reqEjecResultado', 'aprobado') === 'anulado';
+    if (esAnulacion && !getValue('reqEjecFecha', '')) {
+      throw new Error('Para anular indique la fecha de la aprobación a anular.');
+    }
+
     let inputs = Array.from(document.querySelectorAll('#reqEjecSubobjetivosBody .req-ejec-cantidad'));
     let items = [];
     for (let i = 0; i < inputs.length; i += 1) {
       let input = inputs[i];
       let ctrl = input instanceof HTMLInputElement ? input : null;
       let qty = Number(ctrl ? ctrl.value : 0);
+      if (Number.isFinite(qty) && qty < 0) {
+        throw new Error('La cantidad no puede ser negativa.');
+      }
       let subtipo = String(ctrl ? ctrl.getAttribute('data-subtipo') : '').trim();
       let maxQty = Number(ctrl ? ctrl.getAttribute('data-max') : 0);
       let cantidad = Number.isFinite(qty) && qty > 0 ? Math.floor(qty) : 0;
@@ -1590,7 +1654,7 @@
       if (!Number.isFinite(maxQty) || maxQty < 0) {
         throw new Error('No se pudo validar el máximo permitido para el subtipo ' + subtipo + '.');
       }
-      if (cantidad > maxQty) {
+      if (!esAnulacion && cantidad > maxQty) {
         throw new Error(
           'La cantidad para el subtipo ' + subtipo +
             ' no puede superar el pendiente (' + String(maxQty) + ').'
@@ -1685,6 +1749,35 @@
     if (fechaRef && !fechaRef.value) fechaRef.value = todayIso;
     if (fechaPrueba && !fechaPrueba.value) fechaPrueba.value = todayIso;
     if (fechaServicio && !fechaServicio.value) fechaServicio.value = todayIso;
+
+    let resultadoSel = getControlEl('reqEjecResultado');
+    if (!document.body.dataset.reqEjecCantidadBound) {
+      document.body.dataset.reqEjecCantidadBound = '1';
+      let isCantidad = function (el) { return el && el.classList && el.classList.contains('req-ejec-cantidad'); };
+      document.addEventListener('keydown', function (event) {
+        if (isCantidad(event.target) && ['-', '+', 'e', 'E', '.', ','].indexOf(event.key) !== -1) {
+          event.preventDefault();
+        }
+      });
+      document.addEventListener('input', function (event) {
+        let t = /** @type {HTMLInputElement} */ (event.target);
+        if (isCantidad(t) && (Number(t.value) < 0 || /[^0-9]/.test(t.value))) {
+          t.value = String(t.value).replace(/[^0-9]/g, '') || '0';
+        }
+      });
+    }
+    if (resultadoSel && !resultadoSel.dataset.bound) {
+      resultadoSel.dataset.bound = '1';
+      resultadoSel.addEventListener('change', function () {
+        let anular = resultadoSel.value === 'anulado';
+        document.querySelectorAll('#reqEjecSubobjetivosBody .req-ejec-cantidad').forEach(function (inp) {
+          let max = Number(inp.getAttribute('data-max') || 0);
+          inp.disabled = anular ? false : max <= 0;
+          if (anular) inp.removeAttribute('max'); else inp.setAttribute('max', String(max));
+          if (inp.disabled) inp.value = 0;
+        });
+      });
+    }
     state.servicioFecha = fechaServicio ? String(fechaServicio.value || '').trim() : '';
 
     if (btnToggleLeft && !btnToggleLeft.dataset.bound) {
@@ -1728,6 +1821,7 @@
     if (btnCrudPlantillas && !btnCrudPlantillas.dataset.bound) {
       btnCrudPlantillas.dataset.bound = '1';
       btnCrudPlantillas.addEventListener('click', function () {
+        setAlert('', '', 'alertReqPlantillasCrud');
         ensurePlantillasTable();
         loadPlantillasCrud().catch(function (error) {
           setAlert(error.message || 'No se pudo cargar plantillas.', 'danger');
@@ -1907,40 +2001,6 @@
         }
         fillPlantillaForm(row);
         openPlantillaModal({ fromCrud: true });
-      });
-    }
-
-    let btnCrudEliminar = document.getElementById('btnReqCrudEliminar');
-    if (btnCrudEliminar && !btnCrudEliminar.dataset.bound) {
-      btnCrudEliminar.dataset.bound = '1';
-      btnCrudEliminar.addEventListener('click', function () {
-        let row = getSelectedPlantillaCrud();
-        if (!row || !row.id) {
-          setAlert('Seleccione una plantilla para desactivar.', 'warning');
-          return;
-        }
-
-        openConfirmDeactivatePlantillaModal(row, function () {
-          fetch('/api/agentes/requisitos/plantillas/' + encodeURIComponent(String(row.id)), {
-            method: 'DELETE',
-            headers: getHeaders(true),
-          })
-            .then(function (res) {
-              return res.json().catch(function () { return {}; }).then(function (json) {
-                if (!res.ok || !json.ok) {
-                  throw new Error((json && (json.message || json.error)) || 'No se pudo desactivar plantilla.');
-                }
-                return json;
-              });
-            })
-            .then(function () {
-              setAlert('Plantilla desactivada correctamente.', 'success');
-              return Promise.all([loadMeta(), loadPlantillasCrud()]);
-            })
-            .catch(function (error) {
-              setAlert(error.message || 'No se pudo desactivar plantilla.', 'danger');
-            });
-          });
       });
     }
 

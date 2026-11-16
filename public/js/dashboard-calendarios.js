@@ -224,14 +224,14 @@
         let calId = Number(el.dataset.calId);
 
         // Edit button
-        if (e.target.closest('.cal-edit-btn')) {
+        if (/** @type {Element} */ (e.target).closest('.cal-edit-btn')) {
           e.preventDefault();
           e.stopPropagation();
           openCalendarioModal(calId);
           return;
         }
         // Delete button
-        if (e.target.closest('.cal-delete-btn')) {
+        if (/** @type {Element} */ (e.target).closest('.cal-delete-btn')) {
           e.preventDefault();
           e.stopPropagation();
           deleteCalendario(calId);
@@ -425,7 +425,7 @@
     let cntEl = document.getElementById('pendingCountFestivo');
     let saveBtn = document.getElementById('btnSaveFestivo');
     let discardBtn = document.getElementById('btnDiscardFestivo');
-    if (cntEl) cntEl.textContent = count;
+    if (cntEl) cntEl.textContent = String(count);
     if (bar) {
       bar.classList.toggle('pending-changes-active', count > 0);
       bar.classList.toggle('pending-changes-idle', count === 0);

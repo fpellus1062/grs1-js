@@ -5,44 +5,25 @@
         <h5 class="modal-title" id="actividadModalTitle">
           Agregar Nuevo Servicio
         </h5>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-          aria-label="Cerrar"
-        ></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
       <div class="modal-body">
         <form id="actividadForm" novalidate>
           <div class="row g-3">
             <div class="col-md-6">
               <label for="actividadCodigo" class="form-label">Servicio</label>
-              <input
-                type="text"
-                class="form-control"
-                id="actividadCodigo"
-                maxlength="255"
-              />
+              <input type="text" class="form-control" id="actividadCodigo" maxlength="255" />
             </div>
             <div class="col-md-6">
               <label for="actividadNombre" class="form-label">Nombre *</label>
-              <input
-                type="text"
-                class="form-control"
-                id="actividadNombre"
-                required
-                minlength="2"
-                maxlength="255"
-              />
+              <input type="text" class="form-control" id="actividadNombre" required minlength="2" maxlength="255" />
             </div>
             <div class="col-md-4">
-              <label for="actividadDisponible" class="form-label"
-                >Disponible</label
-              >
+              <label for="actividadDisponible" class="form-label">Servicio</label>
               <select class="form-control" id="actividadDisponible">
-                <option value="">Sin marca</option>
-                <option value="--a--">--a--</option>
-                <option value="--d--">--d--</option>
+                <option value="">Normal</option>
+                <option value="Normal">Normal</option>
+                <option value="Pernocta">Pernocta</option>
               </select>
             </div>
             <div class="col-md-4">
@@ -53,51 +34,23 @@
             </div>
             <div class="col-md-4">
               <label for="actividadHorario" class="form-label">Horario</label>
-              <input
-                type="text"
-                class="form-control"
-                id="actividadHorario"
-                maxlength="255"
-              />
+              <input type="text" class="form-control" id="actividadHorario" maxlength="255" />
             </div>
             <div class="col-md-6">
-              <label for="actividadHoraInicio" class="form-label"
-                >Hora inicio *</label
-              >
-              <input
-                type="time"
-                class="form-control"
-                id="actividadHoraInicio"
-                required
-              />
+              <label for="actividadHoraInicio" class="form-label">Hora inicio *</label>
+              <input type="time" class="form-control" id="actividadHoraInicio" required />
             </div>
             <div class="col-md-6">
-              <label for="actividadHoraFin" class="form-label"
-                >Hora fin *</label
-              >
-              <input
-                type="time"
-                class="form-control"
-                id="actividadHoraFin"
-                required
-              />
+              <label for="actividadHoraFin" class="form-label">Hora fin *</label>
+              <input type="time" class="form-control" id="actividadHoraFin" required />
             </div>
             <div class="col-md-6">
               <label for="actividadColor" class="form-label">Color</label>
               <div class="d-flex align-items-center gap-2">
-                <input
-                  type="color"
-                  class="form-control form-control-color"
-                  id="actividadColor"
-                  value="#6c757d"
-                  title="Elige un color"
-                />
-                <button
-                  type="button"
-                  class="btn btn-outline-secondary btn-sm"
-                  id="btnClearActividadColor"
-                  title="Restablecer color"
-                >
+                <input type="color" class="form-control form-control-color" id="actividadColor" value="#6c757d"
+                  title="Elige un color" />
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btnClearActividadColor"
+                  title="Restablecer color">
                   <i class="bi bi-x-circle"></i>
                 </button>
               </div>

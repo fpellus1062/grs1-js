@@ -35,13 +35,13 @@ function normalizeNullableInteger(value, fieldName) {
   return parsedValue;
 }
 
-function normalizeDisponibilidad(value) {
+function normalizePernocta(value) {
   if (value === undefined || value === null) {
     return '';
   }
 
   const normalizedValue = String(value).trim();
-  if (['', '--a--', '--d--'].includes(normalizedValue)) {
+  if (['', '', ''].includes(normalizedValue)) {
     return normalizedValue;
   }
 
@@ -238,7 +238,7 @@ exports.create = async (data, userId) => {
   try {
     const actividad = normalizeNullableString(data.actividad);
     const nombre = normalizeRequiredString(data.nombre, 'El nombre');
-    const disponible = normalizeDisponibilidad(data.disponible);
+    const disponible = normalizePernocta(data.disponible);
     const grupoId = normalizeNullableInteger(data.grupo_id, 'Grupo ID');
     const horario = normalizeNullableString(data.horario);
     const horaInicio = normalizeTime(data.hora_inicio, 'Hora inicio', false);
@@ -311,11 +311,11 @@ exports.getMeta = async () => {
 
     return {
       grupos: gruposResult.rows,
-      disponibilidadOptions: Array.from(
+      PernoctaOptions: Array.from(
         new Set([
           '',
-          '--a--',
-          '--d--',
+          'Normal',
+          'Pernocta',
           ...disponiblesResult.rows.map((row) => row.disponible || ''),
         ])
       ),
@@ -365,7 +365,7 @@ exports.update = async (id, data) => {
       ? normalizeRequiredString(data.nombre, 'El nombre')
       : existing.nombre;
     const disponible = hasDisponible
-      ? normalizeDisponibilidad(data.disponible)
+      ? normalizePernocta(data.disponible)
       : existing.disponible;
     const grupoId = hasGrupoId
       ? normalizeNullableInteger(data.grupo_id, 'Grupo ID')

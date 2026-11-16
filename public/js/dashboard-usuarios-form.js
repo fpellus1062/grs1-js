@@ -1,4 +1,5 @@
 (function () {
+  /** @type {Record<string, any>} */
   const app = (window.GRS1Dashboard = window.GRS1Dashboard || {});
   const PASSWORD_POLICY_REGEX =
     /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{12,72}$/;

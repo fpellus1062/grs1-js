@@ -220,7 +220,7 @@ router.get(
         await require('../services/asignaciones.service').getSaldosDevengoInicial(
           anio,
           mes,
-          req.arsId,
+          /** @type {any} */ (req).arsId,
           agenteId
         );
 

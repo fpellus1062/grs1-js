@@ -153,7 +153,7 @@
 
   function updateAgenteAsignacionesDetalleButtonStateTest() {
     var btn = document.getElementById('btnTestTabulatorAsignacionesDetalle');
-    if (!btn) return;
+    if (!(btn instanceof HTMLButtonElement)) return;
     var selectedIds =
       app.agentesState && Array.isArray(app.agentesState.selectedAgenteIdsVista)
         ? app.agentesState.selectedAgenteIdsVista.filter(function (id) {
@@ -247,16 +247,11 @@
     var label = document.getElementById('testTabulatorEstadoLabel');
     if (label) label.textContent = 'Todos';
     var search = document.getElementById('testTabulatorGlobalSearch');
-    if (search) search.value = '';
+    if (search instanceof HTMLInputElement) search.value = '';
     updateQuickFilterActiveItem();
     state.table.clearHeaderFilter();
     applyEstadoFilter();
     setStatus('Filtros limpiados');
-  }
-
-  function downloadVisibleCsv() {
-    if (!state.table) return;
-    state.table.download('csv', 'test-tabulator-visible.csv', { bom: true });
   }
 
   function exportExcel() {
@@ -555,8 +550,8 @@
       sectionEl.classList.toggle('pending-changes-active', count > 0);
       sectionEl.classList.toggle('pending-changes-idle', count === 0);
     }
-    if (saveBtn) saveBtn.disabled = count === 0;
-    if (discardBtn) discardBtn.disabled = count === 0;
+    if (saveBtn instanceof HTMLButtonElement) saveBtn.disabled = count === 0;
+    if (discardBtn instanceof HTMLButtonElement) discardBtn.disabled = count === 0;
   }
 
   async function saveAllChanges() {
@@ -657,10 +652,6 @@
       esc(formatTimestampWithoutZone(val)) +
       '</span>'
     );
-  }
-
-  function boolFormatter(cell) {
-    return cell.getValue() ? 'Si' : 'No';
   }
 
   // ── Helpers de avatar (igual que Lista Agentes) ──────────────────────────
@@ -1163,7 +1154,7 @@
     tabulatorRoot.insertBefore(band, headerEl);
 
     var globalSearch = document.getElementById('testTabulatorGlobalSearch');
-    if (globalSearch) {
+    if (globalSearch instanceof HTMLInputElement) {
       globalSearch.addEventListener('input', function () {
         state.searchTerm = this.value || '';
         applyEstadoFilter();
@@ -1192,7 +1183,7 @@
       state.table = null;
     }
 
-    state.table = new Tabulator('#tabulatorAgentesCsvTest', {
+    state.table = new window.Tabulator('#tabulatorAgentesCsvTest', {
       locale: 'es-es',
       langs: TABULATOR_LANGS,
       height: 'calc(100vh - 330px)',
@@ -1408,6 +1399,7 @@
     document
       .querySelectorAll('#testTabulatorQuickFilterEstado .dropdown-item')
       .forEach(function (item) {
+        if (!(item instanceof HTMLElement)) return;
         if (!item.dataset.ttBound) {
           item.dataset.ttBound = '1';
           item.addEventListener('click', function (e) {
@@ -1422,14 +1414,13 @@
         }
       });
 
-    var input = document.getElementById('testTabulatorCsvInput');
-    if (input && !input.dataset.ttBound) {
+    const input = document.getElementById('testTabulatorCsvInput');
+    if (input instanceof HTMLInputElement && !input.dataset.ttBound) {
       input.dataset.ttBound = '1';
-      input.addEventListener('change', function (e) {
-        var file =
-          e.target.files && e.target.files[0] ? e.target.files[0] : null;
+      input.addEventListener('change', function () {
+        var file = input.files && input.files[0] ? input.files[0] : null;
         loadCsvFile(file);
-        e.target.value = '';
+        input.value = '';
       });
     }
 
@@ -1448,7 +1439,7 @@
           var id = state._comentariosFromTestId;
           state._comentariosFromTestId = null;
           var textarea = document.getElementById('comentariosAgenteTextarea');
-          if (!id || !textarea) return;
+          if (!id || !(textarea instanceof HTMLTextAreaElement)) return;
           var comentarios = textarea.value.trim() || null;
           trackPendingField(Number(id), 'comentarios', comentarios);
           if (state.table) {

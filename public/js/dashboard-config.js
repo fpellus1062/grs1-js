@@ -1,6 +1,6 @@
 (function () {
   const app = window.GRS1Dashboard;
-  const utils = window['GRS1Utils'] || {};
+  const utils = /** @type {Partial<GRS1UtilsApi>} */ (window['GRS1Utils'] || {});
 
   function normalizeHexColor(value, fallback) {
     let normalized =
@@ -103,7 +103,7 @@
       const cntEl = document.getElementById(cfg.pendingId);
       const saveBtn = document.getElementById(cfg.saveBtnId);
       const discardBtn = document.getElementById(cfg.discardBtnId);
-      if (cntEl) cntEl.textContent = count;
+      if (cntEl) cntEl.textContent = String(count);
       if (bar) {
         bar.classList.toggle('pending-changes-active', count > 0);
         bar.classList.toggle('pending-changes-idle', count === 0);
@@ -340,7 +340,7 @@
           modalEl.addEventListener(
             'hide.bs.modal',
             () => {
-              if (document.activeElement) document.activeElement.blur();
+              if (document.activeElement) /** @type {HTMLElement} */ (document.activeElement).blur();
             },
             { once: true }
           );

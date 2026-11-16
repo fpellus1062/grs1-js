@@ -5,7 +5,7 @@
 (function () {
   let app = window.GRS1Dashboard;
   let _ = app._asig || {};
-  let utils = window['GRS1Utils'] || {};
+  let utils = /** @type {Partial<GRS1UtilsApi>} */ (window['GRS1Utils'] || {});
   let normalizeCssColor =
     typeof utils.normalizeHexColor === 'function'
       ? utils.normalizeHexColor

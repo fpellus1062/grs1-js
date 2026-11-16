@@ -258,6 +258,7 @@ function buildPageHeaderLine({ fechaHeader, arsLabel, provincia }) {
 function buildDiaWrapperTable({ fecha, arsLabel, provincia, pelotonBlocks }) {
   const fechaHeader = formatIsoDate(fecha, "dd 'de' LLLL 'de' yyyy");
   const headerLine = buildPageHeaderLine({ fechaHeader, arsLabel, provincia });
+  /** @type {any[][]} */
   const body = [
     [
       {

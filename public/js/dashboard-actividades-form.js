@@ -124,9 +124,9 @@
     setOptions(
       'actividadDisponible',
       // @ts-ignore
-      app.actividadesState.disponibilidadOptions,
+      app.actividadesState.PernoctaOptions,
       (option) => option,
-      (option) => option || 'Sin marca',
+      (option) => option || 'Normal',
       undefined
     );
 

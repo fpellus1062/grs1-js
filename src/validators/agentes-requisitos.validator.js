@@ -39,12 +39,16 @@ exports.updatePlantillaSchema = Joi.object({
   plazo_dias: Joi.number().integer().positive().allow(null).default(null),
   fecha_inicio_manual: Joi.string().isoDate().allow(null).default(null),
   fecha_fin_manual: Joi.string().isoDate().allow(null).default(null),
-  activo: Joi.boolean().default(true),
+  activo: Joi.boolean(),
   objetivos: Joi.array().items(objetivoItemSchema).min(1).max(20).required(),
 });
 
 exports.plantillaIdParamSchema = Joi.object({
   id: Joi.number().integer().positive().required(),
+});
+
+exports.plantillaEstadoSchema = Joi.object({
+  activo: Joi.boolean().strict().required(),
 });
 
 exports.assignPlantillaSchema = Joi.object({
@@ -82,7 +86,7 @@ exports.registerEjecucionMultiSchema = Joi.object({
   periodo_ids: Joi.array().items(Joi.number().integer().positive()).min(1).max(500).required(),
   items: Joi.array().items(ejecucionMultiItemSchema).min(1).max(100).required(),
   fecha_prueba: Joi.string().isoDate().allow(null).default(null),
-  resultado: Joi.string().trim().lowercase().valid('aprobado', 'rechazado', 'pendiente').default('aprobado'),
+  resultado: Joi.string().trim().lowercase().valid('aprobado', 'rechazado', 'pendiente', 'anulado').default('aprobado'),
   evidencia_url: Joi.string().trim().uri().allow('', null).default(null),
   observaciones: Joi.string().trim().allow('', null).default(null),
 });

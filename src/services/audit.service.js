@@ -33,6 +33,7 @@ exports.logLogin = async ({
 
 /**
  * Consulta el log de auditoría de login con filtros opcionales.
+ * @param {{ usuario_id?: number, resultado?: string, desde?: string, hasta?: string, ip?: string, limit?: number, offset?: number }} [filtros]
  */
 exports.getLoginLog = async ({
   usuario_id,

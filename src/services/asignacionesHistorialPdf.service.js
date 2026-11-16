@@ -132,6 +132,7 @@ function formatNuevoServicio(entry, turnoMap, actMap) {
 }
 
 function buildHistorialTable(logs, turnoMap, actMap) {
+  /** @type {any[][]} */
   const body = [
     [
       {
@@ -288,7 +289,6 @@ exports.buildHistorialPdf = async (
     ars_unidad_id,
     esCopiaComunciados,
     fileBaseName,
-    csvFileName,
     csvFilePath,
   }
 ) => {

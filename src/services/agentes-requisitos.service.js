@@ -294,7 +294,7 @@ exports.getMeta = async (arsId) => {
 
   return {
     periodicidades: ['anual', 'semestral', 'mensual'],
-    resultados: ['aprobado', 'rechazado', 'pendiente'],
+    resultados: ['aprobado', 'rechazado', 'pendiente', 'anulado'],
     agentes: agentesRes.rows,
     plantillas: plantillasRes.rows,
     empleos: empleosRes.rows,
@@ -610,7 +610,7 @@ exports.updatePlantilla = async (arsId, plantillaId, payload, userId) => {
               plazo_dias = $7,
               fecha_inicio_manual = $8,
               fecha_fin_manual = $9,
-              activo = $10,
+              activo = COALESCE($10, activo),
               updated_by = $11,
               updated_at = now(),
               revision = revision + 1
@@ -626,7 +626,7 @@ exports.updatePlantilla = async (arsId, plantillaId, payload, userId) => {
         payload.plazo_dias == null ? null : Number(payload.plazo_dias),
         manualBounds.inicio,
         manualBounds.fin,
-        payload.activo !== false,
+        payload.activo == null ? null : payload.activo,
         userId,
         plantillaId,
         arsId,
@@ -671,24 +671,27 @@ exports.updatePlantilla = async (arsId, plantillaId, payload, userId) => {
   }
 };
 
-exports.deletePlantilla = async (arsId, plantillaId, userId) => {
+exports.updatePlantillaEstado = async (arsId, plantillaId, activo, userId) => {
   const result = await db.query(
     `UPDATE agentes_requisitos_plantillas
-        SET activo = false,
-            updated_by = $1,
+        SET activo = $1,
+            updated_by = $2,
             updated_at = now(),
             revision = revision + 1
-      WHERE id = $2 AND ars_unidad_id = $3
+      WHERE id = $3 AND ars_unidad_id = $4
       RETURNING *`,
-    [userId, plantillaId, arsId]
+    [activo, userId, plantillaId, arsId]
   );
 
   if (!result.rows.length) {
-    throw new Error('Plantilla no encontrada para eliminar.');
+    throw new Error('Plantilla no encontrada.');
   }
 
   return result.rows[0];
 };
+
+exports.deletePlantilla = async (arsId, plantillaId, userId) =>
+  exports.updatePlantillaEstado(arsId, plantillaId, false, userId);
 
 async function registerEjecucionForPeriodo(client, arsId, periodoId, payload, userId) {
   const periodoRes = await client.query(
@@ -706,7 +709,9 @@ async function registerEjecucionForPeriodo(client, arsId, periodoId, payload, us
 
   const periodo = periodoRes.rows[0];
   const subtipo = String(payload.subtipo || '').trim();
-  const cantidad = Number(payload.cantidad || 1);
+  const esAnulacion = String(payload.resultado || '').toLowerCase() === 'anulado';
+  const cantidadAbs = Math.abs(Number(payload.cantidad || 1));
+  const cantidad = esAnulacion ? -cantidadAbs : cantidadAbs;
 
   const objetivoRes = await client.query(
     `SELECT objetivo
@@ -731,7 +736,7 @@ async function registerEjecucionForPeriodo(client, arsId, periodoId, payload, us
   const completadoSubtipo = Number(completadoRes.rows[0] && completadoRes.rows[0].completado || 0);
   const pendienteSubtipo = Math.max(0, objetivoSubtipo - completadoSubtipo);
 
-  if (cantidad > pendienteSubtipo) {
+  if (!esAnulacion && cantidad > pendienteSubtipo) {
     throw new Error(
       'La cantidad para el subtipo "' +
         subtipo +
@@ -745,6 +750,33 @@ async function registerEjecucionForPeriodo(client, arsId, periodoId, payload, us
     ? DateTime.fromISO(String(payload.fecha_prueba), { zone: 'utc' }).toISO()
     : DateTime.utc().toISO();
 
+  if (esAnulacion) {
+    if (!payload.fecha_prueba) {
+      throw new Error('Para anular debe indicar la fecha de la aprobación a anular.');
+    }
+    // Neto aprobado en esa fecha: aprobaciones (+) menos anulaciones previas (-)
+    const netoFechaRes = await client.query(
+      `SELECT COALESCE(SUM(cantidad), 0)::int AS neto
+         FROM agentes_requisitos_ejecuciones
+        WHERE periodo_id = $1
+          AND ars_unidad_id = $2
+          AND subtipo = $3
+          AND resultado = 'aprobado'
+          AND fecha_prueba::date = $4::date`,
+      [Number(periodoId), arsId, subtipo, fechaPrueba]
+    );
+    const netoFecha = Number(netoFechaRes.rows[0] && netoFechaRes.rows[0].neto || 0);
+    if (netoFecha < cantidadAbs) {
+      throw new Error(
+        'No hay aprobación previa anulable para el subtipo "' +
+          subtipo +
+          '" en la fecha indicada (disponible: ' +
+          String(Math.max(0, netoFecha)) +
+          ').'
+      );
+    }
+  }
+
   await client.query(
     `INSERT INTO agentes_requisitos_ejecuciones
       (ars_unidad_id, periodo_id, agente_id, subtipo, cantidad, fecha_prueba, resultado, evidencia_url, observaciones, created_by)
@@ -756,7 +788,7 @@ async function registerEjecucionForPeriodo(client, arsId, periodoId, payload, us
       subtipo,
       cantidad,
       fechaPrueba,
-      String(payload.resultado || 'aprobado').toLowerCase(),
+      esAnulacion ? 'aprobado' : String(payload.resultado || 'aprobado').toLowerCase(),
       payload.evidencia_url == null ? null : String(payload.evidencia_url).trim(),
       payload.observaciones == null ? null : String(payload.observaciones).trim(),
       userId,

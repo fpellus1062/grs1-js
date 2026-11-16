@@ -39,7 +39,7 @@ function readSessionJson(key, fallback) {
 
 window.GRS1Dashboard = {
   sessionAuthKeys: SESSION_AUTH_KEYS,
-  /** @type {import('./dashboard-types.js').GlobalState} */
+  /** @type {GlobalState} */
   globalState: {
     token: readSessionValue('token', ''),
     userRole: readSessionValue('userRole', readSessionValue('role', 'user')),
@@ -57,7 +57,7 @@ window.GRS1Dashboard = {
     filtrados: [],
     originalActividades: [],
     grupos: [],
-    disponibilidadOptions: [],
+    PernoctaOptions: [],
     cambiosPendientes: new Map(),
     editingId: null,
     deleteId: null,
