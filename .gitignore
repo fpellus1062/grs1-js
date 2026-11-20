@@ -26,3 +26,11 @@ coverage/
 tmp/
 qnap/
 *.tgz
+.github/instructions/postman-collections-post-response.instructions.md
+.github/instructions/postman-collections-pre-request.instructions.md
+.github/instructions/postman-folder-post-response.instructions.md
+.github/instructions/postman-folder-pre-request.instructions.md
+.github/instructions/postman-http-request-post-response.instructions.md
+.github/instructions/postman-http-request-pre-request.instructions.md
+.github/prompts/reutilizar-helpers-estilo-notion.prompt.md
+.github/skills/reutilizar-helpers-estilo-notion/SKILL.md

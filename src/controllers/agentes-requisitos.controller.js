@@ -82,6 +82,15 @@ exports.assignPlantilla = async (req, res, next) => {
   }
 };
 
+exports.deleteAsignaciones = async (req, res, next) => {
+  try {
+    const result = await service.deleteAsignaciones(req.arsId, req.body.periodo_ids);
+    res.json({ ok: true, message: 'Asignaciones eliminadas correctamente', result });
+  } catch (error) {
+    next(new ApiError(400, error.message || 'Error al eliminar asignaciones', error.detail || error));
+  }
+};
+
 exports.registerEjecucion = async (req, res, next) => {
   try {
     const userId = Number(req.user && req.user.id) || null;

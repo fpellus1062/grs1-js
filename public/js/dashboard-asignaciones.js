@@ -11,7 +11,6 @@
 (function () {
   let app = window.GRS1Dashboard;
   let _ = app._asig || {};
-  let ASIG_TURNO_CONSTANTE_ID = 1;
   let DateTime = window.luxon && window.luxon.DateTime;
   let FALLBACK_MONTHS = [
     'Enero',
@@ -1730,6 +1729,11 @@
           if (fechaFinDevengo) {
             params.push('fecha_fin=' + encodeURIComponent(fechaFinDevengo));
           }
+          if (cuadranteSeleccionado && cuadranteSeleccionado.id) {
+            params.push(
+              'requisitos_cuadrante_id=' + encodeURIComponent(String(cuadranteSeleccionado.id))
+            );
+          }
           // En ventanas con traspaso (p.ej. 29/04-12/05),
           // usar SIEMPRE el mismo borrador seleccionado en ambos meses.
           if (borradorId) {
@@ -2426,6 +2430,11 @@
           _.fillActividadesOptions(
             document.getElementById('asigBulkActividades')
           );
+          _.configurarPernoctas(
+            document.getElementById('asigBulkPernoctas'),
+            document.getElementById('asigBulkPernoctasLabel'),
+            false
+          );
           // @ts-ignore
           document.getElementById('asigBulkObservaciones').value = '';
 
@@ -2651,9 +2660,12 @@
                   return opt.value;
                 })
                 .filter(Boolean);
-              let turnoId = ASIG_TURNO_CONSTANTE_ID;
               let actividadIds = _.getSelectedNumbersFromSelect(
                 document.getElementById('asigBulkActividades')
+              );
+              let turnoId = _.getTurnoAsignacion(
+                actividadIds,
+                document.getElementById('asigBulkPernoctas').checked
               );
               let observaciones =
                 // @ts-ignore

@@ -97,7 +97,7 @@ function parseDateCsv(value) {
   );
 }
 
-async function getRequisitosResumenByAgente(client, arsId) {
+async function getRequisitosResumenByAgente(client, arsId, ventana) {
   const { rows } = await client.query(
     `SELECT a.id AS agente_id,
             COALESCE(SUM(COALESCE(det.completado_total, 0)), 0)::int AS requisitos_completado_total,
@@ -154,13 +154,17 @@ async function getRequisitosResumenByAgente(client, arsId) {
             AND p.ars_unidad_id = a.ars_unidad_id
           WHERE t.ars_unidad_id = a.ars_unidad_id
             AND t.activo = true
+            AND (
+              $2::date IS NULL
+              OR (p.periodo_inicio <= $3::date AND p.periodo_fin >= $2::date)
+            )
            GROUP BY t.id, t.nombre, t.tipo_requisito
        ) det ON TRUE
       WHERE a.ars_unidad_id = $1
         AND a.fecha_baja IS NULL
         AND COALESCE(a.situacion_id, '') <> 'REBASE'
       GROUP BY a.id`,
-    [arsId]
+    [arsId, ventana ? ventana.fecha_inicio : null, ventana ? ventana.fecha_fin : null]
   );
 
   const out = {};
@@ -1375,7 +1379,20 @@ exports.getCuadrante = (
       definitivoServicios = svc.rows;
     }
 
-    const requisitosByAgente = await getRequisitosResumenByAgente(client, arsId);
+    let requisitosVentana = null;
+    if (options.requisitos_cuadrante_id != null) {
+      const { rows } = await client.query(
+        `SELECT fecha_inicio::text AS fecha_inicio, fecha_fin::text AS fecha_fin
+           FROM cuadrantes_planificacion
+          WHERE id = $1 AND ars_unidad_id = $2`,
+        [options.requisitos_cuadrante_id, arsId]
+      );
+      if (!rows.length || !rows[0].fecha_inicio || !rows[0].fecha_fin) {
+        throw new Error('No se pudo obtener la ventana del cuadrante para los requisitos');
+      }
+      requisitosVentana = rows[0];
+    }
+    const requisitosByAgente = await getRequisitosResumenByAgente(client, arsId, requisitosVentana);
 
     return {
       control,
@@ -4190,6 +4207,7 @@ exports.getMeta = async (arsUnidadId) => {
           SELECT a.id_actividad,
             a.actividad AS codigo,
             a.nombre,
+            a.disponible,
             NULLIF(TRIM(a.color::text), '') AS actividad_color,
             a.grupo_id,
             ga.nombre AS grupo_nombre,

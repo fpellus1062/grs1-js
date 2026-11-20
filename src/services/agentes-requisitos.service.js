@@ -888,6 +888,37 @@ exports.assignPlantilla = async (arsId, payload, userId) => {
   }
 };
 
+exports.deleteAsignaciones = async (arsId, periodoIds) => {
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query("SET LOCAL statement_timeout = '30s'");
+    await client.query("SET LOCAL lock_timeout = '10s'");
+    const existing = await client.query(
+      `SELECT id FROM agentes_requisitos_periodos
+        WHERE ars_unidad_id = $1 AND id = ANY($2::bigint[])
+        ORDER BY id FOR UPDATE`,
+      [arsId, periodoIds]
+    );
+    if (existing.rows.length !== periodoIds.length) {
+      throw new Error('Alguna asignación ya no existe o no pertenece a la unidad activa. No se eliminó ninguna.');
+    }
+    const deleted = await client.query(
+      `DELETE FROM agentes_requisitos_periodos
+        WHERE ars_unidad_id = $1 AND id = ANY($2::bigint[])
+        RETURNING id`,
+      [arsId, periodoIds]
+    );
+    await client.query('COMMIT');
+    return { deleted: deleted.rows.length };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
 exports.registerEjecucion = async (arsId, payload, userId) => {
   const client = await db.connect();
   try {

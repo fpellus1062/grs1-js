@@ -186,16 +186,16 @@
       .sort((a, b) => b.anio - a.anio);
   }
 
-  function aplicarRangoInputs(desdeInput, hastaInput, rango) {
+  function aplicarRangoInputs(desdeInput, hastaInput, rango, reiniciar = false) {
     if (!desdeInput || !hastaInput || !rango || !rango.desde || !rango.hasta) return;
     desdeInput.min = rango.desde;
     desdeInput.max = rango.hasta;
     hastaInput.min = rango.desde;
     hastaInput.max = rango.hasta;
-    if (!desdeInput.value || desdeInput.value < rango.desde || desdeInput.value > rango.hasta) {
+    if (reiniciar || !desdeInput.value || desdeInput.value < rango.desde || desdeInput.value > rango.hasta) {
       desdeInput.value = rango.desde;
     }
-    if (!hastaInput.value || hastaInput.value < rango.desde || hastaInput.value > rango.hasta) {
+    if (reiniciar || !hastaInput.value || hastaInput.value < rango.desde || hastaInput.value > rango.hasta) {
       hastaInput.value = rango.hasta;
     }
   }
@@ -203,22 +203,55 @@
   async function obtenerRangoCuadrante(anio, mes, borradorId) {
     let fechas = [];
 
-    if (borradorId) {
-      const resp = await fetch(
-        `/api/asignaciones/cuadrante/${anio}/${mes}?borrador_id=${encodeURIComponent(String(borradorId))}`,
-        { headers: getHeaders(), cache: 'no-store' }
-      );
-      if (!resp.ok) return null;
-      const json = await resp.json();
-      const rows = Array.isArray(json.borrador)
-        ? json.borrador
-        : Array.isArray(json.definitivo)
-          ? json.definitivo
-          : [];
-      fechas = rows
-        .map((day) => String(day && day.fecha ? day.fecha : '').slice(0, 10))
-        .filter((iso) => /^\d{4}-\d{2}-\d{2}$/.test(iso));
-    } else if (app._asig && typeof app._asig.fetchCuadranteDaysForPeriod === 'function') {
+    try {
+      const listResp = await fetch('/api/cuadrantes', {
+        headers: getHeaders(),
+        cache: 'no-store',
+      });
+      if (listResp.ok) {
+        const listJson = await listResp.json();
+        const cuadrante = (Array.isArray(listJson.data) ? listJson.data : [])
+          .filter((item) =>
+            item &&
+            item.estado !== 'archivado' &&
+            Number(item.anio_referencia) === Number(anio) &&
+            Number(item.mes_referencia) === Number(mes)
+          )
+          .sort((a, b) => {
+            const updated = String(b.updated_at || '').localeCompare(String(a.updated_at || ''));
+            return updated || Number(b.id) - Number(a.id);
+          })[0];
+
+        if (cuadrante) {
+          const detailResp = await fetch(`/api/cuadrantes/${encodeURIComponent(String(cuadrante.id))}`, {
+            headers: getHeaders(),
+            cache: 'no-store',
+          });
+          if (detailResp.ok) {
+            const detailJson = await detailResp.json();
+            const detalle = detailJson.data || {};
+            fechas = (Array.isArray(detalle.dias) ? detalle.dias : [])
+              .map((day) => String(day && day.fecha ? day.fecha : '').slice(0, 10))
+              .filter((iso) => /^\d{4}-\d{2}-\d{2}$/.test(iso));
+
+            const desde = String(detalle.fecha_inicio || cuadrante.fecha_inicio || '').slice(0, 10);
+            const hasta = String(detalle.fecha_fin || cuadrante.fecha_fin || '').slice(0, 10);
+            if (
+              /^\d{4}-\d{2}-\d{2}$/.test(desde) &&
+              /^\d{4}-\d{2}-\d{2}$/.test(hasta)
+            ) {
+              fechas = fechas.filter((fecha) => fecha >= desde && fecha <= hasta);
+              if (fechas.length === 0) fechas = expandirRangoFechas(desde, hasta);
+              return { desde, hasta, fechas };
+            }
+          }
+        }
+      }
+    } catch (_err) {
+      // Se mantiene el fallback para no bloquear informes si falla la carga del cuadrante.
+    }
+
+    if (!borradorId && app._asig && typeof app._asig.fetchCuadranteDaysForPeriod === 'function') {
       const days = await app._asig.fetchCuadranteDaysForPeriod(anio, mes);
       fechas = Array.isArray(days)
         ? days
@@ -1017,6 +1050,7 @@
     // @ts-ignore
     anioSel.value = String(selectedAnio);
     stateRA.anio = selectedAnio;
+    stateRA.rangoCuadrante = null;
 
     poblarMesRA(preferredMes);
   }
@@ -1045,6 +1079,7 @@
     // @ts-ignore
     mesSel.value = String(selectedMes);
     stateRA.mes = selectedMes;
+    stateRA.rangoCuadrante = null;
     sincronizarRangoFechasRA();
   }
 
@@ -1079,21 +1114,23 @@
     // @ts-ignore
     const tipo = String(elRA('raFuente')?.value || 'definitivo').toLowerCase();
     if (!anio || !mes) {
+      stateRA.rangoCuadrante = null;
       sincronizarRangoFechasRA();
       return;
     }
 
     if (tipo === 'borrador' && !stateRA.borradorId) {
+      stateRA.rangoCuadrante = null;
       sincronizarRangoFechasRA();
       return;
     }
 
     stateRA.rangoCuadrante = await obtenerRangoCuadrante(anio, mes, tipo === 'borrador' ? stateRA.borradorId : null);
 
-    sincronizarRangoFechasRA();
+    sincronizarRangoFechasRA(true);
   }
 
-  function sincronizarRangoFechasRA() {
+  function sincronizarRangoFechasRA(reiniciar = false) {
     const desdeInput = elRA('raFechaDesde');
     const hastaInput = elRA('raFechaHasta');
     if (!desdeInput || !hastaInput) return;
@@ -1103,7 +1140,7 @@
     aplicarRangoInputs(desdeInput, hastaInput, {
       desde: limites.desdeMes,
       hasta: limites.hastaMes,
-    });
+    }, reiniciar);
   }
 
   function obtenerRangoFechasRA() {
@@ -1227,9 +1264,10 @@
       if (btn) btn.disabled = true;
 
       const headers = getHeaders();
+      const rango = obtenerRangoFechasRA();
       const cuadranteUrl = tipo === 'borrador' && borradorId
         ? `/api/asignaciones/cuadrante/${anio}/${mes}?borrador_id=${encodeURIComponent(String(borradorId))}`
-        : `/api/asignaciones/cuadrante/${anio}/${mes}?source=definitivo`;
+        : `/api/asignaciones/cuadrante/${anio}/${mes}?source=definitivo&fecha_inicio=${encodeURIComponent(rango.desde)}&fecha_fin=${encodeURIComponent(rango.hasta)}`;
 
       const [cuadranteResp, metaResp] = await Promise.all([
         fetch(cuadranteUrl, { headers, cache: 'no-store' }),
@@ -1251,8 +1289,6 @@
 
       const cuadranteJson = await cuadranteResp.json();
       const metaJson = await metaResp.json();
-
-      const rango = obtenerRangoFechasRA();
 
       const baseRowsRaw = tipo === 'borrador'
         ? (Array.isArray(cuadranteJson.borrador) ? cuadranteJson.borrador : [])
@@ -1517,6 +1553,494 @@
       accordionEl.addEventListener('show.bs.collapse', async () => {
         await cargarPeriodosRA(state.anio, state.mes);
         await actualizarBorradorVisibilidadRA();
+      });
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // AGENTES POR ACTIVIDAD Y SEMANA (DEFINITIVO)
+  // ══════════════════════════════════════════════════════════════════════════
+  const stateAA = {
+    table: null,
+    report: null,
+    initialized: false,
+    activitiesRequest: 0,
+    reportRequest: 0,
+  };
+
+  function elAA(id) {
+    return document.getElementById(id);
+  }
+
+  function aaError(message) {
+    const node = elAA('aaError');
+    if (!node) return;
+    node.textContent = message || '';
+    node.classList.toggle('informes-hidden', !message);
+  }
+
+  function closeAAPickers(exceptPanelId) {
+    ['aaGrupo', 'aaActividades'].forEach((id) => {
+      const panel = elAA(`${id}Panel`);
+      const toggle = elAA(`${id}Toggle`);
+      if (panel && panel.id !== exceptPanelId) panel.classList.add('d-none');
+      if (toggle && (!panel || panel.id !== exceptPanelId)) toggle.setAttribute('aria-expanded', 'false');
+    });
+  }
+
+  function renderAAChecklist(id, options) {
+    const list = elAA(`${id}Checklist`);
+    const toggleLabel = elAA(`${id}Label`);
+    const countLabel = elAA(`${id}Count`);
+    if (!list) return;
+    const isActivity = id === 'aaActividades';
+    const selected = new Set(
+      Array.from(/** @type {any} */ (elAA(id))?.selectedOptions || [])
+        .map((option) => String(option.value || ''))
+        .filter(Boolean)
+    );
+
+    const optionHtml = (options || []).map((option) => {
+      const value = String(option.value || '');
+      const checked = selected.has(value);
+      return `<label class="aa-checklist-option">
+        <input type="checkbox" name="${id}_choice" value="${app.escapeHtml(value)}"${checked ? ' checked' : ''}>
+        <span>${app.escapeHtml(String(option.label || value))}</span>
+      </label>`;
+    }).join('');
+    if (options && options.length) {
+      const allSelected = selected.size === options.length;
+      list.innerHTML = `<label class="aa-checklist-option aa-checklist-option-all">
+        <input type="checkbox" data-aa-toggle-all="1"${allSelected ? ' checked' : ''}>
+        <span><strong>${isActivity ? 'Todas las actividades' : 'Todos los grupos'}</strong></span>
+      </label>${optionHtml}`;
+    } else {
+      list.innerHTML = optionHtml;
+    }
+
+    const values = Array.from(selected);
+    if (toggleLabel) {
+      toggleLabel.textContent = values.length
+        ? (values.length === 1
+            ? String((options || []).find((option) => String(option.value) === values[0])?.label || '1 seleccionado')
+            : `${values.length} seleccionados`)
+        : (isActivity ? 'Seleccionar actividades' : 'Seleccionar grupos');
+    }
+    if (countLabel) {
+      countLabel.textContent = values.length
+        ? String(values.length)
+        : (isActivity ? 'Ninguna' : 'Ninguno');
+    }
+  }
+
+  function resetAAResult(message) {
+    stateAA.reportRequest += 1;
+    stateAA.table = null;
+    stateAA.report = null;
+    const container = elAA('aaTabla');
+    if (container) {
+      container.innerHTML = `<div class="text-center text-muted py-4" style="font-size:0.82rem">${message || 'Cambia la consulta para generar una nueva tabla.'}</div>`;
+    }
+    const excel = elAA('btnAaExcel');
+    if (excel) excel.disabled = true;
+    const generate = elAA('btnAaGenerar');
+    if (generate) generate.disabled = false;
+    const badge = elAA('aaResumen');
+    if (badge) badge.style.display = 'none';
+  }
+
+  async function aaJson(url, options = {}) {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...getHeaders(),
+        ...(options.headers || {}),
+      },
+      bottomCalc: 'sum',
+      cache: 'no-store',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || data.message || `Error HTTP ${response.status}`);
+    return data;
+  }
+
+  async function cargarContextoAA() {
+    const grupoSelect = elAA('aaGrupo');
+    if (!grupoSelect) return;
+    grupoSelect.innerHTML = '<option value="">Cargando…</option>';
+    const data = await aaJson('/api/asignaciones/informe-agentes-actividades/contexto');
+    const grupos = Array.isArray(data.grupos) ? data.grupos : [];
+    grupoSelect.innerHTML = grupos.map((group) => {
+        const depth = Math.max(0, Math.min(5, Number(group.profundidad || group.nivel || 1) - 1));
+        const option = document.createElement('option');
+        option.value = String(group.id_grupo);
+        option.textContent = `${'— '.repeat(depth)}${group.nombre}`;
+        return option.outerHTML;
+      }).join('');
+    grupoSelect.value = '';
+    renderAAChecklist('aaGrupo', grupos.map((group) => ({
+      value: group.id_grupo,
+      label: `${'— '.repeat(Math.max(0, Math.min(5, Number(group.profundidad || group.nivel || 1) - 1)))}${group.nombre}`,
+    })));
+    stateAA.initialized = true;
+  }
+
+  async function cargarActividadesAA() {
+    const grupoIds = selectedIdsAA('aaGrupo');
+    const select = elAA('aaActividades');
+    if (!select) return;
+    const requestId = ++stateAA.activitiesRequest;
+    const previousIds = new Set(selectedIdsAA('aaActividades'));
+    const button = elAA('btnAaGenerar');
+    const toggle = elAA('aaActividadesToggle');
+    resetAAResult();
+    aaError(null);
+    if (!grupoIds.length) {
+      select.innerHTML = '';
+      if (button) button.disabled = false;
+      if (toggle) toggle.disabled = false;
+      renderAAChecklist('aaActividades', []);
+      return;
+    }
+    if (button) button.disabled = true;
+    if (toggle) toggle.disabled = true;
+    closeAAPickers('aaGrupoPanel');
+    try {
+      const data = await aaJson(
+        `/api/asignaciones/informe-agentes-actividades/actividades?grupo_ids=${encodeURIComponent(grupoIds.join(','))}`
+      );
+      if (requestId !== stateAA.activitiesRequest) return;
+      const actividades = Array.isArray(data.actividades) ? data.actividades : [];
+      if (!actividades.length) {
+        select.innerHTML = '';
+        renderAAChecklist('aaActividades', []);
+        aaError('Los grupos seleccionados no tienen actividades directas ni descendientes.');
+        return;
+      }
+      select.innerHTML = actividades
+        .map((item) => `<option value="${Number(item.id_actividad)}">${String(item.grupo_nombre || 'Actividad')} · ${String(item.actividad || '')} - ${String(item.nombre || '')}</option>`)
+        .join('');
+      Array.from(select.options).forEach((option) => {
+        option.selected = previousIds.has(Number(option.value));
+      });
+      renderAAChecklist('aaActividades', actividades.map((item) => ({
+        value: item.id_actividad,
+        label: `${String(item.grupo_nombre || 'Actividad')} · ${String(item.actividad || '')} - ${String(item.nombre || '')}`,
+      })));
+    } catch (err) {
+      if (requestId !== stateAA.activitiesRequest) return;
+      select.innerHTML = '';
+      renderAAChecklist('aaActividades', []);
+      aaError(err.message);
+    } finally {
+      if (requestId === stateAA.activitiesRequest) {
+        if (button) button.disabled = false;
+        if (toggle) toggle.disabled = false;
+      }
+    }
+  }
+
+  function selectedIdsAA(id) {
+    const select = elAA(id);
+    return select
+      ? Array.from(select.selectedOptions || [])
+          .map((option) => Number(option.value))
+          .filter((id) => Number.isInteger(id) && id > 0)
+      : [];
+  }
+
+  const pelotonCollatorAA = new Intl.Collator('es', { numeric: true, sensitivity: 'base' });
+
+  function buildColumnsAA(report) {
+    const columns = [
+      {
+        title: 'Pelotón',
+        field: 'peloton',
+        frozen: true,
+        minWidth: 115,
+        headerFilter: 'input',
+        tooltip: true,
+        sorter: (a, b) => pelotonCollatorAA.compare(String(a || ''), String(b || '')),
+      },
+      { title: 'TIP', field: 'tip', frozen: true, width: 90, headerFilter: 'input' },
+      { title: 'Nombre', field: 'nombre', frozen: true, minWidth: 160, headerFilter: 'input', tooltip: true },
+      { title: 'Empleo', field: 'empleo', frozen: true, minWidth: 110, headerFilter: 'input', tooltip: true },
+      {
+        title: 'Resumen general',
+        columns: [
+          { title: 'Total calculado', field: 'total_calculado', hozAlign: 'center', width: 85, bottomCalc: 'sum' },
+          { title: 'Total ajuste', field: 'total_ajuste', hozAlign: 'center', width: 75, bottomCalc: 'sum' },
+          { title: 'Total final', field: 'total_final', hozAlign: 'center', width: 75, bottomCalc: 'sum' },
+        ],
+      },
+    ];
+    (report.actividades || []).forEach((activity) => {
+      const activityId = Number(activity.id_actividad);
+      const children = (report.semanas || [])
+        .filter((week) => {
+          const field = `a${activityId}_s${week.num_semana}`;
+          const total = (report.rows || []).reduce(
+            (sum, row) => sum + Number(row[field] || 0),
+            0
+          );
+          return total !== 0;
+        })
+        .map((week) => ({
+          title: `Semana ${week.num_semana}`,
+          field: `a${activityId}_s${week.num_semana}`,
+          hozAlign: 'center',
+          width: 75,
+          bottomCalc: 'sum',
+          headerTooltip: `${formatFechaIso(week.fecha_inicio)} a ${formatFechaIso(week.fecha_fin)}`,
+        }));
+      children.push(
+        {
+          title: 'Total calculado',
+          field: `a${activityId}_total`,
+          hozAlign: 'center',
+          width: 85,
+          bottomCalc: 'sum',
+        },
+        {
+          title: 'Ajuste',
+          field: `a${activityId}_ajuste`,
+          hozAlign: 'center',
+          width: 70,
+          editor: 'number',
+          editorParams: { step: 1 },
+          validator: 'integer',
+          bottomCalc: 'sum',
+          cellEdited(cell) {
+            const row = cell.getRow();
+            const data = row.getData();
+            const adjustment = Number(cell.getValue());
+            const safeAdjustment = Number.isInteger(adjustment) ? adjustment : 0;
+            if (!Number.isInteger(adjustment)) row.update({ [`a${activityId}_ajuste`]: 0 });
+            const updates = {
+              [`a${activityId}_final`]:
+                Number(data[`a${activityId}_total`] || 0) + safeAdjustment,
+            };
+            updates.total_ajuste = (report.actividades || []).reduce(
+              (sum, item) => sum + Number(
+                Number(item.id_actividad) === activityId
+                  ? safeAdjustment
+                  : data[`a${Number(item.id_actividad)}_ajuste`] || 0
+              ),
+              0
+            );
+            updates.total_final = Number(data.total_calculado || 0) + updates.total_ajuste;
+            row.update({
+              ...updates,
+            });
+          },
+        },
+        {
+          title: 'Total final',
+          field: `a${activityId}_final`,
+          hozAlign: 'center',
+          width: 75,
+          formatter(cell) {
+            const data = cell.getRow().getData();
+            return Number(data[`a${activityId}_total`] || 0) +
+              Number(data[`a${activityId}_ajuste`] || 0);
+          },
+          bottomCalc: 'sum',
+        }
+      );
+      columns.push({
+        title: `${activity.actividad} · ${activity.nombre}`,
+        columns: children,
+      });
+    });
+    return columns;
+  }
+
+  async function generarAA() {
+    const fechaInicio = elAA('aaFechaInicio').value;
+    const fechaFin = elAA('aaFechaFin').value;
+    const soloPernoctas = elAA('aaSoloPernoctas').checked;
+    const grupoIds = selectedIdsAA('aaGrupo');
+    const actividadIds = selectedIdsAA('aaActividades');
+    aaError(null);
+    if (!fechaInicio || !fechaFin || fechaInicio > fechaFin || !grupoIds.length || !actividadIds.length) {
+      aaError('Selecciona fechas válidas, al menos un grupo y una actividad concreta.');
+      return;
+    }
+    resetAAResult('Generando tabla…');
+    const requestId = stateAA.reportRequest;
+    const button = elAA('btnAaGenerar');
+    if (button) button.disabled = true;
+    try {
+      const params = new URLSearchParams({
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaFin,
+        solo_pernoctas: String(soloPernoctas),
+        grupo_ids: grupoIds.join(','),
+        actividad_ids: actividadIds.join(','),
+      });
+      const report = await aaJson(`/api/asignaciones/informe-agentes-actividades?${params}`);
+      if (requestId !== stateAA.reportRequest) return;
+      stateAA.report = report;
+      if (!Array.isArray(report.rows) || !report.rows.length) {
+        resetAAResult('No hay asignaciones definitivas para las actividades y fechas seleccionadas.');
+        aaError('Actividad o grupo sin resultados en este período.');
+        return;
+      }
+      const container = elAA('aaTabla');
+      if (container) container.innerHTML = '';
+      stateAA.table = new Tabulator('#aaTabla', {
+        data: report.rows,
+        layout: 'fitData',
+        height: 'min(62vh, 650px)',
+        rowHeight: 18,
+        placeholder: 'Sin datos',
+        columnDefaults: { headerFilterPlaceholder: 'Filtrar...' },
+        columnHeaderVertAlign: 'middle',
+        columns: buildColumnsAA(report),
+        orderBy: [{ column: 'peloton', dir: 'asc' }],
+      });
+      const excel = elAA('btnAaExcel');
+      if (excel) excel.disabled = false;
+      const badge = elAA('aaResumen');
+      if (badge) {
+        badge.textContent = `${report.rows.length} agentes`;
+        badge.style.display = 'inline-block';
+      }
+    } catch (err) {
+      if (requestId !== stateAA.reportRequest) return;
+      resetAAResult('No se pudo generar el informe.');
+      aaError(err.message);
+    } finally {
+      if (button && requestId === stateAA.reportRequest) button.disabled = false;
+    }
+  }
+
+  async function exportarAA() {
+    if (!stateAA.report || !stateAA.table) return;
+    const button = elAA('btnAaExcel');
+    if (button) button.disabled = true;
+    aaError(null);
+    try {
+      const rows = stateAA.table.getData();
+      const ajustes = {};
+      rows.forEach((row) => {
+        (stateAA.report.actividades || []).forEach((activity) => {
+          const activityId = Number(activity.id_actividad);
+          ajustes[`${row.agente_id}:${activityId}`] = Number(
+            row[`a${activityId}_ajuste`] || 0
+          );
+        });
+      });
+      const response = await fetch('/api/asignaciones/informe-agentes-actividades/excel', {
+        method: 'POST',
+        headers: { ...getHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fecha_inicio: stateAA.report.periodo.fecha_inicio,
+          fecha_fin: stateAA.report.periodo.fecha_fin,
+          solo_pernoctas: stateAA.report.periodo.solo_pernoctas,
+          grupo_ids: selectedIdsAA('aaGrupo'),
+          actividad_ids: selectedIdsAA('aaActividades'),
+          ajustes,
+        }),
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || `Error HTTP ${response.status}`);
+      }
+      const blob = await response.blob();
+      const disposition = response.headers.get('Content-Disposition') || '';
+      const match = disposition.match(/filename="?([^";]+)"?/i);
+      const link = document.createElement('a');
+      const href = URL.createObjectURL(blob);
+      link.href = href;
+      link.download = match ? match[1] : 'agentes_por_actividad.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(href);
+    } catch (err) {
+      aaError(`No se pudo exportar: ${err.message}`);
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+
+  function bindEventosAA() {
+    const bind = (id, event, handler) => {
+      const node = elAA(id);
+      if (!node || node.dataset[`aaBound_${event}`]) return;
+      node.dataset[`aaBound_${event}`] = '1';
+      node.addEventListener(event, handler);
+    };
+    ['aaFechaInicio', 'aaFechaFin', 'aaSoloPernoctas'].forEach((id) => {
+      bind(id, 'change', () => {
+        resetAAResult();
+        aaError(null);
+      });
+    });
+    bind('aaGrupo', 'change', cargarActividadesAA);
+    bind('aaActividades', 'change', () => {
+      resetAAResult();
+      aaError(null);
+    });
+    bind('btnAaGenerar', 'click', generarAA);
+    bind('btnAaExcel', 'click', exportarAA);
+    ['aaGrupo', 'aaActividades'].forEach((id) => {
+      const toggle = elAA(`${id}Toggle`);
+      const panel = elAA(`${id}Panel`);
+      const list = elAA(`${id}Checklist`);
+      const select = elAA(id);
+      if (toggle && panel) {
+        toggle.addEventListener('click', (event) => {
+          event.stopPropagation();
+          const opening = panel.classList.contains('d-none');
+          closeAAPickers(opening ? panel.id : '');
+          panel.classList.toggle('d-none', !opening);
+          toggle.setAttribute('aria-expanded', opening ? 'true' : 'false');
+        });
+      }
+      if (list && select) {
+        list.addEventListener('change', (event) => {
+          const input = /** @type {HTMLInputElement | null} */ (event.target);
+          if (!input) return;
+          if (input.dataset.aaToggleAll === '1') {
+            list.querySelectorAll('input:not([data-aa-toggle-all])').forEach((item) => {
+              /** @type {HTMLInputElement} */ (item).checked = input.checked;
+            });
+          }
+          const values = new Set(
+            Array.from(list.querySelectorAll('input:checked'))
+              .map((item) => String(/** @type {HTMLInputElement} */ (item).value))
+          );
+          Array.from(/** @type {HTMLSelectElement} */ (select).options).forEach((option) => {
+            option.selected = values.has(String(option.value));
+          });
+          if (id === 'aaGrupo') void cargarActividadesAA();
+          else resetAAResult();
+          const options = Array.from(/** @type {HTMLSelectElement} */ (select).options)
+            .filter((option) => option.value)
+            .map((option) => ({ value: option.value, label: option.textContent }));
+          renderAAChecklist(id, options);
+          aaError(null);
+        });
+      }
+    });
+    document.addEventListener('click', (event) => {
+      const target = /** @type {Element | null} */ (event.target);
+      if (!target || !target.closest('#informesAgentesActividades .aa-checklist-picker')) {
+        closeAAPickers();
+      }
+    });
+    const accordion = elAA('informesAgentesActividades');
+    if (accordion && !accordion.dataset.aaBound) {
+      accordion.dataset.aaBound = '1';
+      accordion.addEventListener('show.bs.collapse', async () => {
+        if (stateAA.initialized) return;
+        try {
+          await cargarContextoAA();
+        } catch (err) {
+          aaError(err.message);
+        }
       });
     }
   }
@@ -2570,7 +3094,7 @@
       }
     }
     if (!includeLogs) {
-      params.set('include_logs', '0');
+      params.set('include_logs', '1');
       params.set('top_usuarios', '12');
       params.set('top_agentes_heatmap', '40');
     }
@@ -3197,25 +3721,19 @@
     try {
       const filters = getIaFilters();
       const insightsQuery = buildIaQueryString(false, filters);
-      const timelineQuery = buildIaQueryString(true, filters);
-      const [insightsResp, timelineResp, asignacionesExistentesRaw] = await Promise.all([
+      const [insightsResp, asignacionesExistentesRaw] = await Promise.all([
         fetch(`/api/asignaciones/historial/insights?${insightsQuery}`, {
-          headers: getHeaders(),
-        }),
-        fetch(`/api/asignaciones/historial?${timelineQuery}`, {
           headers: getHeaders(),
         }),
         fetchIaAsignacionesExistentes(filters).catch(() => 0),
       ]);
 
       if (!insightsResp.ok) throw new Error('No se pudieron cargar insights de auditoría');
-      if (!timelineResp.ok) throw new Error('No se pudo cargar timeline de auditoría');
 
       const insights = await insightsResp.json();
-      const timeline = await timelineResp.json();
 
       stateIA.insights = insights || {};
-      stateIA.logs = Array.isArray(timeline.logs) ? timeline.logs : [];
+      stateIA.logs = Array.isArray(insights.logs) ? insights.logs : [];
       const timelineDerivedKpis = computeIaTimelineDerivedKpis(stateIA.logs);
       const serverAdvancedKpis = (insights && insights.kpis_avanzados) || {};
       const cambiosEfectivos = Number(serverAdvancedKpis.cambios_efectivos || 0);
@@ -3362,6 +3880,7 @@
   app.initializeinformes = async function initializeinformes() {
     bindEventos();
     bindEventosRA();
+    bindEventosAA();
     bindEventosIA();
     setError(null);
     try {

@@ -15,6 +15,8 @@
     selectedRow: null,
     selectedRows: [],
     plantillaEditingId: 0,
+    plantillaCopiaRequiereAprobacion: false,
+    eliminandoAsignaciones: false,
     meta: {
       agentes: [],
       plantillas: [],
@@ -76,7 +78,7 @@
       '</div>' +
       '<div class="modal-body">' +
       '<p class="mb-2" id="reqConfirmDeactivateText">¿Deseas desactivar esta plantilla?</p>' +
-      '<p class="small text-muted mb-0">La plantilla quedará inactiva para nuevas asignaciones.</p>' +
+      '<p class="small text-muted mb-0" id="reqConfirmDeactivateDetail">La plantilla quedará inactiva para nuevas asignaciones.</p>' +
       '</div>' +
       '<div class="modal-footer d-flex justify-content-between align-items-center">' +
       '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>' +
@@ -90,38 +92,54 @@
     return document.getElementById('reqConfirmDeactivateModal');
   }
 
-  function openConfirmDeactivatePlantillaModal(row, onConfirm) {
+  function openReqConfirmModal(options, onConfirm) {
     let modalEl = ensureConfirmDeactivatePlantillaModal();
     if (!modalEl || !window.bootstrap || !window.bootstrap.Modal) {
-      onConfirm();
-      return;
+      throw new Error('No se pudo abrir la confirmación.');
     }
 
+    let titleEl = document.getElementById('reqConfirmDeactivateLabel');
     let textEl = document.getElementById('reqConfirmDeactivateText');
+    let detailEl = document.getElementById('reqConfirmDeactivateDetail');
     let confirmBtn = document.getElementById('btnReqConfirmDeactivate');
-    let nombre = String((row && row.nombre) || '').trim();
-    if (textEl) {
-      textEl.textContent = nombre
-        ? '¿Deseas desactivar la plantilla "' + nombre + '"?'
-        : '¿Deseas desactivar esta plantilla?';
+    if (!titleEl || !textEl || !detailEl || !confirmBtn) {
+      throw new Error('No se pudo abrir la confirmación.');
     }
-
-    if (confirmBtn) {
-      confirmBtn.onclick = function () {
-        onConfirm();
-        window.bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-      };
-    }
+    titleEl.textContent = options.title;
+    textEl.textContent = options.text;
+    detailEl.textContent = options.detail;
+    confirmBtn.textContent = options.confirmText;
+    confirmBtn.onclick = function () {
+      confirmBtn.onclick = null;
+      window.bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+      onConfirm();
+    };
 
     modalEl.addEventListener(
       'hidden.bs.modal',
       function cleanup() {
-        if (confirmBtn) confirmBtn.onclick = null;
+        confirmBtn.onclick = null;
       },
       { once: true }
     );
 
     window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+  }
+
+  function openConfirmDeactivatePlantillaModal(row, onConfirm) {
+    let nombre = String((row && row.nombre) || '').trim();
+    try {
+      openReqConfirmModal({
+        title: 'Confirmar desactivación',
+        text: nombre
+        ? '¿Deseas desactivar la plantilla "' + nombre + '"?'
+        : '¿Deseas desactivar esta plantilla?',
+        detail: 'La plantilla quedará inactiva para nuevas asignaciones.',
+        confirmText: 'Desactivar',
+      }, onConfirm);
+    } catch (error) {
+      setAlert(error.message, 'danger', 'alertReqPlantillasCrud');
+    }
   }
 
   function getHeaders(includeContentType) {
@@ -749,6 +767,7 @@
       setDisabled('btnReqSancionar', selectedCount !== 1);
       btnSan.title = selectedCount === 1 ? 'Sancionar' : 'Sancionar (seleccione 1)';
     }
+    setDisabled('btnReqEliminarAsignaciones', selectedCount < 1 || state.eliminandoAsignaciones);
   }
 
   function refreshMainSelCount() {
@@ -1231,12 +1250,47 @@
       .join('\n');
   }
 
-  function fillPlantillaForm(plantilla) {
+  function prepararCopiaPlantilla(plantilla) {
+    let DateTime = window.luxon && window.luxon.DateTime;
+    let inicioRaw = String(plantilla.fecha_inicio_manual || '');
+    let finRaw = String(plantilla.fecha_fin_manual || '');
+    if (!DateTime) throw new Error('No se pudo cargar la librería de fechas para copiar la plantilla.');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(inicioRaw) || !/^\d{4}-\d{2}-\d{2}$/.test(finRaw)) {
+      throw new Error('La plantilla necesita fechas de inicio y fin válidas para copiarla.');
+    }
+    let inicio = DateTime.fromISO(inicioRaw, { zone: 'utc' });
+    let fin = DateTime.fromISO(finRaw, { zone: 'utc' });
+    if (!inicio.isValid || !fin.isValid || fin < inicio) {
+      throw new Error('La plantilla necesita fechas de inicio y fin válidas para copiarla.');
+    }
+    let nuevoInicio = inicio.plus({ years: 1 }).toISODate();
+    let nuevoFin = fin.plus({ years: 1 }).toISODate();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(nuevoInicio || '') || !/^\d{4}-\d{2}-\d{2}$/.test(nuevoFin || '')) {
+      throw new Error('No se puede desplazar el período un año.');
+    }
+    let nombre = String(plantilla.nombre || '').trim();
+    let anioFin = nuevoFin.slice(0, 4);
+    nombre = /(^|[^\d])\d{4}$/.test(nombre)
+      ? nombre.replace(/\d{4}$/, anioFin)
+      : (nombre ? nombre + ' ' : '') + anioFin;
+    return {
+      ...plantilla,
+      id: null,
+      nombre: nombre,
+      fecha_inicio_manual: nuevoInicio,
+      fecha_fin_manual: nuevoFin,
+    };
+  }
+
+  function fillPlantillaForm(plantilla, options) {
     let idEl = getControlEl('reqPlantillaId');
     let titleEl = document.querySelector('#reqPlantillaModal .modal-title');
+    let isCopy = !!(options && options.copy);
     if (idEl) idEl.value = String(plantilla && plantilla.id ? plantilla.id : '');
     state.plantillaEditingId = Number((plantilla && plantilla.id) || 0);
-    if (titleEl) titleEl.textContent = state.plantillaEditingId > 0 ? 'Editar plantilla de requisito' : 'Nueva plantilla de requisito';
+    state.plantillaCopiaRequiereAprobacion = isCopy && plantilla.requiere_aprobacion === true;
+    if (titleEl) titleEl.textContent = isCopy ? 'Copiar plantilla de requisito' : (state.plantillaEditingId > 0 ? 'Editar plantilla de requisito' : 'Nueva plantilla de requisito');
+    setAlert('', '', 'alertReqPlantilla');
 
     let nombreEl = getControlEl('reqPlantillaNombre');
     let periodicidadEl = getControlEl('reqPlantillaPeriodicidad');
@@ -1551,7 +1605,7 @@
       periodicidad: getValue('reqPlantillaPeriodicidad', 'anual'),
       tipo_requisito: getValue('reqPlantillaTipo', ''),
       objetivo_total: objetivoTotal,
-      requiere_aprobacion: false,
+      requiere_aprobacion: state.plantillaCopiaRequiereAprobacion,
       plazo_dias: plazoDiasRaw > 0 ? plazoDiasRaw : null,
       fecha_inicio_manual: periodoInicioManual || null,
       fecha_fin_manual: periodoFinManual || null,
@@ -1737,6 +1791,61 @@
     bootstrap.Modal.getInstance(document.getElementById('reqSancionModal')).hide();
     setAlert('Sanción registrada correctamente.', 'success');
     await loadRows();
+  }
+
+  async function eliminarAsignaciones(periodoIds) {
+    let res = await fetch('/api/agentes/requisitos/asignaciones', {
+      method: 'DELETE',
+      headers: getHeaders(true),
+      body: JSON.stringify({ periodo_ids: periodoIds }),
+    });
+    let json = await res.json().catch(function () { return {}; });
+    if (!res.ok || !json.ok) {
+      throw new Error((json && (json.message || json.error)) || 'No se pudieron eliminar las asignaciones.');
+    }
+    state.selectedRows = [];
+    state.selectedRow = null;
+    state.selectedPeriodoId = 0;
+    state.selectedPeriodoIds = [];
+    state.selectedPlantillaKey = '';
+    if (state.table) state.table.deselectRow();
+    refreshSelectedActions();
+    refreshMainSelCount();
+    buildEjecucionSubobjetivosTable();
+    try {
+      await loadRows();
+    } catch (error) {
+      throw new Error('Asignaciones eliminadas, pero no se pudo actualizar la tabla: ' + error.message);
+    }
+    setAlert('Asignaciones eliminadas: ' + String(json.result.deleted) + '.', 'success');
+  }
+
+  function confirmarEliminarAsignaciones() {
+    let ids = state.selectedPeriodoIds.slice();
+    if (!ids.length || state.eliminandoAsignaciones) return;
+    if (ids.length > 2000) {
+      setAlert('Seleccione como máximo 2000 asignaciones.', 'warning');
+      return;
+    }
+    try {
+      openReqConfirmModal({
+        title: 'Confirmar eliminación',
+        text: '¿Desea eliminar las ' + String(ids.length) + ' asignaciones seleccionadas?',
+        detail: 'También se eliminarán sus pruebas registradas y sanciones. Esta acción no se puede deshacer.',
+        confirmText: 'Eliminar',
+      }, function () {
+        state.eliminandoAsignaciones = true;
+        refreshSelectedActions();
+        eliminarAsignaciones(ids)
+          .catch(function (error) { setAlert(error.message || 'No se pudieron eliminar las asignaciones.', 'danger'); })
+          .finally(function () {
+            state.eliminandoAsignaciones = false;
+            refreshSelectedActions();
+          });
+      });
+    } catch (error) {
+      setAlert(error.message, 'danger');
+    }
   }
 
   function bindEvents() {
@@ -2004,12 +2113,37 @@
       });
     }
 
+    let btnCrudCopiar = document.getElementById('btnReqCrudCopiar');
+    if (btnCrudCopiar && !btnCrudCopiar.dataset.bound) {
+      btnCrudCopiar.dataset.bound = '1';
+      btnCrudCopiar.addEventListener('click', function () {
+        let row = getSelectedPlantillaCrud();
+        if (!row) {
+          setAlert('Seleccione una plantilla para copiar.', 'warning', 'alertReqPlantillasCrud');
+          return;
+        }
+        try {
+          let copia = prepararCopiaPlantilla(row);
+          fillPlantillaForm(copia, { copy: true });
+          openPlantillaModal({ fromCrud: true });
+        } catch (error) {
+          setAlert(error.message || 'No se pudo preparar la copia de la plantilla.', 'danger', 'alertReqPlantillasCrud');
+        }
+      });
+    }
+
     let btnSancionar = document.getElementById('btnReqSancionar');
     if (btnSancionar && !btnSancionar.dataset.bound) {
       btnSancionar.dataset.bound = '1';
       btnSancionar.addEventListener('click', function () {
         bootstrap.Modal.getOrCreateInstance(document.getElementById('reqSancionModal')).show();
       });
+    }
+
+    let btnEliminarAsignaciones = document.getElementById('btnReqEliminarAsignaciones');
+    if (btnEliminarAsignaciones && !btnEliminarAsignaciones.dataset.bound) {
+      btnEliminarAsignaciones.dataset.bound = '1';
+      btnEliminarAsignaciones.addEventListener('click', confirmarEliminarAsignaciones);
     }
 
     let btnReload = document.getElementById('btnReqReload');
@@ -2027,7 +2161,7 @@
       btnGuardarPlantilla.dataset.bound = '1';
       btnGuardarPlantilla.addEventListener('click', function () {
         crearPlantilla().catch(function (error) {
-          setAlert(error.message || 'No se pudo crear plantilla.', 'danger');
+          setAlert(error.message || 'No se pudo crear plantilla.', 'danger', 'alertReqPlantilla');
         });
       });
     }

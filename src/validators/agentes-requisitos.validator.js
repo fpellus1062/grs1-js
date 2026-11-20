@@ -57,6 +57,10 @@ exports.assignPlantillaSchema = Joi.object({
   fecha_referencia: Joi.string().isoDate().required(),
 });
 
+exports.deleteAsignacionesSchema = Joi.object({
+  periodo_ids: Joi.array().items(Joi.number().integer().positive().max(Number.MAX_SAFE_INTEGER)).unique().min(1).max(2000).required(),
+});
+
 exports.registerEjecucionSchema = Joi.object({
   periodo_id: Joi.number().integer().positive().required(),
   subtipo: Joi.string().trim().min(1).max(80).required(),

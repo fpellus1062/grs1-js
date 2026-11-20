@@ -1228,6 +1228,7 @@ exports.traspasarCuadranteChunk = async ({
               pba.agente_id,
               pba.actividad_id,
               COALESCE(a.nombre, '') AS actividad_nombre,
+              COALESCE(a.disponible, '') AS actividad_disponible,
               COALESCE(ag.apellido_1, '') AS agente_apellido_1,
               COALESCE(ag.apellido_2, '') AS agente_apellido_2,
               COALESCE(ag.nombre, '') AS agente_nombre
@@ -1260,6 +1261,18 @@ exports.traspasarCuadranteChunk = async ({
         borrador_cuadrante: cuadranteBorrador,
         detalles: [],
       };
+    }
+
+    const esPernocta = (row) =>
+      String(row.actividad_disponible || '').trim().toLowerCase() === 'pernocta';
+    if (rows.some(esPernocta)) {
+      const turnoPernoctaRes = await client.query(
+        'SELECT id_turno FROM turnos WHERE id_turno = $1 AND baja_at IS NULL',
+        [99999]
+      );
+      if (!turnoPernoctaRes.rows.length) {
+        throw new Error('El turno de Pernocta (99999) no existe o no está activo');
+      }
     }
 
     const defaultTurnoId = await resolveDefaultTurnoId(client);
@@ -1327,10 +1340,11 @@ exports.traspasarCuadranteChunk = async ({
           prevActividadIds = prevServiciosRes.rows.map((r) => Number(r.actividad_id)).filter(Boolean);
         }
 
-        const turnoId =
-          (existing && Number(existing.turno_id)) ||
-          actividadTurnoMap[actividadId] ||
-          defaultTurnoId;
+        const turnoId = esPernocta(row)
+          ? 99999
+          : (existing && Number(existing.turno_id)) ||
+            actividadTurnoMap[actividadId] ||
+            defaultTurnoId;
 
         const insBorrador = await client.query(
           `INSERT INTO asignaciones_borrador

@@ -98,6 +98,11 @@
           data-permiso="agentes-requisitos:editar">
           <i class="bi bi-exclamation-triangle"></i>
         </button>
+        <button id="btnReqEliminarAsignaciones" class="btn btn-outline-danger py-1 px-2" type="button"
+          title="Eliminar asignaciones seleccionadas" aria-label="Eliminar asignaciones seleccionadas" disabled
+          data-permiso="agentes-requisitos:editar">
+          <i class="bi bi-trash"></i>
+        </button>
         <button id="btnReqReload" class="btn btn-outline-secondary py-1 px-2" type="button" title="Recargar">
           <i class="bi bi-arrow-repeat"></i>
         </button>
@@ -421,6 +426,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
       <div class="modal-body">
+        <div id="alertReqPlantilla" class="mb-2"></div>
         <div class="row g-2">
           <input id="reqPlantillaId" type="hidden" value="" />
           <div class="col-md-6">
@@ -595,6 +601,8 @@
             Nueva</button>
           <button id="btnReqCrudEditar" class="btn btn-outline-secondary btn-sm" type="button"><i
               class="bi bi-pencil-square"></i> Editar</button>
+          <button id="btnReqCrudCopiar" class="btn btn-outline-secondary btn-sm" type="button"><i
+              class="bi bi-copy"></i> Copiar al año siguiente</button>
         </div>
         <div id="alertReqPlantillasCrud" class="mb-2"></div>
         <p class="small text-muted">Use el interruptor para activar o desactivar plantillas para nuevas asignaciones.</p>

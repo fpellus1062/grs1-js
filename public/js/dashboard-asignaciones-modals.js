@@ -6,6 +6,7 @@
   let app = window.GRS1Dashboard;
   let _ = app._asig || {};
   let ASIG_TURNO_CONSTANTE_ID = 1;
+  let ASIG_TURNO_PERNOCTA_ID = 99999;
 
   // ── Helpers de celda (state + Tabulator) ────────────────────────
 
@@ -270,6 +271,13 @@
                 <div id="asigCellActividades" class="asig-act-list" style="min-height:200px;max-height:200px;overflow-y:auto;"></div>
                 <div class="form-text" style="font-size:.85em">La fecha es la celda seleccionada del cuadrante. Ctrl/Cmd para selección múltiple.</div></div>
               <div class="col-12 mt-2">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" role="switch" id="asigCellPernoctas">
+                  <label class="form-check-label" for="asigCellPernoctas">Pernoctas: <span id="asigCellPernoctasLabel">No</span></label>
+                </div>
+                <div class="form-text">Si está desactivado, una actividad de pernocta aplica ese turno a toda la asignación.</div>
+              </div>
+              <div class="col-12 mt-2">
                 <label class="form-label mb-1">Observaciones</label>
                 <textarea id="asigCellObservaciones" class="form-control form-control-sm" rows="2" maxlength="500" placeholder="Añadir observaciones..."></textarea></div>
             </div></div>
@@ -323,6 +331,13 @@
               <input type="text" id="asigBulkFilterActividades" class="form-control form-control-sm mb-1" placeholder="Buscar actividad..." style="font-size:.85em">
               <div id="asigBulkActividades" class="asig-act-list" style="min-height:160px;max-height:160px;overflow-y:auto;"></div>
               <div class="form-text" style="font-size:.85em">Ctrl/Cmd para múltiple</div></div>
+            <div class="col-12 mt-2">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" role="switch" id="asigBulkPernoctas">
+                <label class="form-check-label" for="asigBulkPernoctas">Pernoctas: <span id="asigBulkPernoctasLabel">No</span></label>
+              </div>
+              <div class="form-text">Si está desactivado, una actividad de pernocta aplica ese turno a toda la asignación.</div>
+            </div>
             <div class="col-12 mt-2">
               <label class="form-label mb-1">Observaciones</label>
               <textarea id="asigBulkObservaciones" class="form-control form-control-sm" rows="2" maxlength="500" placeholder="Añadir observaciones..."></textarea></div>
@@ -574,6 +589,28 @@
     });
   }
 
+  function getTurnoAsignacion(actividadIds, forzarPernocta) {
+    let actividades =
+      (app.asignacionesState.meta && app.asignacionesState.meta.actividades) || [];
+    let selectedIds = new Set((actividadIds || []).map(Number));
+    let hayPernocta = actividades.some(function (actividad) {
+      return selectedIds.has(Number(actividad.id_actividad)) &&
+        String(actividad.disponible || '').trim().toLowerCase() === 'pernocta';
+    });
+    return forzarPernocta || hayPernocta
+      ? ASIG_TURNO_PERNOCTA_ID
+      : ASIG_TURNO_CONSTANTE_ID;
+  }
+
+  function configurarPernoctas(switchEl, labelEl, checked) {
+    switchEl.checked = checked;
+    let actualizarLabel = function () {
+      labelEl.textContent = switchEl.checked ? 'Sí' : 'No';
+    };
+    switchEl.onchange = actualizarLabel;
+    actualizarLabel();
+  }
+
   // ── openAsignacionCellModal ─────────────────────────────────────
 
   app.openAsignacionCellModal = function openAsignacionCellModal(payload) {
@@ -586,9 +623,12 @@
     let contextEl = document.getElementById('asigCellContext');
     let turnoEl = document.getElementById('asigCellTurno');
     let actividadesEl = document.getElementById('asigCellActividades');
+    let pernoctasEl = document.getElementById('asigCellPernoctas');
+    let pernoctasLabelEl = document.getElementById('asigCellPernoctasLabel');
     let obsEl = document.getElementById('asigCellObservaciones');
     let saveBtn = document.getElementById('btnSaveAsigCell');
-    if (!turnoEl || !actividadesEl || !obsEl || !saveBtn) return;
+    if (!turnoEl || !actividadesEl || !pernoctasEl || !pernoctasLabelEl || !obsEl || !saveBtn) return;
+    configurarPernoctas(pernoctasEl, pernoctasLabelEl, Number(payload.turno_id) === ASIG_TURNO_PERNOCTA_ID);
 
     let newSaveBtn = saveBtn.cloneNode(true);
     saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
@@ -609,12 +649,12 @@
         _.showAlert('Perfil consulta: solo lectura', 'warning');
         return;
       }
-      let turnoId = ASIG_TURNO_CONSTANTE_ID;
       let actividadIds = Array.from(actividadesEl.querySelectorAll('.asig-act-item.selected'))
         .map(function (item) {
           return Number(item.dataset.value);
         })
         .filter(Boolean);
+      let turnoId = getTurnoAsignacion(actividadIds, pernoctasEl.checked);
       let selectedFecha = payload.fecha
         ? String(payload.fecha).slice(0, 10)
         : String(payload.anio) +
@@ -869,4 +909,6 @@
   _.fillAgenteOptions = fillAgenteOptions;
   _.fillTurnosOptions = fillTurnosOptions;
   _.fillActividadesOptions = fillActividadesOptions;
+  _.getTurnoAsignacion = getTurnoAsignacion;
+  _.configurarPernoctas = configurarPernoctas;
 })();

@@ -115,6 +115,26 @@ router.get(
   authorize('asignaciones:leer'),
   controller.exportarResumenActividades
 );
+router.get(
+  '/informe-agentes-actividades/contexto',
+  authorize('asignaciones:leer'),
+  controller.getInformeAgentesActividadesContexto
+);
+router.get(
+  '/informe-agentes-actividades/actividades',
+  authorize('asignaciones:leer'),
+  controller.getInformeAgentesActividadesOpciones
+);
+router.get(
+  '/informe-agentes-actividades',
+  authorize('asignaciones:leer'),
+  controller.getInformeAgentesActividades
+);
+router.post(
+  '/informe-agentes-actividades/excel',
+  authorize('asignaciones:leer'),
+  controller.exportarInformeAgentesActividades
+);
 
 // Escritura
 router.post(

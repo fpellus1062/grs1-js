@@ -7,13 +7,15 @@ const { createRequire } = require('node:module');
 
 const root = path.resolve(__dirname, '..');
 
-function dashboardHarness() {
+function dashboardHarness(options = {}) {
   class Control {
     constructor(value = '') {
       this.value = value;
       this.dataset = {};
       this.innerHTML = '';
+      this.listeners = {};
     }
+    addEventListener(name, callback) { this.listeners[name] = callback; }
   }
   class Select extends Control {
     set innerHTML(html) {
@@ -29,11 +31,22 @@ function dashboardHarness() {
     reqAsignarSelCount: new Control(),
     alertContainerAgentesRequisitos: new Control(),
     reqPlantillaModal: new Control(),
+    reqPlantillaId: new Control(),
     reqPlantillaNombre: new Control('Tiro'),
     reqPlantillaPeriodicidad: new Control('anual'),
+    reqPlantillaPlazoDias: new Control(),
+    reqPlantillaPeriodoInicio: new Control(),
+    reqPlantillaPeriodoFin: new Control(),
     reqPlantillaTipo: new Control('tiro'),
     reqPlantillaObjetivoTotal: new Control('1'),
     reqPlantillaObjetivosRaw: new Control('Prueba:1'),
+    reqPlantillaDescripcion: new Control(),
+    reqConfirmDeactivateModal: new Control(),
+    reqConfirmDeactivateLabel: new Control(),
+    reqConfirmDeactivateText: new Control(),
+    reqConfirmDeactivateDetail: new Control(),
+    btnReqConfirmDeactivate: new Control(),
+    btnReqEliminarAsignaciones: new Control(),
   };
   const table = {
     rows: [{ id: 11 }, { id: 12 }],
@@ -57,6 +70,12 @@ function dashboardHarness() {
     if (url.includes('/plantillas?')) {
       return { ok: true, json: async () => ({ plantillas }) };
     }
+    if (url === '/api/agentes/requisitos/asignaciones' && options.method === 'DELETE') {
+      if (failure.deleteAsignaciones) {
+        return { ok: false, json: async () => ({ ok: false, message: 'No se eliminó ninguna.' }) };
+      }
+      return { ok: true, json: async () => ({ ok: true, result: { deleted: 2 } }) };
+    }
     if (url === '/api/agentes/requisitos/asignaciones') {
       return { ok: true, json: async () => ({ ok: true, result: { created: 2, skipped: 0 } }) };
     }
@@ -66,19 +85,21 @@ function dashboardHarness() {
     throw new Error('Petición inesperada: ' + url);
   };
   const app = {};
+  const failure = options;
   const filename = path.join(root, 'public', 'js', 'dashboard-agentes-requisitos.js');
   const source = fs.readFileSync(filename, 'utf8').replace(
     /\}\)\(\);\s*$/,
-    'app.testHooks = { state, loadMeta, crearPlantilla, asignarPlantilla }; })();'
+    'app.testHooks = { state, loadMeta, crearPlantilla, asignarPlantilla, prepararCopiaPlantilla, fillPlantillaForm, confirmarEliminarAsignaciones, refreshSelectedActions }; })();'
   );
+  const bootstrap = { Modal: { getInstance: () => ({ hide() {} }), getOrCreateInstance: () => ({ hide() {}, show() {} }) } };
   const context = {
-    window: { GRS1Dashboard: app },
-    document: { getElementById: (id) => elements[id] || null },
+    window: { GRS1Dashboard: app, luxon: require('luxon'), bootstrap },
+    document: { getElementById: (id) => elements[id] || null, querySelector: () => null },
     HTMLInputElement: Control,
     HTMLSelectElement: Select,
     HTMLTextAreaElement: Control,
     HTMLButtonElement: Control,
-    bootstrap: { Modal: { getInstance: () => ({ hide() {} }) } },
+    bootstrap,
     URLSearchParams,
     fetch,
   };
@@ -102,6 +123,49 @@ test('crear una plantilla conserva agentes, la selecciona y permite asignarla', 
   assert.deepEqual(table.selected, []);
 });
 
+test('copia la plantilla al año siguiente sin asignar agentes ni alterar el original', async () => {
+  const { hooks, elements, requests } = dashboardHarness();
+  const original = {
+    id: 8, nombre: 'Tiro 2026', descripcion: 'Descripción',
+    fecha_inicio_manual: '2026-01-01', fecha_fin_manual: '2026-12-31',
+    objetivo_total: 3, tipo_requisito: 'tiro', requiere_aprobacion: true,
+    objetivos: [{ subtipo: 'corta', objetivo: 1 }, { subtipo: 'larga', objetivo: 2 }],
+  };
+  const copia = hooks.prepararCopiaPlantilla(original);
+  hooks.fillPlantillaForm(copia, { copy: true });
+  assert.equal(elements.reqPlantillaId.value, '');
+  assert.equal(elements.reqPlantillaNombre.value, 'Tiro 2027');
+  assert.equal(elements.reqPlantillaPeriodoInicio.value, '2027-01-01');
+  assert.equal(elements.reqPlantillaPeriodoFin.value, '2027-12-31');
+  assert.equal(original.nombre, 'Tiro 2026');
+  await hooks.crearPlantilla();
+  const post = requests.find((entry) => entry.url === '/api/agentes/requisitos/plantillas' && entry.options.method === 'POST');
+  const payload = JSON.parse(post.options.body);
+  assert.equal(payload.requiere_aprobacion, true);
+  assert.equal(payload.nombre, 'Tiro 2027');
+  assert.equal(payload.descripcion, 'Descripción');
+  assert.deepEqual(payload.objetivos.map(({ subtipo, objetivo }) => ({ subtipo, objetivo })), [
+    { subtipo: 'corta', objetivo: 1 }, { subtipo: 'larga', objetivo: 2 },
+  ]);
+  assert.equal(requests.some((entry) => entry.url === '/api/agentes/requisitos/asignaciones'), false);
+});
+
+test('copia fechas bisiestas y usa el año de fin; rechaza períodos sin fechas', () => {
+  const { hooks } = dashboardHarness();
+  const copia = hooks.prepararCopiaPlantilla({
+    nombre: 'Curso', fecha_inicio_manual: '2024-02-29', fecha_fin_manual: '2025-01-31',
+  });
+  assert.equal(copia.fecha_inicio_manual, '2025-02-28');
+  assert.equal(copia.fecha_fin_manual, '2026-01-31');
+  assert.equal(copia.nombre, 'Curso 2026');
+  assert.equal(hooks.prepararCopiaPlantilla({
+    nombre: 'Curso-2024', fecha_inicio_manual: '2024-01-01', fecha_fin_manual: '2024-12-31',
+  }).nombre, 'Curso-2025');
+  assert.throws(() => hooks.prepararCopiaPlantilla({
+    nombre: 'Curso', fecha_inicio_manual: null, fecha_fin_manual: '2025-01-31',
+  }), /fechas de inicio y fin válidas/);
+});
+
 test('no envía una asignación sin plantilla o fecha', async () => {
   const { hooks, elements, requests } = dashboardHarness();
   await hooks.loadMeta({ preserveAgentes: true });
@@ -111,6 +175,34 @@ test('no envía una asignación sin plantilla o fecha', async () => {
   elements.reqAsignarFechaRef.value = '';
   await assert.rejects(hooks.asignarPlantilla(), /fecha de referencia/);
   assert.equal(requests.some((entry) => entry.url === '/api/agentes/requisitos/asignaciones'), false);
+});
+
+test('solicita confirmación antes de borrar solo las filas seleccionadas', async () => {
+  const { hooks, elements, requests } = dashboardHarness();
+  hooks.state.selectedPeriodoIds = [101, 202];
+  hooks.refreshSelectedActions();
+  assert.equal(elements.btnReqEliminarAsignaciones.disabled, false);
+  hooks.confirmarEliminarAsignaciones();
+  assert.equal(requests.length, 0);
+  assert.match(elements.reqConfirmDeactivateDetail.textContent, /pruebas registradas/);
+  elements.btnReqConfirmDeactivate.onclick();
+  await new Promise((resolve) => setImmediate(resolve));
+  const request = requests.find((entry) => entry.options.method === 'DELETE');
+  assert.deepEqual(JSON.parse(request.options.body), { periodo_ids: [101, 202] });
+  assert.equal(hooks.state.selectedPeriodoIds.length, 0);
+  assert.equal(elements.btnReqEliminarAsignaciones.disabled, true);
+  assert.match(elements.alertContainerAgentesRequisitos.innerHTML, /Asignaciones eliminadas: 2/);
+});
+
+test('mantiene la selección y muestra el error si falla el borrado', async () => {
+  const { hooks, elements } = dashboardHarness({ deleteAsignaciones: true });
+  hooks.state.selectedPeriodoIds = [101, 202];
+  hooks.confirmarEliminarAsignaciones();
+  elements.btnReqConfirmDeactivate.onclick();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(Array.from(hooks.state.selectedPeriodoIds), [101, 202]);
+  assert.match(elements.alertContainerAgentesRequisitos.innerHTML, /No se eliminó ninguna/);
+  assert.equal(elements.btnReqEliminarAsignaciones.disabled, false);
 });
 
 function loadService(filename, db, extraExport) {
@@ -161,6 +253,42 @@ test('asignar vincula plantilla y agentes en períodos y omite duplicados', asyn
   const second = await service.assignPlantilla('ARS1', payload, 1);
   assert.equal(second.created, 0);
   assert.equal(second.skipped, 2);
+});
+
+test('el borrado es atómico y limitado a los períodos de la unidad activa', async () => {
+  const calls = [];
+  let encontrados = [101, 202];
+  const client = {
+    async query(sql, params) {
+      calls.push({ sql, params });
+      if (sql.includes('SELECT id FROM agentes_requisitos_periodos')) return { rows: encontrados.map((id) => ({ id })) };
+      if (sql.includes('DELETE FROM agentes_requisitos_periodos')) return { rows: encontrados.map((id) => ({ id })) };
+      return { rows: [] };
+    },
+    release() {},
+  };
+  const service = loadService('agentes-requisitos.service.js', { connect: async () => client });
+  const result = await service.deleteAsignaciones('ARS1', [101, 202]);
+  assert.equal(result.deleted, 2);
+  const deleteCall = calls.find(({ sql }) => sql.includes('DELETE FROM'));
+  assert.match(deleteCall.sql, /ars_unidad_id = \$1 AND id = ANY\(\$2::bigint\[\]\)/);
+  assert.deepEqual(Array.from(deleteCall.params[1]), [101, 202]);
+  assert.equal(deleteCall.params[0], 'ARS1');
+  assert.equal(calls.some(({ sql }) => sql === 'COMMIT'), true);
+
+  calls.length = 0;
+  encontrados = [101];
+  await assert.rejects(service.deleteAsignaciones('ARS1', [101, 202]), /No se eliminó ninguna/);
+  assert.equal(calls.some(({ sql }) => sql.includes('DELETE FROM')), false);
+  assert.equal(calls.some(({ sql }) => sql === 'ROLLBACK'), true);
+});
+
+test('la validación rechaza listas vacías, duplicadas o con identificadores inválidos', () => {
+  const { deleteAsignacionesSchema } = require('../src/validators/agentes-requisitos.validator');
+  assert.equal(deleteAsignacionesSchema.validate({ periodo_ids: [101, 202] }).error, undefined);
+  for (const ids of [[], [1, 1], [0], [-1], [1.5]]) {
+    assert.ok(deleteAsignacionesSchema.validate({ periodo_ids: ids }).error);
+  }
 });
 
 test('el resumen de asignaciones exige un período del agente y de su unidad', async () => {

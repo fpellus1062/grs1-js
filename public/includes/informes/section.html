@@ -495,30 +495,36 @@
     background: #fff !important;
   }
 
-  /* Card de filtros IA mas compacta */
-  #informesAuditoriaAsignaciones .informes-card-filtros {
+  /* Card de filtros compacta para consultoría y resumen por actividad */
+  #informesAuditoriaAsignaciones .informes-card-filtros,
+  #informesAgentesActividades .informes-card-filtros {
     padding: 0.65rem;
     gap: 0.5rem;
   }
 
-  #informesAuditoriaAsignaciones .informes-card-filtros .informes-filter-group {
+  #informesAuditoriaAsignaciones .informes-card-filtros .informes-filter-group,
+  #informesAgentesActividades .informes-card-filtros .informes-filter-group {
     gap: 0.22rem;
   }
 
-  #informesAuditoriaAsignaciones .informes-card-filtros label {
+  #informesAuditoriaAsignaciones .informes-card-filtros label,
+  #informesAgentesActividades .informes-card-filtros label {
     font-size: 0.68rem;
     letter-spacing: 0.04em;
   }
 
   #informesAuditoriaAsignaciones .informes-card-filtros .form-select,
-  #informesAuditoriaAsignaciones .informes-card-filtros .form-control {
+  #informesAuditoriaAsignaciones .informes-card-filtros .form-control,
+  #informesAgentesActividades .informes-card-filtros .form-select,
+  #informesAgentesActividades .informes-card-filtros .form-control {
     font-size: 0.78rem;
     min-width: 0;
     height: 1.95rem;
     padding: 0.25rem 0.5rem;
   }
 
-  #informesAuditoriaAsignaciones .informes-card-filtros .form-select[multiple] {
+  #informesAuditoriaAsignaciones .informes-card-filtros .form-select[multiple],
+  #informesAgentesActividades .informes-card-filtros .form-select[multiple] {
     height: auto;
     line-height: 1.2;
     padding: 0.15rem 0.3rem;
@@ -550,10 +556,200 @@
     padding-right: 0;
   }
 
-  #informesAuditoriaAsignaciones .informes-card-filtros .btn {
+  #informesAuditoriaAsignaciones .informes-card-filtros .btn,
+  #informesAgentesActividades .informes-card-filtros .btn {
     padding-top: 0.35rem;
     padding-bottom: 0.35rem;
     font-size: 0.84rem;
+  }
+
+  #informesAgentesActividades .informes-card-filtros .text-muted {
+    line-height: 1.35;
+  }
+
+  #informesAgentesActividades #aaActividades {
+    min-height: 7.9rem;
+  }
+
+  #informesAgentesActividades #aaTabla.tabulator {
+    font-size: 0.66rem;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  #informesAgentesActividades #aaTabla .tabulator-header,
+  #informesAgentesActividades #aaTabla .tabulator-header .tabulator-col {
+    background: var(--primary-gc-color, #276836);
+    color: #fff;
+  }
+
+  #informesAgentesActividades #aaTabla .tabulator-header .tabulator-col {
+    min-height: 24px;
+  }
+
+  #informesAgentesActividades #aaTabla .tabulator-header .tabulator-col[aria-sort="none"] .tabulator-arrow,
+  #informesAgentesActividades #aaTabla .tabulator-header .tabulator-col[aria-sort="ascending"] .tabulator-arrow {
+    border-bottom-color: #fff;
+  }
+
+  #informesAgentesActividades #aaTabla .tabulator-header .tabulator-col[aria-sort="descending"] .tabulator-arrow {
+    border-top-color: #fff;
+  }
+
+  #informesAgentesActividades #aaTabla .tabulator-col-content {
+    padding: 1px 3px !important;
+  }
+
+  #informesAgentesActividades #aaTabla .tabulator-header-filter input {
+    height: 18px;
+    padding: 1px 3px;
+    font-size: inherit;
+    color: #212529;
+    background: #fff;
+  }
+
+  #informesAgentesActividades #aaTabla .tabulator-cell {
+    padding: 1px 3px !important;
+    line-height: 1.1 !important;
+  }
+
+  #informesAgentesActividades #aaTabla .tabulator-row,
+  #informesAgentesActividades #aaTabla .tabulator-calcs-holder .tabulator-row {
+    min-height: 18px !important;
+  }
+
+  #informesAgentesActividades #aaTabla .tabulator-col-title {
+    line-height: 1.05;
+    white-space: normal;
+  }
+
+  #informesAgentesActividades .aa-single-card {
+    gap: 0.6rem;
+    min-width: 0;
+  }
+
+  #informesAgentesActividades .aa-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.5rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid var(--notion-border);
+  }
+
+  #informesAgentesActividades .aa-filter-field {
+    flex: 1 1 17rem;
+    min-width: 12rem;
+  }
+
+  #informesAgentesActividades .aa-filter-actions {
+    display: flex;
+    flex: 0 1 19rem;
+    gap: 0.5rem;
+    min-width: 17rem;
+  }
+
+  #informesAgentesActividades .informes-aa-table {
+    width: 100%;
+    min-width: 0;
+    min-height: 24rem;
+    max-height: calc(72vh - 8rem);
+    overflow: hidden;
+  }
+
+  #informesAgentesActividades .informes-aa-table .tabulator-tableholder {
+    overflow-x: auto;
+    overflow-y: auto;
+  }
+
+  #informesAgentesActividades .aa-table-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  #informesAgentesActividades .aa-checklist-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    position: relative;
+  }
+
+  #informesAgentesActividades .aa-checklist-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: 1.95rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    background: #fff;
+    color: #333;
+    font-size: 0.78rem;
+    text-align: left;
+  }
+
+  #informesAgentesActividades .aa-checklist-toggle::after {
+    content: '▾';
+    color: #6c757d;
+    margin-left: auto;
+  }
+
+  #informesAgentesActividades .aa-checklist-toggle-count {
+    flex: 0 0 auto;
+    color: #6c757d;
+    font-size: 0.68rem;
+  }
+
+  #informesAgentesActividades .aa-checklist-panel {
+    position: absolute;
+    z-index: 1080;
+    top: calc(100% + 0.15rem);
+    left: 0;
+    right: 0;
+    padding: 0.35rem;
+    border: 1px solid #dfe5e1;
+    border-radius: 0.45rem;
+    background: #fff;
+    box-shadow: 0 0.45rem 1.2rem rgba(23, 54, 35, 0.16);
+  }
+
+  #informesAgentesActividades .aa-checklist-list {
+    max-height: 10rem;
+    overflow: auto;
+  }
+
+  #informesAgentesActividades .aa-checklist-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.45rem;
+    padding: 0.22rem 0.3rem;
+    border-radius: 0.3rem;
+    color: #222;
+    font-size: 0.76rem;
+    font-weight: 500;
+    line-height: 1.2;
+    text-transform: none;
+    letter-spacing: 0;
+    cursor: pointer;
+  }
+
+  #informesAgentesActividades .aa-checklist-option:hover {
+    background: #eef6ef;
+  }
+
+  #informesAgentesActividades .aa-checklist-option-all {
+    margin-bottom: 0.25rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid #e5e9e6;
+  }
+
+  #informesAgentesActividades .aa-checklist-option input {
+    margin-top: 0.08rem;
+    accent-color: var(--primary-gc-color, #276836);
   }
 
   #informesAuditoriaAsignaciones .ia-checklist-picker {
@@ -901,6 +1097,97 @@
             </div>
           </div>
 
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 3: Agentes por actividad -->
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed d-flex align-items-center gap-2" type="button" data-bs-toggle="collapse"
+        data-bs-target="#informesAgentesActividades" aria-expanded="false">
+        <i class="bi bi-person-lines-fill text-secondary" style="font-size: 0.86rem"></i>
+        <span class="fw-semibold text-dark" style="font-size: 0.82rem">
+          Agentes por Actividad y Semana
+        </span>
+      </button>
+    </h2>
+    <div id="informesAgentesActividades" class="accordion-collapse collapse" data-bs-parent="#informesAccordion">
+      <div class="accordion-body">
+        <div class="informes-card-compact aa-single-card">
+
+          <div class="informes-card-filtros">
+            <div class="text-danger fst-italic">Importante: El informe se basa en
+              cuadrantes consolidados</div>
+            <h6 class="informes-section-title">Filtros: </h6>
+            <div class="aa-filter-bar">
+              <div class="informes-filter-group aa-filter-field">
+                <label for="aaFechaInicio">Fecha de inicio</label>
+                <input class="form-control form-control-sm" id="aaFechaInicio" type="date">
+              </div>
+              <div class="informes-filter-group aa-filter-field">
+                <label for="aaFechaFin">Fecha de fin</label>
+                <input class="form-control form-control-sm" id="aaFechaFin" type="date">
+              </div>
+              <div class="informes-filter-group aa-filter-field">
+                <label for="aaGrupo">Grupos de actividad</label>
+                <div class="aa-checklist-picker" id="aaGrupoPicker">
+                  <button type="button" class="aa-checklist-toggle" id="aaGrupoToggle" aria-expanded="false">
+                    <span id="aaGrupoLabel">Seleccionar grupos</span>
+                    <span class="aa-checklist-toggle-count" id="aaGrupoCount">Ninguno</span>
+                  </button>
+                  <div class="aa-checklist-panel d-none" id="aaGrupoPanel">
+                    <div class="aa-checklist-list" id="aaGrupoChecklist"></div>
+                  </div>
+                </div>
+                <select class="form-select form-select-sm d-none" id="aaGrupo" multiple size="7"></select>
+              </div>
+              <div class="informes-filter-group aa-filter-field">
+                <label for="aaActividades">Actividades concretas</label>
+                <div class="aa-checklist-picker" id="aaActividadesPicker">
+                  <button type="button" class="aa-checklist-toggle" id="aaActividadesToggle" aria-expanded="false">
+                    <span id="aaActividadesLabel">Seleccionar actividades</span>
+                    <span class="aa-checklist-toggle-count" id="aaActividadesCount">Ninguna</span>
+                  </button>
+                  <div class="aa-checklist-panel d-none" id="aaActividadesPanel">
+                    <div class="aa-checklist-list" id="aaActividadesChecklist"></div>
+                  </div>
+                </div>
+                <select class="form-select form-select-sm d-none" id="aaActividades" multiple size="7"></select>
+              </div>
+
+              <div class="form-check form-switch">
+                <label class="form-check-label" for="aaSoloPernoctas"> (Off) Todos los servicios / (on)Solo
+                  Pernoctas</label>
+                <input class="form-check-input" id="aaSoloPernoctas" type="checkbox" role="switch" checked title="(On) Solo muestra servicios clasificados como pernocta (Off) Muestra todos los
+                  servicios">
+              </div>
+              <div class="aa-filter-actions">
+                <button class="btn btn-primary w-100" id="btnAaGenerar" type="button">
+                  <i class="bi bi-table me-1"></i>Generar tabla
+                </button>
+                <button class="btn btn-success w-100" id="btnAaExcel" type="button" disabled>
+                  <i class="bi bi-file-earmark-excel me-1"></i>Excel
+                </button>
+              </div>
+              <div id="aaError" class="alert alert-danger informes-hidden py-1 px-2 mb-0" style="font-size:0.78rem"
+                role="alert"></div>
+              <div class="text-muted" style="font-size:0.7rem">
+
+                Los ajustes empiezan en 0, son temporales y se reinician al cambiar los filtros.
+              </div>
+            </div>
+          </div>
+          <div class="aa-table-heading">
+            <h6 class="informes-section-title mb-0">Resultado por semanas</h6>
+            <span id="aaResumen" class="badge bg-secondary" style="font-size:0.72rem;display:none"></span>
+          </div>
+          <div id="aaTabla" class="informes-aa-table">
+            <div class="text-center text-muted py-5" style="font-size:0.82rem">
+              Selecciona fechas, grupo y actividades, y pulsa <strong>Generar tabla</strong>.
+            </div>
+          </div>
         </div>
       </div>
     </div>

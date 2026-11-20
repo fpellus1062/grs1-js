@@ -23,6 +23,7 @@ const {
   plantillaIdParamSchema,
   plantillaEstadoSchema,
   assignPlantillaSchema,
+  deleteAsignacionesSchema,
   registerEjecucionSchema,
   registerEjecucionBulkSchema,
   registerEjecucionMultiSchema,
@@ -100,6 +101,12 @@ router.post(
   authorize('agentes-requisitos:editar'),
   validate(assignPlantillaSchema),
   requisitosController.assignPlantilla
+);
+router.delete(
+  '/requisitos/asignaciones',
+  authorize('agentes-requisitos:editar'),
+  validate(deleteAsignacionesSchema),
+  requisitosController.deleteAsignaciones
 );
 router.post(
   '/requisitos/ejecuciones',

@@ -4,6 +4,8 @@ const cuadrantePdfService = require('../services/cuadrantePdf.service');
 const historialPdfService = require('../services/asignacionesHistorialPdf.service');
 const historialExcelService = require('../services/asignacionesHistorialExcel.service');
 const resumenActividadesExcelService = require('../services/resumenActividadesExcel.service');
+const informeAgentesActividadesService = require('../services/informeAgentesActividades.service');
+const informeAgentesActividadesExcelService = require('../services/informeAgentesActividadesExcel.service');
 const ApiError = require('../utils/ApiError');
 
 function sanitizeFilePart(value, fallback) {
@@ -163,6 +165,13 @@ exports.getCuadrante = async (req, res, next) => {
         : null;
     const fechaFin =
       req.query && req.query.fecha_fin ? String(req.query.fecha_fin) : null;
+    const requisitosCuadranteId = req.query && req.query.requisitos_cuadrante_id != null
+      ? Number(req.query.requisitos_cuadrante_id)
+      : null;
+    if (requisitosCuadranteId != null &&
+        (!Number.isInteger(requisitosCuadranteId) || requisitosCuadranteId <= 0)) {
+      return next(new ApiError(400, 'requisitos_cuadrante_id debe ser un identificador válido'));
+    }
     const data = await service.getCuadrante(
       Number(anio),
       Number(mes),
@@ -174,6 +183,7 @@ exports.getCuadrante = async (req, res, next) => {
         fecha_corte: fechaCorte,
         fecha_inicio: fechaInicio,
         fecha_fin: fechaFin,
+        requisitos_cuadrante_id: requisitosCuadranteId,
       }
     );
     res.json({ ok: true, ...data });
@@ -646,11 +656,19 @@ exports.obtenerResumenActividades = async (req, res, next) => {
     const borradorId = req.query.borrador_id ? Number(req.query.borrador_id) : null;
     const source     = req.query.source ? String(req.query.source).toLowerCase() : null;
     const fechasFiltro = req.query.fechas
-      ? String(req.query.fechas).split(',').filter((f) => /^\d{4}-\d{2}-\d{2}$/.test(f.trim()))
+      ? String(req.query.fechas)
+          .split(',')
+          .map((f) => f.trim())
+          .filter((f) => /^\d{4}-\d{2}-\d{2}$/.test(f))
       : [];
+    const fechasOrdenadas = Array.from(new Set(fechasFiltro)).sort();
 
     const [cuadranteData, metaData] = await Promise.all([
-      service.getCuadrante(anio, mes, borradorId, req.user, req.arsId, { source }),
+      service.getCuadrante(anio, mes, borradorId, req.user, req.arsId, {
+        source,
+        fecha_inicio: fechasOrdenadas[0] || null,
+        fecha_fin: fechasOrdenadas[fechasOrdenadas.length - 1] || null,
+      }),
       service.getMeta(req.arsId),
     ]);
 
@@ -670,6 +688,101 @@ exports.obtenerResumenActividades = async (req, res, next) => {
   }
 };
 
+function parseInformeAgentesParams(req) {
+  const source = req.method === 'POST' ? req.body : req.query;
+  const fechaInicio = source && source.fecha_inicio;
+  const fechaFin = source && source.fecha_fin;
+  const soloPernoctasRaw = source && source.solo_pernoctas;
+  const grupoIds = informeAgentesActividadesService.parsePositiveIds(
+    source && (source.grupo_ids != null ? source.grupo_ids : source.grupo_id)
+  );
+  const actividadIds = informeAgentesActividadesService.parsePositiveIds(
+    source && source.actividad_ids
+  );
+  try {
+    informeAgentesActividadesService.buildWeeks(fechaInicio, fechaFin);
+  } catch (error) {
+    throw new ApiError(400, error.message);
+  }
+  if (soloPernoctasRaw != null && ![true, false, 'true', 'false'].includes(soloPernoctasRaw)) {
+    throw new ApiError(400, 'solo_pernoctas debe ser true o false');
+  }
+  if (!grupoIds.length) {
+    throw new ApiError(400, 'Selecciona al menos un grupo');
+  }
+  if (!actividadIds.length) {
+    throw new ApiError(400, 'Selecciona al menos una actividad');
+  }
+  return {
+    fechaInicio,
+    fechaFin,
+    soloPernoctas: soloPernoctasRaw === true || soloPernoctasRaw === 'true',
+    grupoIds,
+    actividadIds,
+  };
+}
+
+exports.getInformeAgentesActividadesContexto = async (req, res, next) => {
+  try {
+    const contexto = await informeAgentesActividadesService.getContexto();
+    res.json({ ok: true, ...contexto });
+  } catch (error) {
+    next(new ApiError(500, error.message || 'Error al cargar el informe'));
+  }
+};
+
+exports.getInformeAgentesActividadesOpciones = async (req, res, next) => {
+  try {
+    const grupoIds = informeAgentesActividadesService.parsePositiveIds(
+      req.query.grupo_ids != null ? req.query.grupo_ids : req.query.grupo_id
+    );
+    if (!grupoIds.length) {
+      return next(new ApiError(400, 'Selecciona al menos un grupo'));
+    }
+    const actividades = await informeAgentesActividadesService.getActividadesGrupo(grupoIds);
+    res.json({ ok: true, actividades });
+  } catch (error) {
+    next(new ApiError(500, error.message || 'Error al cargar actividades'));
+  }
+};
+
+exports.getInformeAgentesActividades = async (req, res, next) => {
+  try {
+    const params = parseInformeAgentesParams(req);
+    const data = await informeAgentesActividadesService.getInforme({
+      arsUnidadId: req.arsId,
+      ...params,
+    });
+    res.json({ ok: true, ...data });
+  } catch (error) {
+    next(error instanceof ApiError ? error : new ApiError(400, error.message || 'Error al generar el informe'));
+  }
+};
+
+exports.exportarInformeAgentesActividades = async (req, res, next) => {
+  try {
+    const params = parseInformeAgentesParams(req);
+    const data = await informeAgentesActividadesService.getInforme({
+      arsUnidadId: req.arsId,
+      ...params,
+    });
+    const ajustesRaw =
+      req.body && req.body.ajustes && typeof req.body.ajustes === 'object'
+        ? req.body.ajustes
+        : {};
+    const ajustes = {};
+    Object.entries(ajustesRaw).forEach(([key, value]) => {
+      const parsed = Number(value);
+      if (/^\d+:\d+$/.test(key) && Number.isInteger(parsed)) ajustes[key] = parsed;
+    });
+    await informeAgentesActividadesExcelService.exportar(res, data, ajustes);
+  } catch (error) {
+    if (!res.headersSent) {
+      next(error instanceof ApiError ? error : new ApiError(400, error.message || 'Error al exportar el informe'));
+    }
+  }
+};
+
 exports.exportarResumenActividades = async (req, res, next) => {
   try {
     const anio = Number(req.query.anio);
@@ -680,11 +793,19 @@ exports.exportarResumenActividades = async (req, res, next) => {
     const borradorId = req.query.borrador_id ? Number(req.query.borrador_id) : null;
     const source     = req.query.source ? String(req.query.source).toLowerCase() : null;
     const fechasFiltro = req.query.fechas
-      ? String(req.query.fechas).split(',').filter((f) => /^\d{4}-\d{2}-\d{2}$/.test(f.trim()))
+      ? String(req.query.fechas)
+          .split(',')
+          .map((f) => f.trim())
+          .filter((f) => /^\d{4}-\d{2}-\d{2}$/.test(f))
       : [];
+    const fechasOrdenadas = Array.from(new Set(fechasFiltro)).sort();
 
     const [cuadranteData, metaData] = await Promise.all([
-      service.getCuadrante(anio, mes, borradorId, req.user, req.arsId, { source }),
+      service.getCuadrante(anio, mes, borradorId, req.user, req.arsId, {
+        source,
+        fecha_inicio: fechasOrdenadas[0] || null,
+        fecha_fin: fechasOrdenadas[fechasOrdenadas.length - 1] || null,
+      }),
       service.getMeta(req.arsId),
     ]);
 
