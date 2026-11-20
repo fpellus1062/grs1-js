@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ayuda · Agentes por Actividad y Semana</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+</head>
+
+<body class="bg-light">
+    <div class="container-xl py-4">
+
+        <div class="d-flex align-items-center gap-2 border-bottom border-3 border-warning pb-2 mb-4">
+            <h1 class="text-warning m-0">
+                <i class="bi bi-people"></i>
+                Agentes por Actividad y Semana
+            </h1>
+        </div>
+
+        <div class="alert alert-danger d-flex align-items-start rounded-4 mb-4" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
+            <div>
+                <strong>Importante:</strong> el informe se basa en <strong>cuadrantes consolidados</strong>.
+                Los servicios de cuadrantes sin consolidar no se contabilizan.
+            </div>
+        </div>
+
+        <div class="row g-4">
+
+            <!-- Filtros -->
+            <div class="col-12 col-lg-5">
+                <div class="card shadow-sm border-0 rounded-4 h-100">
+                    <div class="card-header bg-primary bg-opacity-10 border-0 rounded-top-4 py-3">
+                        <h5 class="mb-0 fw-bold text-primary">
+                            <i class="bi bi-funnel me-2"></i>
+                            Filtros
+                        </h5>
+                    </div>
+
+                    <div class="card-body">
+
+                        <p class="text-muted">
+                            Define el período y las actividades que quieres contabilizar antes de generar el informe.
+                        </p>
+
+                        <ul class="small">
+                            <li><strong>Fecha de inicio / Fecha de fin:</strong> Rango exacto de fechas a analizar.</li>
+                            <li><strong>Grupos de actividad:</strong> Grupos incluidos en el informe. Cada grupo genera
+                                su propio bloque de columnas en la tabla.</li>
+                            <li><strong>Actividades concretas:</strong> Permite afinar qué actividades dentro de los
+                                grupos se cuentan.</li>
+                            <li><strong>Interruptor Servicios / Pernoctas:</strong> En OFF se cuentan todos los
+                                servicios; en ON, solo las pernoctas.</li>
+                        </ul>
+
+                        <p class="text-muted">
+                            Una vez configurados los filtros, puedes:
+                        </p>
+
+                        <ul class="small mb-0">
+                            <li><strong>Generar tabla:</strong> Muestra el resultado por semanas.</li>
+                            <li><strong>Excel:</strong> Descarga el informe, incluidos los ajustes aplicados.</li>
+                        </ul>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla -->
+            <div class="col-12 col-lg-7">
+                <div class="card shadow-sm border-0 rounded-4 h-100">
+                    <div class="card-header bg-success bg-opacity-10 border-0 rounded-top-4 py-3">
+                        <h5 class="mb-0 fw-bold text-success">
+                            <i class="bi bi-list-ol me-2"></i>
+                            Resultado por semanas
+                        </h5>
+                    </div>
+
+                    <div class="card-body">
+
+                        <p class="text-muted">
+                            La tabla muestra el recuento de servicios de cada agente en el período seleccionado.
+                            El número de agentes encontrados aparece en la esquina superior derecha.
+                        </p>
+
+                        <ul class="small">
+                            <li><strong>Pelotón, TIP, Nombre y Empleo:</strong> Datos de identificación del agente. Cada
+                                columna tiene un filtro de texto y se puede ordenar pulsando la cabecera.</li>
+                            <li><strong>Resumen general:</strong> Suma de todas las actividades seleccionadas.</li>
+                            <li><strong>Bloque por grupo de actividad:</strong> Recuento por semana y totales de ese
+                                grupo.</li>
+                            <li><strong>Total calculado:</strong> Valor obtenido automáticamente de los cuadrantes.</li>
+                            <li><strong>Ajuste:</strong> Corrección manual sumada o restada al cálculo.</li>
+                            <li><strong>Total final:</strong> Total calculado más el ajuste.</li>
+                        </ul>
+
+                        <p class="text-muted mb-0">
+                            La última fila de la tabla suma cada columna para todos los agentes mostrados.
+                        </p>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ajustes -->
+            <div class="col-12 col-lg-6">
+                <div class="card shadow-sm border-0 rounded-4 h-100">
+                    <div class="card-header bg-warning bg-opacity-10 border-0 rounded-top-4 py-3">
+                        <h5 class="mb-0 fw-bold text-warning">
+                            <i class="bi bi-sliders me-2"></i>
+                            Ajustes manuales
+                        </h5>
+                    </div>
+
+                    <div class="card-body">
+
+                        <p class="text-muted">
+                            Sirven para corregir el recuento automático cuando no refleja la realidad.
+                        </p>
+
+                        <ul class="small mb-0">
+                            <li>Empiezan siempre en <strong>0</strong>.</li>
+                            <li>Son <strong>temporales</strong>: no modifican los cuadrantes ni los datos originales.
+                            </li>
+                            <li>Se <strong>reinician al cambiar los filtros</strong>, así que exporta a Excel antes de
+                                modificarlos.</li>
+                        </ul>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pernoctas -->
+            <div class="col-12 col-lg-6">
+                <div class="card shadow-sm border-0 rounded-4 h-100">
+                    <div class="card-header bg-info bg-opacity-10 border-0 rounded-top-4 py-3">
+                        <h5 class="mb-0 fw-bold text-info">
+                            <i class="bi bi-moon-stars me-2"></i>
+                            Todos los servicios / Solo pernoctas
+                        </h5>
+                    </div>
+
+                    <div class="card-body">
+
+                        <p class="text-muted">
+                            El interruptor situado a la derecha de los filtros cambia qué se contabiliza.
+                        </p>
+
+                        <ul class="small mb-0">
+                            <li><strong>OFF:</strong> Todos los servicios de las actividades seleccionadas.</li>
+                            <li><strong>ON:</strong> Solo los servicios que conllevan pernocta.</li>
+                        </ul>
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
