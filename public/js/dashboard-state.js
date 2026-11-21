@@ -149,7 +149,7 @@ window.GRS1Dashboard = {
     { id: 'agentesSection', path: 'includes/agentes/section.html' },
     {
       id: 'agentesAccionesSection',
-      path: 'includes/agentes-acciones/section.html?v=20260504c',
+      path: 'includes/agentes-acciones/section.html?v=20261121a',
     },
     {
       id: 'agentesRequisitosSection',

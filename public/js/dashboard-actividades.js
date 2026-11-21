@@ -120,7 +120,7 @@
   function fechaBajaFormatter(cell) {
     const val = cell.getValue();
     if (!val) {
-      return window.GRS1Utils.renderSemanticBadgeHtml('Activa', 'success', {
+      return window.GRS1Utils.renderSemanticBadgeHtml('Servicio Activo', 'success', {
         escapeHtmlFn: app.escapeHtml,
       });
     }
@@ -665,7 +665,7 @@
                 }
 
                 if (field === 'fecha_baja') {
-                  return formatTimestampWithoutZone(row.fecha_baja) || 'Activa';
+                  return formatTimestampWithoutZone(row.fecha_baja) || 'Servicio Activo';
                 }
 
                 return row[field] ?? '';

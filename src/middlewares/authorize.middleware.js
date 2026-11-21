@@ -14,7 +14,7 @@ const {
  * Compatibilidad legacy (tokens sin role_id):
  *   authorize('admin')  → sigue funcionando para tokens antiguos
  */
-module.exports = (...requiredPermisos) => {
+const authorize = (...requiredPermisos) => {
   // Aplanar si pasaron un array como primer argumento
   const permisos =
     requiredPermisos.length === 1 && Array.isArray(requiredPermisos[0])
@@ -89,4 +89,26 @@ module.exports = (...requiredPermisos) => {
       });
     }
   };
+
 };
+
+authorize.admin = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({
+      ok: false,
+      message: 'Usuario no autenticado',
+    });
+  }
+
+  const roleName = String(req.user.role || '').trim().toLowerCase();
+  if (roleName !== 'admin' && roleName !== 'administrador') {
+    return res.status(403).json({
+      ok: false,
+      message: 'Solo el rol Administrador puede realizar esta acción',
+    });
+  }
+
+  next();
+};
+
+module.exports = authorize;

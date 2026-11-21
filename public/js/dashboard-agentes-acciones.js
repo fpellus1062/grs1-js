@@ -647,7 +647,8 @@
       { title: 'Aptitudes', field: 'aptitudes', minWidth: 140 },
       { title: 'Situacion', field: 'situacion_display', minWidth: 140, formatter: formatSituacionColorBadge },
       { title: 'Comentarios', field: 'comentarios', minWidth: 160 },
-      { title: 'Fecha Baja', field: 'fecha_baja', width: 130, hozAlign: 'center' },
+      { title: 'Fecha Alta', field: 'created_at', width: 154, formatter: formatTimestamp },
+      { title: 'Fecha Baja', field: 'fecha_baja', width: 154, formatter: formatTimestamp },
       { title: 'Agrupación ID', field: 'ars_unidad_id', width: 120, hozAlign: 'center' },
     ];
   }
@@ -780,6 +781,38 @@
     );
   }
 
+  function timestampText(value) {
+    if (!value) return '';
+    let DateTime = window.luxon && window.luxon.DateTime;
+    if (!DateTime) return String(value);
+    let date = DateTime.fromSQL(String(value));
+    if (!date.isValid) date = DateTime.fromISO(String(value));
+    return date.isValid ? date.setLocale('es').toFormat('dd/MM/yyyy HH:mm:ss') : String(value);
+  }
+
+  function formatTimestamp(cell) {
+    return esc(timestampText(cell.getValue()));
+  }
+
+  function formatFechaBaja(cell) {
+    let value = cell.getValue();
+    return window.GRS1Utils.renderSemanticBadgeHtml(
+      value ? timestampText(value) : 'Agente Activo',
+      value ? 'danger' : 'success',
+      { escapeHtmlFn: esc }
+    );
+  }
+
+  function formatEscalafon(cell) {
+    let value = cell.getValue();
+    if (!value) return '';
+    return window.GRS1Utils.renderColorBadgeHtml(
+      String(value),
+      cell.getRow().getData().empleo_color || '#6c757d',
+      { escapeHtmlFn: esc, className: 'badge', fontSize: '0.82em', contrastThreshold: 0.6 }
+    );
+  }
+
   function withStandardHeaderFilters(columns) {
     return (columns || []).map(function (col) {
       if (!col || typeof col !== 'object') return col;
@@ -815,10 +848,13 @@
         { title: 'Avatar', field: 'tip', width: 74, hozAlign: 'center', frozen: true, headerSort: false, formatter: avatarFormatter },
         { title: 'TIP', field: 'tip', width: 110, frozen: true },
         { title: 'NIF', field: 'nif', width: 105, frozen: true },
-        { title: 'Nombre', field: 'nombre', minWidth: 160, frozen: true },
-        { title: 'Empleo', field: 'empleo_nombre', minWidth: 120,  frozen: true,formatter: formatEmpleoColorBadge },
-        { title: 'Fecha Nombramiento', field: 'fecha_ant_empleo',  frozen: true,width: 130, hozAlign: 'center' },
-        { title: 'Orden', field: 'orden_gc', width: 80, hozAlign: 'center', frozen: true },
+        { title: 'Nombre', field: 'nombre', minWidth: 220 },
+        { title: 'Empleo', field: 'empleo_nombre', minWidth: 120, formatter: formatEmpleoColorBadge },
+        { title: 'Escalafón', field: 'escalafon', minWidth: 120, formatter: formatEscalafon },
+        { title: 'Fecha Nombramiento', field: 'fecha_ant_empleo', width: 150, hozAlign: 'center' },
+        { title: 'Orden', field: 'orden_gc', width: 80, hozAlign: 'center' },
+        { title: 'Fecha Alta', field: 'created_at', width: 154, formatter: formatTimestamp },
+        { title: 'Fecha Baja', field: 'fecha_baja', width: 154, formatter: formatFechaBaja },
       ]);
     }
     if (mode === 'resultado') {
@@ -879,8 +915,9 @@
       locale: 'es-es',
       langs: TABULATOR_LANGS,
       reactiveData: false,
-      layout: 'fitColumns',
-      height: '380',
+      layout: mode === 'bajas-seleccion' ? 'fitData' : 'fitColumns',
+      height: 'calc(100vh - 260px)',
+      minHeight: 440,
       placeholder: placeholders[mode] || 'Sin datos',
       selectable: isSelectable,
       columnDefaults: { headerSort: true, resizable: true },
@@ -1215,6 +1252,7 @@
         situacion_display: String(situacionResolved.situacion_display || sourceRow.situacion_id || ''),
         situacion_color: String(situacionResolved.situacion_color || '#6c757d'),
         comentarios: String(sourceRow.comentarios || ''),
+        created_at: String(sourceRow.created_at || ''),
         fecha_baja: String(sourceRow.fecha_baja || ''),
         ars_unidad_id: String(sourceRow.ars_unidad_id || ''),
         status: String(item.status || ''),
@@ -1497,6 +1535,9 @@ function mapAgenteRowForBajas(row, empleoLookup) {
       .join(' '),
     empleo_nombre: resolved.empleo_nombre,
     empleo_color: resolved.empleo_color,
+    escalafon: String(row.escalafon || ''),
+    created_at: String(row.created_at || ''),
+    fecha_baja: String(row.fecha_baja || ''),
     fecha_ant_empleo: String(row.fecha_ant_empleo || ''),
     orden_gc: String(row.orden_gc || ''),
   };

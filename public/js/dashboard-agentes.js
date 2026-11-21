@@ -1807,7 +1807,7 @@
   function fechaBajaFormatter(cell) {
     let val = cell.getValue();
     if (!val) {
-      return window.GRS1Utils.renderSemanticBadgeHtml('Activa', 'success', {
+      return window.GRS1Utils.renderSemanticBadgeHtml('Agente Activo', 'success', {
         escapeHtmlFn: app.escapeHtml,
       });
     }

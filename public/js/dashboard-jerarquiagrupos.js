@@ -1300,7 +1300,7 @@
           formatter: function (cell) {
             let val = cell.getValue();
             if (!val) {
-              return window.GRS1Utils.renderSemanticBadgeHtml('Activa', 'success', {
+              return window.GRS1Utils.renderSemanticBadgeHtml('Servicio Activo', 'success', {
                 escapeHtmlFn: app.escapeHtml,
               });
             }
@@ -1651,7 +1651,7 @@
     if (!displayEl || !btnEl) return;
     if (!fechaBaja) {
       displayEl.innerHTML = window.GRS1Utils.renderSemanticBadgeHtml(
-        'Activa',
+        'Servicio Activo',
         'success',
         { escapeHtmlFn: app.escapeHtml }
       );

@@ -92,7 +92,7 @@ router.patch(
 );
 router.delete(
   '/requisitos/plantillas/:id',
-  authorize('agentes-requisitos:editar'),
+  authorize.admin,
   validate(plantillaIdParamSchema, 'params'),
   requisitosController.deletePlantilla
 );
@@ -104,7 +104,7 @@ router.post(
 );
 router.delete(
   '/requisitos/asignaciones',
-  authorize('agentes-requisitos:editar'),
+  authorize.admin,
   validate(deleteAsignacionesSchema),
   requisitosController.deleteAsignaciones
 );
